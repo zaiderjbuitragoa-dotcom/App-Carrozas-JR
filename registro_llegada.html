@@ -1249,25 +1249,24 @@
     // ── WHATSAPP ──────────────────────────────────────────
     function enviarWA() {
         const horaActual = new Date().getHours();
-        let saludo = '';
-        if (horaActual >= 6 && horaActual < 12)  saludo = 'Buenos Días ☀️';
-        else if (horaActual >= 12 && horaActual < 18) saludo = 'Buenas Tardes 🌤️';
-        else saludo = 'Buenas Noches 🌙';
+        const saludo = horaActual < 12 ? '*Buenos Días* ☀️' : horaActual < 18 ? '*Buenas Tardes* 🌤️' : '*Buenas Noches* 🌙';
 
         const totalKM = datosFinales.total_km
             ? datosFinales.total_km + ' km'
             : 'No disponible';
 
         const msg = saludo + '\n\n' +
-            '🏁 *Reporte de Llegada De Carroza*\n\n' +
+            '*REPORTE DE LLEGADA DE CARROZA* 🏁\n' +
+            '───────────────────\n' +
             '*Placa:* '          + datosFinales.placa          + '\n' +
             '*Hora Llegada:* '   + datosFinales.hora_ingreso   + '\n' +
             '*KM Ingreso:* '     + parseInt(datosFinales.km_ingreso).toLocaleString('es-CO') + '\n' +
             '*Total KM:* '       + totalKM                     + '\n' +
             '*Estado Entrega:* ' + datosFinales.estado_entrega + '\n' +
             (datosFinales.combustible_resultante ? '*Combustible Actual:* ' + datosFinales.combustible_resultante + '\n' : '') +
-            '*Recibido Por:* '   + datosFinales.recibido_por   + '\n\n' +
-            '📝 *Observaciones:* ' + (datosFinales.observaciones || 'Sin novedades') + '\n\n' +
+            '*Recibido Por:* '   + datosFinales.recibido_por   + '\n' +
+            '───────────────────\n' +
+            '*📝 Observaciones:* ' + (datosFinales.observaciones || 'Sin novedades') + '\n\n' +
             '✅ *Servicio completado exitosamente* 🙏';
 
         window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
