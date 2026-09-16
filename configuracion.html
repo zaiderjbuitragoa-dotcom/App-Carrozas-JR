@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J.R. — Configuración del Sistema</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --azul: #1e3a8a;
+            --azul-claro: #dbeafe;
+            --blanco: #ffffff;
+            --fondo: #f8faff;
+            --borde: #e2e8f0;
+            --texto: #1e293b;
+            --gris: #64748b;
+            --verde: #10b981;
+            --rojo: #ef4444;
+            --amarillo: #f59e0b;
+            --sidebar-w: 210px;
+        }
+
+        body {
+            background: var(--fondo);
+            font-family: 'DM Sans', sans-serif;
+            color: var(--texto);
+        }
+
+        /* ── SIDEBAR ── */
+        .sidebar {
+            position: fixed; top: 0; left: 0; bottom: 0;
+            width: var(--sidebar-w);
+            background: var(--blanco);
+            border-right: 1.5px solid var(--borde);
+            display: flex; flex-direction: column;
+            z-index: 100;
+        }
+        .sidebar-logo {
+            padding: 20px 18px 16px;
+            border-bottom: 1.5px solid var(--borde);
+        }
+        .sidebar-logo .app-name {
+            font-size: 16px; font-weight: 800; color: var(--azul);
+        }
+        .sidebar-logo .app-sub {
+            font-size: 10px; color: var(--gris); text-transform: uppercase; margin-top: 2px;
+        }
+
+        .nav-section { padding: 12px 10px 4px; }
+        .nav-section-label {
+            font-size: 9px; font-weight: 700; color: #94a3b8;
+            text-transform: uppercase; letter-spacing: 1px;
+            padding: 0 8px; margin-bottom: 4px;
+        }
+        .nav-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 12px; border-radius: 10px;
+            color: var(--gris); cursor: pointer; transition: 0.15s;
+            font-size: 13px; font-weight: 500; margin-bottom: 2px;
+        }
+        .nav-item:hover { background: var(--fondo); color: var(--texto); }
+        .nav-item.active { background: var(--azul-claro); color: var(--azul); font-weight: 700; }
+        .nav-item .icon { font-size: 16px; width: 20px; text-align: center; }
+
+        .sidebar-footer {
+            margin-top: auto; padding: 16px;
+            border-top: 1.5px solid var(--borde);
+        }
+        .btn-volver-dash {
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+            background: var(--fondo); color: var(--gris);
+            border: 1.5px solid var(--borde); border-radius: 10px;
+            padding: 10px; font-weight: 700; font-size: 12px;
+            cursor: pointer; text-decoration: none; transition: 0.15s; width: 100%;
+        }
+        .btn-volver-dash:hover { background: var(--azul-claro); color: var(--azul); border-color: var(--azul); }
+
+        /* ── MAIN ── */
+        .main { margin-left: var(--sidebar-w); padding: 28px; min-height: 100vh; }
+
+        .page-header { margin-bottom: 24px; }
+        .page-header h1 { font-size: 20px; font-weight: 800; color: var(--texto); }
+        .page-header p { color: var(--gris); font-size: 13px; margin-top: 4px; }
+
+        .seccion { display: none; }
+        .seccion.activa { display: block; }
+
+        /* ── CARDS ── */
+        .card {
+            background: var(--blanco); border-radius: 14px; padding: 20px;
+            margin-bottom: 16px; border: 1.5px solid var(--borde);
+        }
+        .card-title {
+            font-size: 12px; font-weight: 700; text-transform: uppercase;
+            color: var(--gris); margin-bottom: 16px;
+            padding-bottom: 10px; border-bottom: 1.5px solid var(--borde);
+            display: flex; align-items: center; gap: 8px; letter-spacing: 0.5px;
+        }
+
+        /* ── FORMS ── */
+        .form-group { margin-bottom: 14px; }
+        label { display: block; font-size: 11px; font-weight: 700; color: var(--gris); margin-bottom: 5px; text-transform: uppercase; }
+        input[type=text], input[type=url], input[type=email], input[type=password], select, textarea {
+            width: 100%; padding: 10px 13px; border: 1.5px solid var(--borde);
+            border-radius: 10px; font-family: inherit; font-size: 14px;
+            color: var(--texto); background: var(--fondo); transition: 0.15s;
+        }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--azul); background: var(--blanco); }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+        /* ── COLOR PICKER ── */
+        .color-row { display: flex; align-items: center; gap: 10px; }
+        input[type=color] {
+            width: 44px; height: 44px; border: 1.5px solid var(--borde);
+            border-radius: 10px; cursor: pointer; padding: 2px; background: none;
+        }
+        .color-hex {
+            flex: 1; height: 44px; border-radius: 10px; border: 1.5px solid var(--borde);
+            display: flex; align-items: center; padding: 0 12px;
+            font-weight: 700; font-family: monospace; font-size: 14px;
+        }
+
+        /* ── TEMAS ── */
+        .temas-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+        .tema-card {
+            border-radius: 10px; overflow: hidden; cursor: pointer;
+            border: 2px solid var(--borde); transition: 0.2s;
+        }
+        .tema-card:hover { transform: scale(1.04); }
+        .tema-card.sel { border-color: var(--azul); box-shadow: 0 0 0 3px var(--azul-claro); }
+        .tema-top { height: 40px; }
+        .tema-bottom { height: 18px; }
+        .tema-label { font-size: 10px; text-align: center; padding: 5px 2px; font-weight: 600; color: var(--gris); background: var(--blanco); }
+
+        /* ── LOGO UPLOAD ── */
+        .logo-drop {
+            border: 2px dashed var(--borde); border-radius: 12px;
+            padding: 28px; text-align: center; cursor: pointer; transition: 0.2s;
+            background: var(--fondo);
+        }
+        .logo-drop:hover { border-color: var(--azul); background: var(--azul-claro); }
+        .logo-drop .icon { font-size: 30px; margin-bottom: 8px; }
+        .logo-drop p { font-size: 13px; color: var(--gris); }
+        .logo-drop small { font-size: 11px; color: #94a3b8; }
+        #logo-preview { max-height: 70px; max-width: 180px; border-radius: 8px; margin: 10px auto 0; display: none; }
+
+        /* ── PREVIEW BADGE ── */
+        .preview-bar {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 16px; border-radius: 10px; margin-top: 14px;
+            font-weight: 700; font-size: 14px; color: white;
+            transition: background 0.3s;
+        }
+
+        /* ── TOGGLE ── */
+        .permiso-row {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 0; border-bottom: 1px solid #f1f5f9; flex-wrap: wrap; gap: 8px;
+        }
+        .permiso-row:last-child { border-bottom: none; }
+        .permiso-info h4 { font-size: 14px; font-weight: 700; }
+        .permiso-info p { font-size: 11px; color: var(--gris); margin-top: 2px; }
+        .toggle { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+        .toggle input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; inset: 0; background: #cbd5e1; border-radius: 24px; cursor: pointer; transition: 0.3s; }
+        .slider:before { content: ""; position: absolute; width: 18px; height: 18px; left: 3px; top: 3px; background: white; border-radius: 50%; transition: 0.3s; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+        input:checked + .slider { background: var(--verde); }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        /* ── USUARIOS ── */
+        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+        .stat-card { background: var(--blanco); border: 1.5px solid var(--borde); border-radius: 12px; padding: 14px; text-align: center; }
+        .stat-num { font-size: 26px; font-weight: 800; color: var(--azul); }
+        .stat-label { font-size: 10px; color: var(--gris); text-transform: uppercase; margin-top: 2px; }
+
+        .usuario-row {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 11px 0; border-bottom: 1px solid #f1f5f9; flex-wrap: wrap; gap: 8px;
+        }
+        .usuario-row:last-child { border-bottom: none; }
+        .avatar { width: 36px; height: 36px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; color: white; flex-shrink: 0; }
+        .u-nombre { font-weight: 700; font-size: 14px; }
+        .u-sub { font-size: 11px; color: var(--gris); }
+        .badge { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 6px; text-transform: uppercase; }
+        .badge-admin { background: var(--azul-claro); color: var(--azul); }
+        .badge-conductor { background: #dcfce7; color: #15803d; }
+        .badge-coordinador { background: #fef9c3; color: #a16207; }
+
+        .btn-sm { font-size: 11px; font-weight: 700; padding: 5px 10px; border-radius: 7px; border: none; cursor: pointer; transition: 0.15s; }
+        .btn-edit { background: var(--azul-claro); color: var(--azul); }
+        .btn-edit:hover { background: var(--azul); color: white; }
+        .btn-del-u { background: #fee2e2; color: var(--rojo); }
+        .btn-del-u:hover { background: var(--rojo); color: white; }
+
+        /* ── BOTÓN GUARDAR ── */
+        .btn-guardar {
+            background: var(--azul); color: white; border: none;
+            width: 100%; padding: 13px; border-radius: 11px;
+            font-weight: 800; font-size: 14px; cursor: pointer; transition: 0.15s;
+            margin-top: 4px; display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .btn-guardar:hover { opacity: 0.9; }
+        .btn-guardar.verde { background: var(--verde); }
+        .btn-add { background: var(--fondo); color: var(--azul); border: 1.5px solid var(--azul); }
+        .btn-add:hover { background: var(--azul-claro); }
+
+        /* ── TOAST ── */
+        .toast {
+            position: fixed; bottom: 20px; right: 20px;
+            padding: 11px 18px; border-radius: 11px; color: white;
+            font-size: 13px; font-weight: 600; z-index: 999;
+            transform: translateY(60px); opacity: 0; transition: 0.3s;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+        }
+        .toast.show { transform: translateY(0); opacity: 1; }
+
+        /* ── MODAL ── */
+        .modal-bg {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.25); backdrop-filter: blur(3px);
+            z-index: 200; align-items: center; justify-content: center;
+        }
+        .modal-bg.open { display: flex; }
+        .modal {
+            background: var(--blanco); border-radius: 16px; padding: 24px;
+            width: 90%; max-width: 400px; max-height: 90vh; overflow-y: auto;
+            border: 1.5px solid var(--borde);
+        }
+        .modal h3 { font-size: 16px; font-weight: 800; color: var(--texto); margin-bottom: 16px; }
+        .modal-btns { display: flex; gap: 10px; margin-top: 14px; }
+        .btn-cancel { flex: 1; padding: 11px; border: 1.5px solid var(--borde); border-radius: 10px; background: var(--blanco); font-weight: 700; cursor: pointer; font-size: 13px; }
+
+        /* ── MOBILE ── */
+        @media (max-width: 680px) {
+            :root { --sidebar-w: 0px; }
+            .sidebar { width: 100%; height: 52px; flex-direction: row; bottom: auto; border-right: none; border-bottom: 1.5px solid var(--borde); overflow-x: auto; padding: 0 8px; }
+            .sidebar-logo { display: none; }
+            .nav-section { display: flex; flex-direction: row; padding: 8px 4px; gap: 2px; }
+            .nav-section-label { display: none; }
+            .nav-item { padding: 8px 10px; border-radius: 8px; font-size: 11px; white-space: nowrap; }
+            .sidebar-footer { display: none; }
+            .main { margin-left: 0; margin-top: 52px; padding: 15px; }
+            .temas-grid { grid-template-columns: repeat(3, 1fr); }
+            .grid-2 { grid-template-columns: 1fr; }
+            .stats-grid { grid-template-columns: repeat(3, 1fr); }
+        }
+    </style>
+</head>
+<body>
+
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+        <div class="app-name">⚙️ Configuración</div>
+        <div class="app-sub">Panel Administrador</div>
+    </div>
+    <div class="nav-section">
+        <div class="nav-section-label">Ajustes</div>
+        <div class="nav-item active" onclick="mostrar('apariencia',this)"><span class="icon">🎨</span>Apariencia</div>
+        <div class="nav-item" onclick="mostrar('usuarios',this)"><span class="icon">👥</span>Usuarios</div>
+        <div class="nav-item" onclick="mostrar('permisos',this)"><span class="icon">🔒</span>Permisos</div>
+        <div class="nav-item" onclick="mostrar('regionales',this)"><span class="icon">📍</span>Regionales</div>
+        <div class="nav-item" onclick="mostrar('sistema',this)"><span class="icon">🛠️</span>Sistema</div>
+    </div>
+    <div class="sidebar-footer">
+        <a href="dashboard.html" class="btn-volver-dash">← Dashboard</a>
+    </div>
+</aside>
+
+<main class="main">
+
+    <!-- ══ APARIENCIA ══ -->
+    <section class="seccion activa" id="sec-apariencia">
+        <div class="page-header">
+            <h1>🎨 Apariencia</h1>
+            <p>Los cambios se aplican a toda la aplicación al guardar</p>
+        </div>
+
+        <div class="card">
+            <div class="card-title">🖼️ Logo y Nombre</div>
+            <div class="logo-drop" onclick="document.getElementById('logo-input').click()">
+                <div class="icon">📁</div>
+                <p>Toca para subir tu logo</p>
+                <small>PNG, JPG — Máx. 2MB</small>
+                <input type="file" id="logo-input" accept="image/*" hidden onchange="previewLogo(this)">
+                <img id="logo-preview">
+            </div>
+            <div class="grid-2" style="margin-top:14px;">
+                <div class="form-group">
+                    <label>Nombre de la Empresa</label>
+                    <input type="text" id="nombre-empresa" placeholder="J.R. CARROZAS" value="J.R. CARROZAS">
+                </div>
+                <div class="form-group">
+                    <label>Slogan</label>
+                    <input type="text" id="slogan-empresa" placeholder="Servicio Funerario Nacional">
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">✨ Temas Predefinidos</div>
+            <div class="temas-grid">
+                <div class="tema-card sel" onclick="aplicarTema('#1e3a8a','#25D366',this)">
+                    <div class="tema-top" style="background:#1e3a8a"></div>
+                    <div class="tema-bottom" style="background:#dbeafe"></div>
+                    <div class="tema-label">Clásico</div>
+                </div>
+                <div class="tema-card" onclick="aplicarTema('#7c3aed','#f59e0b',this)">
+                    <div class="tema-top" style="background:#7c3aed"></div>
+                    <div class="tema-bottom" style="background:#f5f3ff"></div>
+                    <div class="tema-label">Morado</div>
+                </div>
+                <div class="tema-card" onclick="aplicarTema('#0f172a','#38bdf8',this)">
+                    <div class="tema-top" style="background:#0f172a"></div>
+                    <div class="tema-bottom" style="background:#1e293b"></div>
+                    <div class="tema-label">Oscuro</div>
+                </div>
+                <div class="tema-card" onclick="aplicarTema('#065f46','#fbbf24',this)">
+                    <div class="tema-top" style="background:#065f46"></div>
+                    <div class="tema-bottom" style="background:#ecfdf5"></div>
+                    <div class="tema-label">Verde</div>
+                </div>
+                <div class="tema-card" onclick="aplicarTema('#9f1239','#fb923c',this)">
+                    <div class="tema-top" style="background:#9f1239"></div>
+                    <div class="tema-bottom" style="background:#fff1f2"></div>
+                    <div class="tema-label">Rojo</div>
+                </div>
+                <div class="tema-card" onclick="aplicarTema('#0c4a6e','#06b6d4',this)">
+                    <div class="tema-top" style="background:#0c4a6e"></div>
+                    <div class="tema-bottom" style="background:#e0f2fe"></div>
+                    <div class="tema-label">Cielo</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">🎨 Color Personalizado</div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Color Primario (barras, botones, headers)</label>
+                    <div class="color-row">
+                        <input type="color" id="color-primario" value="#1e3a8a" oninput="actualizarColor()">
+                        <div class="color-hex" id="hex-primario" style="background:#1e3a8a; color:white;">#1e3a8a</div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Color de Acento (WhatsApp, éxito)</label>
+                    <div class="color-row">
+                        <input type="color" id="color-acento" value="#25D366" oninput="actualizarColor()">
+                        <div class="color-hex" id="hex-acento" style="background:#25D366; color:white;">#25D366</div>
+                    </div>
+                </div>
+            </div>
+            <!-- Preview en vivo -->
+            <div class="preview-bar" id="preview-bar" style="background:#1e3a8a;">
+                <span>👁️</span> Preview — así se verán los headers y botones
+            </div>
+        </div>
+
+        <button class="btn-guardar" onclick="guardarApariencia()">💾 GUARDAR Y APLICAR A TODA LA APP</button>
+    </section>
+
+    <!-- ══ USUARIOS ══ -->
+    <section class="seccion" id="sec-usuarios">
+        <div class="page-header"><h1>👥 Usuarios</h1><p>Gestiona conductores, coordinadores y administradores</p></div>
+        <div class="stats-grid">
+            <div class="stat-card"><div class="stat-num" id="s-total">—</div><div class="stat-label">Total</div></div>
+            <div class="stat-card"><div class="stat-num" id="s-cond">—</div><div class="stat-label">Conductores</div></div>
+            <div class="stat-card"><div class="stat-num" id="s-admin">—</div><div class="stat-label">Admins</div></div>
+        </div>
+        <div class="card">
+            <div class="card-title" style="justify-content:space-between;">
+                <span>📋 Lista de Usuarios</span>
+                <button class="btn-sm btn-edit" onclick="abrirModal(null)">+ Nuevo</button>
+            </div>
+            <div id="lista-usuarios"><p style="text-align:center;color:#94a3b8;padding:20px;font-size:13px;">Cargando...</p></div>
+        </div>
+    </section>
+
+    <!-- ══ PERMISOS ══ -->
+    <section class="seccion" id="sec-permisos">
+        <div class="page-header"><h1>🔒 Permisos</h1><p>Define qué puede hacer cada rol</p></div>
+        <div class="card">
+            <div class="card-title">🚗 Conductor</div>
+            <div class="permiso-row"><div class="permiso-info"><h4>Registrar Salidas</h4><p>Puede crear nuevos registros de salida</p></div><label class="toggle"><input type="checkbox" checked id="p1"><span class="slider"></span></label></div>
+            <div class="permiso-row"><div class="permiso-info"><h4>Reportar Averías</h4><p>Puede enviar reportes de fallas</p></div><label class="toggle"><input type="checkbox" checked id="p2"><span class="slider"></span></label></div>
+            <div class="permiso-row"><div class="permiso-info"><h4>Ver Estado de Flota</h4><p>Puede ver el estado de los vehículos</p></div><label class="toggle"><input type="checkbox" checked id="p3"><span class="slider"></span></label></div>
+            <div class="permiso-row"><div class="permiso-info"><h4>Ver Historial Propio</h4><p>Puede ver sus propios traslados y averías</p></div><label class="toggle"><input type="checkbox" checked id="p4"><span class="slider"></span></label></div>
+        </div>
+        <div class="card">
+            <div class="card-title">📋 Coordinador</div>
+            <div class="permiso-row"><div class="permiso-info"><h4>Ver Todos los Traslados</h4><p>Acceso al historial completo de salidas</p></div><label class="toggle"><input type="checkbox" checked id="p5"><span class="slider"></span></label></div>
+            <div class="permiso-row"><div class="permiso-info"><h4>Registrar Llegadas</h4><p>Puede marcar vehículos como recibidos</p></div><label class="toggle"><input type="checkbox" checked id="p6"><span class="slider"></span></label></div>
+            <div class="permiso-row"><div class="permiso-info"><h4>Gestionar Taller</h4><p>Puede registrar mantenimientos</p></div><label class="toggle"><input type="checkbox" id="p7"><span class="slider"></span></label></div>
+        </div>
+        <div class="card">
+            <div class="card-title">👑 Administrador</div>
+            <div style="background:#dcfce7; border-radius:10px; padding:13px; font-size:13px; color:#15803d; font-weight:600;">✅ Acceso completo a todas las funciones. No se puede restringir.</div>
+        </div>
+        <button class="btn-guardar verde" onclick="guardarPermisos()">💾 GUARDAR PERMISOS</button>
+    </section>
+
+    <!-- ══ REGIONALES ══ -->
+    <section class="seccion" id="sec-regionales">
+        <div class="page-header"><h1>📍 Regionales</h1><p>Ciudades y sedes de operación</p></div>
+        <div class="card">
+            <div class="card-title">➕ Nueva Regional</div>
+            <div class="grid-2">
+                <div class="form-group"><label>Ciudad</label><input type="text" id="r-ciudad" placeholder="Ej: Bogotá"></div>
+                <div class="form-group"><label>Teléfono</label><input type="text" id="r-tel" placeholder="3XXXXXXXXX"></div>
+            </div>
+            <div class="form-group"><label>Dirección</label><input type="text" id="r-dir" placeholder="Calle 10 # 5-20"></div>
+            <button class="btn-guardar btn-add" onclick="agregarRegional()">+ AGREGAR</button>
+        </div>
+        <div class="card">
+            <div class="card-title">🗺️ Regionales Activas</div>
+            <div id="lista-regionales"></div>
+        </div>
+    </section>
+
+    <!-- ══ SISTEMA ══ -->
+    <section class="seccion" id="sec-sistema">
+        <div class="page-header"><h1>🛠️ Sistema</h1><p>Ajustes técnicos y notificaciones</p></div>
+        <div class="card">
+            <div class="card-title">💬 WhatsApp</div>
+            <div class="form-group"><label>Número Coordinador Principal</label><input type="text" id="wa-coord" placeholder="573XXXXXXXXX"></div>
+            <div class="form-group"><label>Número Logística</label><input type="text" id="wa-log" placeholder="573XXXXXXXXX"></div>
+        </div>
+        <div class="card">
+            <div class="card-title">🔔 Alertas</div>
+            <div class="permiso-row"><div class="permiso-info"><h4>Alerta de Mantenimiento Próximo</h4><p>Avisar cuando hay mantenimiento en menos de 7 días</p></div><label class="toggle"><input type="checkbox" checked id="a1"><span class="slider"></span></label></div>
+            <div class="permiso-row"><div class="permiso-info"><h4>Alerta de KM Alto</h4><p>Avisar cuando se supera el límite sin mantenimiento</p></div><label class="toggle"><input type="checkbox" checked id="a2"><span class="slider"></span></label></div>
+            <div class="form-group" style="margin-top:12px;"><label>Límite de KM para alerta</label><input type="text" id="km-limite" value="5000" placeholder="5000"></div>
+        </div>
+        <div class="card">
+            <div class="card-title">💾 Base de Datos</div>
+            <div style="background:var(--fondo); border-radius:10px; padding:13px; font-size:13px; color:var(--gris); margin-bottom:14px; border:1.5px solid var(--borde);">
+                <b style="color:var(--texto);">Proyecto:</b> tgvgchjkdvnjfxqdkmdw<br>
+                <b style="color:var(--texto);">Estado:</b> <span style="color:var(--verde); font-weight:700;">● Conectado</span><br>
+                <b style="color:var(--texto);">Tablas:</b> Traslado, Averias, carrozas, mantenimientos, usuarios
+            </div>
+            <button class="btn-guardar" style="background:#64748b; margin-top:0;" onclick="limpiarCache()">🗑️ LIMPIAR CACHÉ LOCAL</button>
+        </div>
+        <button class="btn-guardar" onclick="guardarSistema()">💾 GUARDAR CONFIGURACIÓN</button>
+    </section>
+
+</main>
+
+<!-- MODAL USUARIO -->
+<div class="modal-bg" id="modal-bg">
+    <div class="modal">
+        <h3 id="modal-titulo">➕ Nuevo Usuario</h3>
+        <input type="hidden" id="m-id">
+        <div class="form-group"><label>Nombre Completo *</label><input type="text" id="m-nombre" placeholder="Nombre completo"></div>
+        <div class="grid-2">
+            <div class="form-group"><label>Usuario / Cédula *</label><input type="text" id="m-usuario" placeholder="1094939736"></div>
+            <div class="form-group"><label>Contraseña *</label><input type="password" id="m-password" placeholder="••••"></div>
+        </div>
+        <div class="grid-2">
+            <div class="form-group"><label>Teléfono</label><input type="text" id="m-tel" placeholder="3XXXXXXXXX"></div>
+            <div class="form-group"><label>Rol</label>
+                <select id="m-rol">
+                    <option value="conductor">Conductor</option>
+                    <option value="coordinador">Coordinador</option>
+                    <option value="admin">Administrador</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-btns">
+            <button class="btn-cancel" onclick="cerrarModal()">Cancelar</button>
+            <button class="btn-guardar" style="flex:2; margin-top:0;" onclick="guardarUsuario()">GUARDAR</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="db.js"></script>
+<script>
+// ── PROTECCIÓN ──
+window.onload = async () => {
+    const s = JSON.parse(localStorage.getItem('usuario_sesion') || '{}');
+    const esAdmin = (s.usuario||'').toLowerCase()==='admin' || (s.rol||'').toLowerCase()==='admin';
+    if (!s.nombre || !esAdmin) { window.location.href='index.html'; return; }
+    cargarConfigGuardada();
+    cargarUsuarios();
+    renderRegionales();
+    cargarSistema();
+};
+
+// ── NAV ──
+function mostrar(id, el) {
+    document.querySelectorAll('.seccion').forEach(s => s.classList.remove('activa'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('sec-' + id).classList.add('activa');
+    el.classList.add('active');
+}
+
+// ── TOAST ──
+function toast(msg, color) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.style.background = color || '#1e293b';
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ── APARIENCIA ──
+function previewLogo(input) {
+    const file = input.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        // 🆕 FIX: el logo se comprime antes de guardarlo (igual que las
+        // fotos de las demás pantallas) para evitar que una imagen pesada
+        // exceda la cuota de localStorage o quede muy lenta de cargar en
+        // cada pantalla que la usa (config-aplicar.js la inserta en todos
+        // los headers).
+        const img = new Image();
+        img.onload = () => {
+            const maxW   = 400;
+            const escala = Math.min(1, maxW / img.width);
+            const canvas = document.createElement('canvas');
+            canvas.width  = Math.max(1, Math.round(img.width  * escala));
+            canvas.height = Math.max(1, Math.round(img.height * escala));
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            const dataUrl = canvas.toDataURL('image/png');
+
+            const preview = document.getElementById('logo-preview');
+            preview.src = dataUrl; preview.style.display = 'block';
+            try {
+                localStorage.setItem('jr_logo', dataUrl);
+            } catch (err) {
+                console.error('No se pudo guardar el logo:', err);
+                alert('No se pudo guardar el logo (imagen muy pesada). Prueba con otra imagen.');
+            }
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+function aplicarTema(p, a, el) {
+    document.querySelectorAll('.tema-card').forEach(t => t.classList.remove('sel'));
+    el.classList.add('sel');
+    document.getElementById('color-primario').value = p;
+    document.getElementById('color-acento').value = a;
+    actualizarColor();
+}
+
+function actualizarColor() {
+    const p = document.getElementById('color-primario').value;
+    const a = document.getElementById('color-acento').value;
+    document.getElementById('hex-primario').style.background = p;
+    document.getElementById('hex-primario').textContent = p;
+    document.getElementById('hex-acento').style.background = a;
+    document.getElementById('hex-acento').textContent = a;
+    document.getElementById('preview-bar').style.background = p;
+}
+
+function guardarApariencia() {
+    const cfg = {
+        color_primario:  document.getElementById('color-primario').value,
+        color_acento:    document.getElementById('color-acento').value,
+        nombre_empresa:  document.getElementById('nombre-empresa').value,
+        slogan:          document.getElementById('slogan-empresa').value
+    };
+    localStorage.setItem('jr_config_apariencia', JSON.stringify(cfg));
+    toast('✅ Apariencia guardada — recarga cualquier página para ver los cambios', '#10b981');
+}
+
+function cargarConfigGuardada() {
+    const cfg = JSON.parse(localStorage.getItem('jr_config_apariencia') || '{}');
+    if (cfg.color_primario) { document.getElementById('color-primario').value = cfg.color_primario; }
+    if (cfg.color_acento)   { document.getElementById('color-acento').value = cfg.color_acento; }
+    if (cfg.nombre_empresa) { document.getElementById('nombre-empresa').value = cfg.nombre_empresa; }
+    if (cfg.slogan)         { document.getElementById('slogan-empresa').value = cfg.slogan; }
+    const logo = localStorage.getItem('jr_logo');
+    if (logo) { const img = document.getElementById('logo-preview'); img.src = logo; img.style.display = 'block'; }
+    actualizarColor();
+}
+
+// ── USUARIOS ──
+let usersData = [];
+async function cargarUsuarios() {
+    try {
+        const { data, error } = await DB.supabase.from('usuarios').select('*').order('id');
+        if (error) throw error;
+        usersData = data || [];
+        renderUsuarios();
+    } catch(e) {
+        document.getElementById('lista-usuarios').innerHTML = '<p style="color:red;font-size:13px;padding:10px;">Error: '+e.message+'</p>';
+    }
+}
+function renderUsuarios() {
+    document.getElementById('s-total').textContent = usersData.length;
+    document.getElementById('s-cond').textContent  = usersData.filter(u=>(u.rol||'conductor')==='conductor').length;
+    document.getElementById('s-admin').textContent = usersData.filter(u=>(u.rol||'')==='admin'||(u.usuario||'')==='admin').length;
+    const colors = ['#1e3a8a','#7c3aed','#065f46','#9f1239','#0c4a6e','#d97706'];
+    document.getElementById('lista-usuarios').innerHTML = usersData.map((u,i) => {
+        const rol = u.rol || (u.usuario==='admin'?'admin':'conductor');
+        const badge = rol==='admin'?'badge-admin':rol==='coordinador'?'badge-coordinador':'badge-conductor';
+        // 🆕 FIX: antes se insertaba JSON.stringify(u) directo dentro de un
+        // atributo onclick='...' (comillas simples). Si el nombre de un
+        // usuario tenía un apóstrofe (ej. "O'Neill"), esa comilla cerraba
+        // el atributo antes de tiempo y rompía el botón "Editar" (y en
+        // algunos casos el resto de la fila). Se escapan las comillas
+        // simples como entidad HTML (&#39;) — el navegador las decodifica
+        // ANTES de interpretar el JS del onclick, así que el JSON llega
+        // intacto.
+        const uJsonSeguro = JSON.stringify(u).replace(/'/g, '&#39;');
+        return '<div class="usuario-row">'+
+            '<div style="display:flex;align-items:center;gap:10px;">'+
+                '<div class="avatar" style="background:'+colors[i%colors.length]+'">'+((u.nombre||'U')[0].toUpperCase())+'</div>'+
+                '<div><div class="u-nombre">'+(u.nombre||'---')+'</div>'+
+                '<div class="u-sub">@'+(u.usuario||'---')+' · '+(u.telefono||'Sin tel.')+'</div></div>'+
+            '</div>'+
+            '<div style="display:flex;align-items:center;gap:6px;">'+
+                '<span class="badge '+badge+'">'+rol+'</span>'+
+                '<button class="btn-sm btn-edit" onclick=\'abrirModal('+uJsonSeguro+')\'>Editar</button>'+
+                '<button class="btn-sm btn-del-u" onclick="eliminarUsuario('+JSON.stringify(u.id)+',\''+encodeURIComponent(u.nombre||'')+'\')">✕</button>'+
+            '</div>'+
+        '</div>';
+    }).join('') || '<p style="text-align:center;color:#94a3b8;padding:20px;font-size:13px;">Sin usuarios</p>';
+}
+function abrirModal(u) {
+    document.getElementById('m-id').value       = u ? u.id : '';
+    document.getElementById('modal-titulo').textContent = u ? '✏️ Editar Usuario' : '➕ Nuevo Usuario';
+    document.getElementById('m-nombre').value   = u ? (u.nombre||'') : '';
+    document.getElementById('m-usuario').value  = u ? (u.usuario||'') : '';
+    document.getElementById('m-usuario').disabled = !!u;
+    document.getElementById('m-password').value = u ? (u.password||'') : '';
+    document.getElementById('m-tel').value      = u ? (u.telefono||'') : '';
+    document.getElementById('m-rol').value      = u ? (u.rol||'conductor') : 'conductor';
+    document.getElementById('modal-bg').classList.add('open');
+}
+function cerrarModal() {
+    document.getElementById('modal-bg').classList.remove('open');
+    document.getElementById('m-usuario').disabled = false;
+}
+async function guardarUsuario() {
+    const id = document.getElementById('m-id').value;
+    const datos = {
+        nombre:   document.getElementById('m-nombre').value.trim(),
+        usuario:  document.getElementById('m-usuario').value.trim(),
+        password: document.getElementById('m-password').value.trim(),
+        telefono: document.getElementById('m-tel').value.trim(),
+        rol:      document.getElementById('m-rol').value
+    };
+    if (!datos.nombre || !datos.usuario || !datos.password) { toast('⚠️ Completa los campos obligatorios','#f59e0b'); return; }
+    try {
+        let res;
+        if (id) {
+            res = await DB.supabase.from('usuarios').update({nombre:datos.nombre,password:datos.password,telefono:datos.telefono,rol:datos.rol}).eq('id',id);
+        } else {
+            // 🆕 FIX: la hoja "usuarios" no genera un ID automático en el
+            // backend (a diferencia de Tanqueo/Checklist_Salida/etc.), así
+            // que un usuario creado desde aquí quedaba sin "id" — lo cual
+            // rompía silenciosamente los botones "Editar" y "✕" de ESE
+            // usuario en adelante (intentaban filtrar por un id vacío/
+            // indefinido y no encontraban la fila). Se genera el id aquí
+            // mismo antes de insertar.
+            datos.id = Date.now();
+            res = await DB.supabase.from('usuarios').insert([datos]);
+        }
+        if (res.error) throw res.error;
+        toast('✅ Usuario guardado','#10b981');
+        cerrarModal(); cargarUsuarios();
+    } catch(e) { toast('❌ '+e.message,'#ef4444'); }
+}
+async function eliminarUsuario(id, nombre) {
+    if (!confirm('¿Eliminar a "'+decodeURIComponent(nombre)+'"?')) return;
+    const {error} = await DB.supabase.from('usuarios').delete().eq('id',id);
+    if (error) { toast('❌ '+error.message,'#ef4444'); return; }
+    toast('🗑️ Usuario eliminado','#ef4444');
+    cargarUsuarios();
+}
+
+// ── PERMISOS ──
+function guardarPermisos() {
+    const p = {
+        conductor:   { salidas:document.getElementById('p1').checked, averias:document.getElementById('p2').checked, flota:document.getElementById('p3').checked, historial:document.getElementById('p4').checked },
+        coordinador: { traslados:document.getElementById('p5').checked, llegadas:document.getElementById('p6').checked, taller:document.getElementById('p7').checked }
+    };
+    localStorage.setItem('jr_permisos', JSON.stringify(p));
+    toast('✅ Permisos guardados','#10b981');
+}
+
+// ── REGIONALES ──
+let regionales = JSON.parse(localStorage.getItem('jr_regionales') || '["Pereira","Armenia","Manizales","Cali"]');
+function renderRegionales() {
+    const div = document.getElementById('lista-regionales');
+    if (!regionales.length) { div.innerHTML='<p style="color:#94a3b8;font-size:13px;text-align:center;padding:10px;">Sin regionales</p>'; return; }
+    div.innerHTML = regionales.map((r,i) => {
+        const nombre = typeof r==='object' ? r.nombre : r;
+        const sub    = typeof r==='object' ? ((r.tel||'')+(r.dir?' · '+r.dir:'')) : '';
+        return '<div class="usuario-row">'+
+            '<div style="display:flex;align-items:center;gap:10px;">'+
+                '<div class="avatar" style="background:#0c4a6e;font-size:13px;">📍</div>'+
+                '<div><div class="u-nombre">'+nombre+'</div>'+(sub?'<div class="u-sub">'+sub+'</div>':'')+'</div>'+
+            '</div>'+
+            '<button class="btn-sm btn-del-u" onclick="eliminarRegional('+i+')">✕</button>'+
+        '</div>';
+    }).join('');
+}
+function agregarRegional() {
+    const ciudad = document.getElementById('r-ciudad').value.trim();
+    if (!ciudad) { toast('⚠️ Escribe el nombre de la ciudad','#f59e0b'); return; }
+    regionales.push({ nombre:ciudad, tel:document.getElementById('r-tel').value.trim(), dir:document.getElementById('r-dir').value.trim() });
+    localStorage.setItem('jr_regionales', JSON.stringify(regionales));
+    document.getElementById('r-ciudad').value=''; document.getElementById('r-tel').value=''; document.getElementById('r-dir').value='';
+    renderRegionales(); toast('✅ Regional agregada','#10b981');
+}
+function eliminarRegional(i) {
+    if (!confirm('¿Eliminar esta regional?')) return;
+    regionales.splice(i,1); localStorage.setItem('jr_regionales', JSON.stringify(regionales));
+    renderRegionales(); toast('🗑️ Regional eliminada','#ef4444');
+}
+
+// ── SISTEMA ──
+function cargarSistema() {
+    document.getElementById('wa-coord').value  = localStorage.getItem('jr_wa_coord')  || '';
+    document.getElementById('wa-log').value    = localStorage.getItem('jr_wa_log')    || '';
+    document.getElementById('km-limite').value = localStorage.getItem('jr_km_limite') || '5000';
+}
+function guardarSistema() {
+    localStorage.setItem('jr_wa_coord',  document.getElementById('wa-coord').value);
+    localStorage.setItem('jr_wa_log',    document.getElementById('wa-log').value);
+    localStorage.setItem('jr_km_limite', document.getElementById('km-limite').value);
+    toast('✅ Configuración guardada','#10b981');
+}
+function limpiarCache() {
+    ['jr_config_apariencia','jr_permisos','jr_regionales','jr_logo','jr_km_limite','jr_wa_coord','jr_wa_log']
+        .forEach(k => localStorage.removeItem(k));
+    toast('🗑️ Caché limpiado','#64748b');
+    setTimeout(() => location.reload(), 1000);
+}
+</script>
+<script src="config-aplicar.js"></script>
+</body>
+</html>

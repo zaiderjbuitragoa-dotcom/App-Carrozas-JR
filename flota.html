@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J.R. — Gestión de Flota Total</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --azul: #001a70; --celeste: #e3f2fd; --blanco: #ffffff; --gris-texto: #64748b; --amarillo: #f59e0b; --verde: #10b981; --rojo: #ef4444; --naranja: #f97316; }
+        body { background-color: var(--celeste); font-family: 'DM Sans', sans-serif; margin: 0; padding: 20px; color: #1e293b; }
+        .container { max-width: 1200px; margin: auto; }
+        .nav-header { display: flex; justify-content: flex-start; margin-bottom: 20px; }
+        .btn-volver { text-decoration: none; color: var(--azul); font-weight: 700; font-size: 14px; display: flex; align-items: center; gap: 5px; transition: 0.3s; }
+        .btn-volver:hover { opacity: 0.7; }
+
+        /* ── FORMULARIO PRINCIPAL ── */
+        .card-form { background: var(--blanco); padding: 25px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 30px; border-top: 5px solid var(--azul); }
+        .card-form.edit-mode { border-top-color: var(--amarillo); background: #fffcf5; }
+        h2 { color: var(--azul); margin-top: 0; font-size: 18px; text-transform: uppercase; margin-bottom: 20px; border-bottom: 2px solid var(--celeste); padding-bottom: 10px; }
+        .grid-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; }
+        .form-group { display: flex; flex-direction: column; }
+        .full-width { grid-column: 1 / -1; }
+        label { font-size: 11px; font-weight: 700; color: var(--gris-texto); margin-bottom: 5px; text-transform: uppercase; }
+        input, select, textarea { padding: 10px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-family: inherit; font-size: 14px; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--azul); }
+        .btn-primario { background: var(--azul); color: white; border: none; padding: 15px; border-radius: 12px; font-weight: 700; cursor: pointer; width: 100%; margin-top: 20px; transition: 0.3s; font-family: inherit; font-size: 14px; }
+        .btn-primario:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-cancelar { background: #fee2e2; color: #991b1b; border: none; padding: 10px; border-radius: 10px; font-weight: 700; cursor: pointer; margin-top: 10px; width: 100%; display: none; font-family: inherit; font-size: 13px; }
+
+        /* ── TABLA INVENTARIO ── */
+        .lista-carros { background: var(--blanco); border-radius: 20px; padding: 20px; overflow-x: auto; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; min-width: 1000px; }
+        th { text-align: left; font-size: 10px; color: var(--gris-texto); padding: 12px; border-bottom: 2px solid var(--celeste); text-transform: uppercase; }
+        td { padding: 12px; font-size: 12px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+        tr:last-child td { border-bottom: none; }
+        .tag { padding: 4px 8px; border-radius: 6px; font-size: 10px; font-weight: bold; text-transform: uppercase; }
+        .tag-disponible { background: #ecfdf5; color: #10b981; }
+        .tag-taller     { background: #fef2f2; color: #ef4444; }
+        .tag-servicio   { background: #eff6ff; color: #3b82f6; }
+
+        .btn-edit { background: var(--celeste); color: var(--azul); border: none; padding: 6px 10px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 11px; transition: 0.2s; font-family: inherit; margin-right: 4px; }
+        .btn-edit:hover { background: var(--azul); color: white; }
+
+        /* ── BOTÓN PRÉSTAMO ── */
+        .btn-prestamo { background: #fff7ed; color: var(--naranja); border: 1.5px solid #fed7aa; padding: 6px 10px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 11px; transition: 0.2s; font-family: inherit; }
+        .btn-prestamo:hover { background: var(--naranja); color: white; border-color: var(--naranja); }
+        .btn-devolver { background: #ecfdf5; color: var(--verde); border: 1.5px solid #a7f3d0; padding: 6px 10px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 11px; transition: 0.2s; font-family: inherit; }
+        .btn-devolver:hover { background: var(--verde); color: white; border-color: var(--verde); }
+
+        /* ── BADGE INTERCAMBIO ── */
+        .badge-intercambio {
+            display: inline-block; font-size: 10px; font-weight: 700;
+            background: #fff7ed; color: var(--naranja);
+            border: 1px solid #fed7aa; padding: 2px 7px;
+            border-radius: 6px; margin-top: 3px; white-space: nowrap;
+        }
+
+        /* ── MODAL PRÉSTAMO ── */
+        .modal-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.45); z-index: 1000;
+            align-items: center; justify-content: center;
+        }
+        .modal-overlay.activo { display: flex; }
+        .modal-box {
+            background: var(--blanco); border-radius: 20px;
+            padding: 28px; width: 100%; max-width: 480px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+            border-top: 5px solid var(--naranja);
+            animation: popIn 0.2s ease;
+        }
+        @keyframes popIn { from { transform: scale(0.93); opacity:0; } to { transform: scale(1); opacity:1; } }
+        .modal-titulo {
+            font-size: 16px; font-weight: 800; color: var(--azul);
+            margin-bottom: 6px;
+        }
+        .modal-subtitulo {
+            font-size: 12px; color: var(--gris-texto); margin-bottom: 20px;
+        }
+        .modal-label { font-size: 11px; font-weight: 700; color: var(--gris-texto); text-transform: uppercase; margin-bottom: 5px; display: block; }
+        .modal-select, .modal-input {
+            width: 100%; padding: 11px 12px; border: 1.5px solid #e2e8f0;
+            border-radius: 10px; font-family: inherit; font-size: 14px;
+            margin-bottom: 14px; background: #f8fafc;
+        }
+        .modal-select:focus, .modal-input:focus { outline: none; border-color: var(--naranja); background: white; }
+        .modal-info-sede {
+            background: #fff7ed; border: 1.5px solid #fed7aa; border-radius: 10px;
+            padding: 10px 14px; font-size: 12px; color: #92400e;
+            margin-bottom: 16px; display: none;
+        }
+        .modal-btns { display: flex; gap: 10px; margin-top: 4px; }
+        .modal-btn-ok {
+            flex: 1; padding: 13px; background: var(--naranja); color: white;
+            border: none; border-radius: 12px; font-weight: 800; font-size: 14px;
+            cursor: pointer; font-family: inherit; transition: 0.2s;
+        }
+        .modal-btn-ok:disabled { opacity: 0.5; cursor: not-allowed; }
+        .modal-btn-cancelar {
+            flex: 1; padding: 13px; background: #f1f5f9; color: var(--gris-texto);
+            border: none; border-radius: 12px; font-weight: 800; font-size: 14px;
+            cursor: pointer; font-family: inherit; transition: 0.2s;
+        }
+        .modal-btn-cancelar:hover { background: #e2e8f0; }
+
+        /* ── MODAL DEVOLUCIÓN ── */
+        .modal-box.devolucion { border-top-color: var(--verde); }
+        .modal-btn-ok.devolucion { background: var(--verde); }
+
+        /* ── FILTRO SEDE ── */
+        .filtros-wrap { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+        .filtro-select-flota {
+            padding: 9px 12px; border: 1.5px solid #e2e8f0; border-radius: 10px;
+            font-family: inherit; font-size: 13px; background: #f8fafc; cursor: pointer;
+        }
+        .filtro-select-flota:focus { outline: none; border-color: var(--azul); }
+        .badge-total-flota { background: var(--celeste); color: var(--azul); font-size: 11px; font-weight: 800; padding: 5px 12px; border-radius: 8px; align-self: center; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="nav-header">
+        <a href="dashboard.html" class="btn-volver">← VOLVER AL PANEL</a>
+    </div>
+
+    <!-- ══ FORMULARIO REGISTRO / EDICIÓN ══ -->
+    <div class="card-form" id="contenedor-formulario">
+        <h2 id="titulo-form">🚚 Gestión de Carroza</h2>
+        <form id="form-carroza">
+            <div class="grid-form">
+                <div class="form-group">
+                    <label>Placa (ID Único)</label>
+                    <input type="text" id="placa" placeholder="PFO-147" required>
+                </div>
+                <div class="form-group">
+                    <label>Modelo / Marca</label>
+                    <input type="text" id="modelo" required placeholder="Ej: Mercedes Sprinter">
+                </div>
+                <div class="form-group">
+                    <label>Año</label>
+                    <input type="number" id="anio" placeholder="2020">
+                </div>
+                <div class="form-group">
+                    <label>Fecha Ingreso Empresa</label>
+                    <input type="date" id="fecha_ingreso_empresa">
+                </div>
+                <div class="form-group">
+                    <label>Conductor Asignado</label>
+                    <input type="text" id="conductor_asignado" placeholder="Nombre conductor">
+                </div>
+                <div class="form-group">
+                    <label>Sede Asignada</label>
+                    <select id="sede_asignada">
+                        <option value="">— Sin asignar —</option>
+                        <option>Valle Sur</option>
+                        <option>Valle Centro</option>
+                        <option>Valle Norte</option>
+                        <option>Risaralda</option>
+                        <option>Quindío</option>
+                        <option>Caldas</option>
+                        <option>Tolima Norte</option>
+                        <option>C/ Marca</option>
+                        <option>FUSA</option>
+                        <option>COMODIN</option>
+                        <option>CARTAGO</option>
+                        <option>POPAYAN</option>
+                        <option>GARZON</option>
+                        <option>MEDELLIN</option>
+                        <option>NEIVA</option>
+                        <option>PALMIRA</option>
+                        <option>TULUA</option>
+                        <option>BARRANQUILLA</option>
+                        <option>LIBANO</option>
+                        <option>GIRARDOT</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Kilometraje Inicial</label>
+                    <input type="number" id="kilometraje_inicial" value="0">
+                </div>
+                <div class="form-group">
+                    <label>Kilometraje Actual</label>
+                    <input type="number" id="kilometraje_actual" value="0">
+                </div>
+                <div class="form-group">
+                    <label>Estado</label>
+                    <select id="estado">
+                        <option value="Disponible">Disponible</option>
+                        <option value="En Servicio">En Servicio</option>
+                        <option value="En Taller">En Taller</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Último Mantenimiento</label>
+                    <input type="date" id="ultimo_mantenimiento">
+                </div>
+                <div class="form-group">
+                    <label>Próximo Mantenimiento</label>
+                    <input type="date" id="proximo_mantenimiento">
+                </div>
+                <div class="form-group full-width">
+                    <label>Observaciones</label>
+                    <textarea id="observaciones" rows="2" placeholder="Detalles adicionales..."></textarea>
+                </div>
+            </div>
+            <button type="submit" id="btn-guardar" class="btn-primario">GUARDAR EN SISTEMA</button>
+            <button type="button" id="btn-cancelar" class="btn-cancelar" onclick="cancelarEdicion()">CANCELAR EDICIÓN</button>
+        </form>
+    </div>
+
+    <!-- ══ INVENTARIO COMPLETO ══ -->
+    <div class="lista-carros">
+        <h2>Inventario Completo de Flota</h2>
+
+        <div class="filtros-wrap">
+            <select class="filtro-select-flota" id="filtro-sede" onchange="cargarFlota()">
+                <option value="">Todas las sedes</option>
+                <option>Valle Sur</option>
+                <option>Valle Centro</option>
+                <option>Valle Norte</option>
+                <option>Risaralda</option>
+                <option>Quindío</option>
+                <option>Caldas</option>
+                <option>Tolima Norte</option>
+                <option>C/ Marca</option>
+                <option>FUSA</option>
+                <option>COMODIN</option>
+                <option>CARTAGO</option>
+                <option>POPAYAN</option>
+                <option>GARZON</option>
+                <option>MEDELLIN</option>
+                <option>NEIVA</option>
+                <option>PALMIRA</option>
+                <option>TULUA</option>
+                <option>BARRANQUILLA</option>
+                <option>LIBANO</option>
+                <option>GIRARDOT</option>
+            </select>
+            <select class="filtro-select-flota" id="filtro-estado" onchange="cargarFlota()">
+                <option value="">Todos los estados</option>
+                <option>Disponible</option>
+                <option>En Servicio</option>
+                <option>En Taller</option>
+            </select>
+            <select class="filtro-select-flota" id="filtro-prestamo" onchange="cargarFlota()">
+                <option value="">Todos</option>
+                <option value="prestadas">Solo prestadas</option>
+                <option value="propias">Solo propias</option>
+            </select>
+            <span class="badge-total-flota" id="badge-total">0 vehículos</span>
+        </div>
+
+        <div style="overflow-x:auto;">
+            <table id="tabla-flota">
+                <thead>
+                    <tr>
+                        <th>Placa / Modelo</th>
+                        <th>Conductor</th>
+                        <th>KM Actual</th>
+                        <th>Sede Asignada</th>
+                        <th>Intercambio</th>
+                        <th>Mantenimientos</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody-flota">
+                    <tr><td colspan="8" style="text-align:center; color:#94a3b8; padding:30px;">Cargando...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ══ MODAL PRÉSTAMO ══ -->
+<div class="modal-overlay" id="modal-prestamo">
+    <div class="modal-box">
+        <div class="modal-titulo">🔄 Enviar en Préstamo</div>
+        <div class="modal-subtitulo" id="modal-prestamo-subtitulo">Selecciona la sede destino</div>
+
+        <label class="modal-label">Sede de intercambio (destino del préstamo)</label>
+        <select class="modal-select" id="modal-sede-destino" onchange="alCambiarSedeDestino()">
+            <option value="">— Seleccione sede —</option>
+            <option>Valle Sur</option>
+            <option>Valle Centro</option>
+            <option>Valle Norte</option>
+            <option>Risaralda</option>
+            <option>Quindío</option>
+            <option>Caldas</option>
+            <option>Tolima Norte</option>
+            <option>C/ Marca</option>
+            <option>FUSA</option>
+            <option>COMODIN</option>
+            <option>CARTAGO</option>
+            <option>POPAYAN</option>
+            <option>GARZON</option>
+            <option>MEDELLIN</option>
+            <option>NEIVA</option>
+            <option>PALMIRA</option>
+            <option>TULUA</option>
+            <option>BARRANQUILLA</option>
+            <option>LIBANO</option>
+            <option>GIRARDOT</option>
+        </select>
+
+        <label class="modal-label">Motivo del préstamo</label>
+        <input type="text" class="modal-input" id="modal-motivo-prestamo" placeholder="Ej: Refuerzo por alta demanda, Mantenimiento sede...">
+
+        <div class="modal-info-sede" id="modal-info-sede"></div>
+
+        <div class="modal-btns">
+            <button class="modal-btn-cancelar" onclick="cerrarModalPrestamo()">Cancelar</button>
+            <button class="modal-btn-ok" id="modal-btn-confirmar" onclick="confirmarPrestamo()" disabled>
+                CONFIRMAR PRÉSTAMO
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ══ MODAL DEVOLUCIÓN ══ -->
+<div class="modal-overlay" id="modal-devolucion">
+    <div class="modal-box devolucion">
+        <div class="modal-titulo">↩️ Devolver a Sede Original</div>
+        <div class="modal-subtitulo" id="modal-dev-subtitulo"></div>
+
+        <label class="modal-label">Observaciones de la devolución</label>
+        <input type="text" class="modal-input" id="modal-obs-devolucion" placeholder="Ej: Regresa tras refuerzo de temporada...">
+
+        <div class="modal-btns">
+            <button class="modal-btn-cancelar" onclick="cerrarModalDevolucion()">Cancelar</button>
+            <button class="modal-btn-ok devolucion" id="modal-btn-dev" onclick="confirmarDevolucion()">
+                CONFIRMAR DEVOLUCIÓN
+            </button>
+        </div>
+    </div>
+</div>
+
+<script src="db.js"></script>
+<script>
+    // ── ESTADO GLOBAL
+    var editandoPlaca    = null;
+    var flotaCache       = [];       // cache completa para filtrado local
+    var placaEnPrestamo  = null;     // placa activa en el modal de préstamo
+    var datosEnPrestamo  = null;     // objeto carroza activa en devolución
+
+    // ── INIT
+    document.getElementById('fecha_ingreso_empresa').valueAsDate = new Date();
+    cargarFlota();
+
+    // ══════════════════════════════════════════
+    //  FORMULARIO REGISTRO / EDICIÓN
+    // ══════════════════════════════════════════
+    document.getElementById('form-carroza').onsubmit = async function(e) {
+        e.preventDefault();
+        var btn = document.getElementById('btn-guardar');
+        btn.disabled = true;
+        btn.innerText = 'GUARDANDO...';
+
+        var estadoSeleccionado = document.getElementById('estado').value;
+        var datos = {
+            placa:                 document.getElementById('placa').value.toUpperCase().trim(),
+            modelo:                document.getElementById('modelo').value,
+            anio:                  parseInt(document.getElementById('anio').value) || null,
+            fecha_ingreso_empresa: document.getElementById('fecha_ingreso_empresa').value || null,
+            conductor_asignado:    document.getElementById('conductor_asignado').value,
+            sede_asignada:         document.getElementById('sede_asignada').value,
+            kilometraje_inicial:   parseInt(document.getElementById('kilometraje_inicial').value) || 0,
+            kilometraje_actual:    parseInt(document.getElementById('kilometraje_actual').value) || 0,
+            estado:                estadoSeleccionado,
+            ultimo_mantenimiento:  document.getElementById('ultimo_mantenimiento').value || null,
+            proximo_mantenimiento: document.getElementById('proximo_mantenimiento').value || null,
+            observaciones:         document.getElementById('observaciones').value
+        };
+
+        // Si el vehículo pasa a "En Servicio" o "Disponible", limpiar el estado de Taller / Parque Automotor
+        if (estadoSeleccionado === 'En Servicio' || estadoSeleccionado === 'Disponible') {
+            datos.estado_parque_automotor = '';
+        } else if (estadoSeleccionado === 'En Taller') {
+            datos.estado_parque_automotor = 'TALLER';
+        }
+
+        var res;
+        if (editandoPlaca) {
+            var datosActualizar = Object.assign({}, datos);
+            delete datosActualizar.placa;
+            res = await DB.supabase.from('carrozas').update(datosActualizar).eq('placa', editandoPlaca);
+        } else {
+            res = await DB.supabase.from('carrozas').insert([datos]);
+        }
+
+        if (res.error) {
+            alert('Error: ' + res.error.message);
+            btn.disabled = false;
+            btn.innerText = editandoPlaca ? 'ACTUALIZAR REGISTRO' : 'GUARDAR EN SISTEMA';
+        } else {
+            DB.invalidarCache('carrozas');
+            alert(editandoPlaca ? '✅ Actualizado con éxito!' : '✅ Registrado con éxito!');
+            cancelarEdicion();
+            await cargarFlota();
+        }
+    };
+
+    // ══════════════════════════════════════════
+    //  CARGAR Y RENDERIZAR FLOTA
+    // ══════════════════════════════════════════
+    async function cargarFlota() {
+        var filtroSede     = document.getElementById('filtro-sede').value.trim().toLowerCase();
+        var filtroEstado   = document.getElementById('filtro-estado').value.trim();
+        var filtroPrestamo = document.getElementById('filtro-prestamo').value;
+
+        var res = await DB.supabase.from('carrozas').select('*').order('placa', { ascending: true });
+        var data = res.data || [];
+        flotaCache = data;
+
+        // Aplicar filtros
+        var filtrados = data.filter(function(c) {
+            var coincideSede   = !filtroSede   || (c.sede_asignada || '').toLowerCase().includes(filtroSede);
+            var coincideEstado = !filtroEstado || (c.estado || '') === filtroEstado;
+            var tienePrestamo  = !!(c.sede_intercambio && String(c.sede_intercambio).trim() !== '');
+            var coincidePrest  = !filtroPrestamo ||
+                (filtroPrestamo === 'prestadas' && tienePrestamo) ||
+                (filtroPrestamo === 'propias'   && !tienePrestamo);
+            return coincideSede && coincideEstado && coincidePrest;
+        });
+
+        document.getElementById('badge-total').textContent = filtrados.length + ' vehículo' + (filtrados.length !== 1 ? 's' : '');
+
+        var tbody = document.getElementById('tbody-flota');
+        if (filtrados.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#94a3b8; padding:30px;">Sin vehículos para mostrar.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = filtrados.map(function(c) {
+            var tagClass = 'tag-servicio';
+            if (c.estado === 'Disponible') tagClass = 'tag-disponible';
+            if (c.estado === 'En Taller')  tagClass = 'tag-taller';
+
+            var sedeIntercambio = (c.sede_intercambio || '').trim();
+            var esPrestada      = sedeIntercambio !== '';
+
+            // Columna sede intercambio
+            var celdaIntercambio = esPrestada
+                ? '<span class="badge-intercambio">🔄 ' + sedeIntercambio + '</span>'
+                : '<span style="color:#cbd5e1; font-size:11px;">—</span>';
+
+            // Botón de acción préstamo / devolución
+            var btnAccion = esPrestada
+                ? '<button class="btn-devolver" onclick="abrirModalDevolucion(\'' + c.placa + '\')">↩️ Devolver</button>'
+                : '<button class="btn-prestamo" onclick="abrirModalPrestamo(\'' + c.placa + '\')">🔄 Préstamo</button>';
+
+            // Datos JSON escapados para edición
+            var cJson = JSON.stringify(c).replace(/'/g, "&#39;");
+
+            return '<tr>' +
+                '<td><b>' + c.placa + '</b><br><small style="color:#94a3b8;">' + (c.modelo || '---') + ' (' + (c.anio || '---') + ')</small></td>' +
+                '<td>' + (c.conductor_asignado || '---') + '</td>' +
+                '<td>' + Number(c.kilometraje_actual || 0).toLocaleString() + ' KM</td>' +
+                '<td style="font-size:11px; font-weight:700; color:var(--azul);">' + (c.sede_asignada || '<span style="color:#cbd5e1;">—</span>') + '</td>' +
+                '<td>' + celdaIntercambio + '</td>' +
+                '<td><small style="color:#64748b;">Ú: ' + (c.ultimo_mantenimiento || '---') + '<br>P: ' + (c.proximo_mantenimiento || '---') + '</small></td>' +
+                '<td><span class="tag ' + tagClass + '">' + (c.estado || 'S/E') + '</span></td>' +
+                '<td style="white-space:nowrap;">' +
+                    '<button class="btn-edit" onclick=\'prepararEdicion(' + cJson + ')\'>EDITAR</button>' +
+                    btnAccion +
+                '</td>' +
+            '</tr>';
+        }).join('');
+    }
+
+    // ══════════════════════════════════════════
+    //  EDICIÓN DE CARROZA
+    // ══════════════════════════════════════════
+    function prepararEdicion(v) {
+        editandoPlaca = v.placa;
+        document.getElementById('contenedor-formulario').classList.add('edit-mode');
+        document.getElementById('titulo-form').innerText = '📝 Editando: ' + v.placa;
+        document.getElementById('btn-guardar').innerText = 'ACTUALIZAR REGISTRO';
+        document.getElementById('btn-cancelar').style.display = 'block';
+        document.getElementById('placa').disabled = true;
+
+        document.getElementById('placa').value                 = v.placa                   || '';
+        document.getElementById('modelo').value                = v.modelo                  || '';
+        document.getElementById('anio').value                  = v.anio                    || '';
+        document.getElementById('fecha_ingreso_empresa').value = v.fecha_ingreso_empresa   || '';
+        document.getElementById('conductor_asignado').value    = v.conductor_asignado      || '';
+        document.getElementById('sede_asignada').value         = v.sede_asignada           || '';
+        document.getElementById('kilometraje_inicial').value   = v.kilometraje_inicial     || 0;
+        document.getElementById('kilometraje_actual').value    = v.kilometraje_actual      || 0;
+        document.getElementById('estado').value                = v.estado                  || 'Disponible';
+        document.getElementById('ultimo_mantenimiento').value  = v.ultimo_mantenimiento    || '';
+        document.getElementById('proximo_mantenimiento').value = v.proximo_mantenimiento   || '';
+        document.getElementById('observaciones').value         = v.observaciones           || '';
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function cancelarEdicion() {
+        editandoPlaca = null;
+        document.getElementById('form-carroza').reset();
+        document.getElementById('fecha_ingreso_empresa').valueAsDate = new Date();
+        document.getElementById('contenedor-formulario').classList.remove('edit-mode');
+        document.getElementById('titulo-form').innerText    = '🚚 Gestión de Carroza';
+        document.getElementById('btn-guardar').innerText    = 'GUARDAR EN SISTEMA';
+        document.getElementById('btn-cancelar').style.display = 'none';
+        document.getElementById('placa').disabled           = false;
+        document.getElementById('btn-guardar').disabled     = false;
+    }
+
+    // ══════════════════════════════════════════
+    //  MODAL PRÉSTAMO
+    // ══════════════════════════════════════════
+    function abrirModalPrestamo(placa) {
+        placaEnPrestamo = placa;
+        var carroza = flotaCache.find(function(c) { return c.placa === placa; });
+        var sedeOrigen = (carroza && carroza.sede_asignada) ? carroza.sede_asignada : 'Sin sede asignada';
+
+        document.getElementById('modal-prestamo-subtitulo').textContent =
+            'Carroza: ' + placa + '  |  Sede actual: ' + sedeOrigen;
+        document.getElementById('modal-sede-destino').value    = '';
+        document.getElementById('modal-motivo-prestamo').value = '';
+        document.getElementById('modal-info-sede').style.display = 'none';
+        document.getElementById('modal-btn-confirmar').disabled  = true;
+        document.getElementById('modal-prestamo').classList.add('activo');
+    }
+
+    function cerrarModalPrestamo() {
+        placaEnPrestamo = null;
+        document.getElementById('modal-prestamo').classList.remove('activo');
+    }
+
+    function alCambiarSedeDestino() {
+        var sede = document.getElementById('modal-sede-destino').value;
+        var infoEl = document.getElementById('modal-info-sede');
+        var btnOk  = document.getElementById('modal-btn-confirmar');
+
+        if (sede) {
+            infoEl.style.display = 'block';
+            infoEl.innerHTML = '📍 La carroza quedará asignada temporalmente a <b>' + sede + '</b>.<br>' +
+                'La sede original se conserva en <b>Sede Asignada</b> para poder devolverla.';
+            btnOk.disabled = false;
+        } else {
+            infoEl.style.display = 'none';
+            btnOk.disabled = true;
+        }
+    }
+
+    async function confirmarPrestamo() {
+        var sedeDestino = document.getElementById('modal-sede-destino').value;
+        var motivo      = document.getElementById('modal-motivo-prestamo').value.trim();
+
+        if (!sedeDestino || !placaEnPrestamo) return;
+
+        var btnOk = document.getElementById('modal-btn-confirmar');
+        btnOk.disabled   = true;
+        btnOk.textContent = 'GUARDANDO...';
+
+        var carroza     = flotaCache.find(function(c) { return c.placa === placaEnPrestamo; });
+        var obsAnterior = (carroza && carroza.observaciones) ? carroza.observaciones : '';
+        var obsNueva    = obsAnterior +
+            (obsAnterior ? '\n' : '') +
+            '[PRÉSTAMO ' + new Date().toLocaleDateString('es-CO') + '] → ' + sedeDestino +
+            (motivo ? ' | Motivo: ' + motivo : '');
+
+        var res = await DB.actualizarCarroza(placaEnPrestamo, {
+            sede_intercambio: sedeDestino,
+            observaciones:    obsNueva
+        });
+
+        if (res && res.ok === false) {
+            alert('Error al guardar el préstamo: ' + (res.error || 'Error desconocido'));
+        } else {
+            cerrarModalPrestamo();
+            await cargarFlota();
+            alert('✅ Carroza ' + placaEnPrestamo + ' enviada en préstamo a ' + sedeDestino);
+        }
+
+        btnOk.disabled    = false;
+        btnOk.textContent = 'CONFIRMAR PRÉSTAMO';
+    }
+
+    // ══════════════════════════════════════════
+    //  MODAL DEVOLUCIÓN
+    // ══════════════════════════════════════════
+    function abrirModalDevolucion(placa) {
+        var carroza = flotaCache.find(function(c) { return c.placa === placa; });
+        if (!carroza) return;
+        datosEnPrestamo = carroza;
+
+        var sedeOrigen      = carroza.sede_asignada    || 'sede original';
+        var sedeIntercambio = carroza.sede_intercambio || '—';
+
+        document.getElementById('modal-dev-subtitulo').innerHTML =
+            'Carroza: <b>' + placa + '</b><br>' +
+            'Actualmente en: <b style="color:var(--naranja);">' + sedeIntercambio + '</b> → ' +
+            'Regresa a: <b style="color:var(--verde);">' + sedeOrigen + '</b>';
+        document.getElementById('modal-obs-devolucion').value = '';
+        document.getElementById('modal-devolucion').classList.add('activo');
+    }
+
+    function cerrarModalDevolucion() {
+        datosEnPrestamo = null;
+        document.getElementById('modal-devolucion').classList.remove('activo');
+    }
+
+    async function confirmarDevolucion() {
+        if (!datosEnPrestamo) return;
+
+        var btnDev = document.getElementById('modal-btn-dev');
+        btnDev.disabled    = true;
+        btnDev.textContent = 'GUARDANDO...';
+
+        var obs         = document.getElementById('modal-obs-devolucion').value.trim();
+        var obsAnterior = datosEnPrestamo.observaciones || '';
+        var obsNueva    = obsAnterior +
+            (obsAnterior ? '\n' : '') +
+            '[DEVOLUCIÓN ' + new Date().toLocaleDateString('es-CO') + '] ← Regresa de ' +
+            (datosEnPrestamo.sede_intercambio || '—') + ' a ' + (datosEnPrestamo.sede_asignada || 'sede original') +
+            (obs ? ' | ' + obs : '');
+
+        var res = await DB.actualizarCarroza(datosEnPrestamo.placa, {
+            sede_intercambio: '',
+            observaciones:    obsNueva
+        });
+
+        if (res && res.ok === false) {
+            alert('Error al registrar devolución: ' + (res.error || 'Error desconocido'));
+        } else {
+            var placaDev = datosEnPrestamo.placa;
+            cerrarModalDevolucion();
+            await cargarFlota();
+            alert('✅ Carroza ' + placaDev + ' devuelta a su sede original.');
+        }
+
+        btnDev.disabled    = false;
+        btnDev.textContent = 'CONFIRMAR DEVOLUCIÓN';
+    }
+
+    // Cerrar modales al hacer clic fuera
+    document.getElementById('modal-prestamo').addEventListener('click', function(e) {
+        if (e.target === this) cerrarModalPrestamo();
+    });
+    document.getElementById('modal-devolucion').addEventListener('click', function(e) {
+        if (e.target === this) cerrarModalDevolucion();
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J.R. — Mis Averías</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --azul: #000080; --celeste: #eef5ff; --blanco: #ffffff;
+            --rojo: #dc2626; --verde: #25d366; --gris-texto: #64748b;
+        }
+        body { background: var(--celeste); font-family: 'DM Sans', sans-serif; padding: 20px; color: var(--azul); margin: 0; }
+        .container { max-width: 600px; margin: 0 auto; }
+        .header { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; }
+        .btn-volver { background: var(--blanco); border: none; padding: 10px 15px; border-radius: 10px; cursor: pointer; font-weight: bold; color: var(--azul); box-shadow: 0 2px 5px rgba(0,0,0,0.1); text-decoration: none; font-size: 16px; }
+        h2 { margin: 0; font-size: 20px; }
+        .card-averia { background: var(--blanco); border-radius: 15px; padding: 20px; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border: 1px solid rgba(0,0,128,0.05); }
+        .info-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+        .placa { font-weight: 700; font-size: 17px; color: var(--azul); }
+        .fecha { color: var(--gris-texto); font-size: 11px; text-align: right; }
+        .falla { color: var(--rojo); font-weight: 700; font-size: 14px; margin-top: 5px; text-transform: uppercase; }
+        .descripcion { font-size: 13px; margin-top: 10px; color: #475569; background: #f8fafc; padding: 10px; border-radius: 8px; line-height: 1.4; }
+        .regional-tag { display: inline-block; background: #eef5ff; color: var(--azul); font-size: 10px; font-weight: bold; padding: 3px 8px; border-radius: 6px; margin-top: 8px; text-transform: uppercase; }
+        .btn-wa { width: 100%; background: var(--verde); color: white; border: none; padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 15px; transition: 0.3s; display: flex; justify-content: center; align-items: center; gap: 8px; font-size: 13px; }
+        .btn-wa:active { transform: scale(0.98); }
+        .loader { text-align: center; padding: 50px 20px; color: var(--gris-texto); font-size: 14px; }
+    </style>
+</head>
+
+<body>
+<div class="container">
+    <div class="header">
+        <a href="panel_conductor.html" class="btn-volver">←</a>
+        <h2>Mis Reportes de Avería</h2>
+    </div>
+    <div id="lista-averias">
+        <div class="loader">Cargando reportes del sistema...</div>
+    </div>
+</div>
+
+<script src="db.js"></script>
+<script>
+// CORRECCIÓN: clave unificada 'usuario_sesion'
+const sesion = JSON.parse(localStorage.getItem('usuario_sesion') || '{}');
+
+async function cargarAverias() {
+    const lista = document.getElementById('lista-averias');
+
+    if (!sesion || !sesion.nombre) {
+        window.location.href = 'index.html';
+        return;
+    }
+
+    try {
+        const { data, error } = await DB.supabase
+            .from('Averias')
+            .select('*')
+            .ilike('reportado_por', `%${sesion.nombre}%`)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+            lista.innerHTML = `
+                <div class="loader">
+                    <p>📭 No tienes reportes registrados.</p>
+                    <small>Los reportes que envíes aparecerán aquí.</small>
+                </div>`;
+            return;
+        }
+
+        lista.innerHTML = data.map(av => {
+            const fechaFormateada = av.created_at 
+                ? new Date(av.created_at).toLocaleDateString('es-CO') + ' ' + 
+                  new Date(av.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                : 'Fecha pendiente';
+
+            return `
+                <div class="card-averia">
+                    <div class="info-row">
+                        <span class="placa">🚗 ${av.placa_vehiculo || '---'}</span>
+                        <span class="fecha">${fechaFormateada}</span>
+                    </div>
+                    <div class="falla">⚠️ ${av.tipo_falla || '---'}</div>
+                    <div class="descripcion">
+                        <strong>Síntomas:</strong><br>
+                        ${av.descripcion_sintomas || 'Sin descripción detallada.'}
+                    </div>
+                    ${av.regional ? `<span class="regional-tag">${av.regional}</span>` : ''}
+                    <button class="btn-wa" onclick='reenviarWhatsApp(${JSON.stringify(av).replace(/'/g,"&#39;")})'>
+                        📱 REENVIAR POR WHATSAPP
+                    </button>
+                </div>`;
+        }).join('');
+
+    } catch (err) {
+        console.error("Error al cargar:", err);
+        lista.innerHTML = `<div class="loader" style="color:red;">❌ No se pudieron cargar tus reportes.<br><small>${err.message}</small></div>`;
+    }
+}
+
+function reenviarWhatsApp(av) {
+    const msj = `*🚨 REPORTE DE AVERÍA J.R.*\n\n` +
+        `🚗 *Vehículo:* ${av.placa_vehiculo}\n` +
+        `*Falla:* ${av.tipo_falla}\n` +
+        `*Regional:* ${av.regional || '---'}\n` +
+        `*Reportado por:* ${sesion.nombre}\n` +
+        `📝 *Síntomas:* ${av.descripcion_sintomas || '---'}\n\n` +
+        `_Historial de App J.R._`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(msj)}`, '_blank');
+}
+
+window.onload = cargarAverias;
+</script>
+</body>
+</html>

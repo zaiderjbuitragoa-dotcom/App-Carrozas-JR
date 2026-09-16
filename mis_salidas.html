@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J.R. — Mis Salidas</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --azul: #001a70; --celeste: #eef5ff; --blanco: #ffffff;
+            --verde: #25d366; --gris: #64748b; --naranja: #f59e0b; --rojo: #ef4444;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--celeste); font-family: 'DM Sans', sans-serif; padding: 20px; color: var(--azul); }
+        .container { max-width: 600px; margin: 0 auto; }
+        .header { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; }
+        .btn-volver { background: var(--blanco); border: none; padding: 10px 15px; border-radius: 10px; cursor: pointer; font-weight: bold; color: var(--azul); box-shadow: 0 2px 5px rgba(0,0,0,0.1); font-size: 16px; text-decoration: none; }
+        h2 { margin: 0; font-size: 20px; }
+
+        .card-salida {
+            background: var(--blanco); border-radius: 15px; padding: 18px;
+            margin-bottom: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            border-left: 4px solid var(--azul);
+        }
+        .salida-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+        .placa { font-weight: 800; font-size: 18px; color: var(--azul); }
+        .fecha { font-size: 11px; color: var(--gris); text-align: right; }
+        .motivo { display: inline-block; background: #e0e7ff; color: var(--azul); font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 6px; text-transform: uppercase; margin-bottom: 8px; }
+        .ruta { font-size: 13px; color: #475569; margin-bottom: 6px; }
+        .ruta b { color: var(--azul); }
+        .detalle-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
+        .detalle-item { background: #f8fafc; border-radius: 8px; padding: 7px 10px; font-size: 11px; color: var(--gris); }
+        .detalle-item b { display: block; color: #1e293b; font-size: 13px; }
+
+        .btn-row { display: flex; gap: 8px; margin-top: 12px; }
+        .btn-wa {
+            flex: 1; background: var(--verde); color: white; border: none;
+            padding: 11px; border-radius: 10px; font-weight: 700; cursor: pointer;
+            font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .btn-editar {
+            background: var(--naranja); color: white; border: none;
+            padding: 11px 16px; border-radius: 10px; font-weight: 700; cursor: pointer;
+            font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap;
+        }
+        .btn-wa:active, .btn-editar:active { transform: scale(0.98); }
+        .loader { text-align: center; padding: 50px 20px; color: var(--gris); font-size: 14px; }
+
+        /* ── MODAL ── */
+        .modal-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55); z-index: 1000;
+            align-items: flex-start; justify-content: center;
+            padding: 16px; overflow-y: auto;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: var(--blanco); border-radius: 18px; width: 100%;
+            max-width: 520px; margin: auto;
+            padding: 24px; box-shadow: 0 20px 60px rgba(0,0,26,0.25);
+            animation: slideUp 0.25s ease;
+        }
+        @keyframes slideUp {
+            from { transform: translateY(30px); opacity: 0; }
+            to   { transform: translateY(0);   opacity: 1; }
+        }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-header h3 { font-size: 17px; color: var(--azul); }
+        .btn-cerrar {
+            background: #f1f5f9; border: none; border-radius: 8px;
+            width: 32px; height: 32px; font-size: 18px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; color: var(--gris); font-weight: bold;
+        }
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; font-size: 11px; font-weight: 700; color: var(--gris); text-transform: uppercase; margin-bottom: 5px; }
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%; padding: 10px 13px; border: 1.5px solid #e2e8f0;
+            border-radius: 10px; font-size: 14px; font-family: inherit;
+            color: #1e293b; background: #f8fafc; transition: border-color 0.2s;
+        }
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus { outline: none; border-color: var(--azul); background: var(--blanco); }
+        .form-group textarea { min-height: 70px; resize: vertical; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .btn-guardar {
+            width: 100%; background: var(--azul); color: white; border: none;
+            padding: 13px; border-radius: 12px; font-weight: 700; cursor: pointer;
+            font-size: 15px; margin-top: 8px; transition: opacity 0.2s;
+        }
+        .btn-guardar:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-guardar:hover:not(:disabled) { opacity: 0.88; }
+
+        .toast {
+            position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+            background: #1e293b; color: white; padding: 12px 24px;
+            border-radius: 50px; font-size: 13px; font-weight: 600;
+            z-index: 2000; opacity: 0; transition: opacity 0.3s;
+            pointer-events: none; white-space: nowrap;
+        }
+        .toast.show { opacity: 1; }
+        .toast.ok  { background: #16a34a; }
+        .toast.err { background: var(--rojo); }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <a href="panel_conductor.html" class="btn-volver">←</a>
+        <h2>Mis Salidas Registradas</h2>
+    </div>
+    <div id="lista-salidas">
+        <div class="loader">Cargando registros...</div>
+    </div>
+</div>
+
+<!-- ── MODAL EDICIÓN ── -->
+<div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>✏️ Editar Salida</h3>
+            <button class="btn-cerrar" onclick="cerrarModal()">✕</button>
+        </div>
+
+        <input type="hidden" id="edit_id">
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Placa</label>
+                <input type="text" id="edit_placa" placeholder="CUM 597">
+            </div>
+            <div class="form-group">
+                <label>Hora de Salida</label>
+                <input type="time" id="edit_hora_salida">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Motivo de Salida</label>
+            <select id="edit_motivo">
+                <option value="RECOGIDA DE CUERPO">Recogida de Cuerpo</option>
+                  <option value="SEPELIO">Sepelio</option>
+                <option value="TRAMITES EMPRESARIAL">Trámites Empresarial</option>
+                <option value="TRASLADO">Traslado</option>
+                <option value="SERVICIO">Servicio</option>
+                <option value="OTRO">Otro</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Nombre del Fallecido</label>
+            <input type="text" id="edit_fallecido" placeholder="Nombre completo">
+        </div>
+
+        <div class="form-group">
+            <label>Clínica / Hospital / RSD</label>
+            <input type="text" id="edit_clinica" placeholder="Lugar de recogida">
+        </div>
+
+        <div class="form-group">
+            <label>Número de Prestación</label>
+            <input type="text" id="edit_prestacion" placeholder="N° prestación">
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Origen</label>
+                <input type="text" id="edit_origen" placeholder="Ciudad origen">
+            </div>
+            <div class="form-group">
+                <label>Destino</label>
+                <input type="text" id="edit_destino" placeholder="Ciudad destino">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>KM Salida</label>
+                <input type="number" id="edit_km_salida" placeholder="278381">
+            </div>
+            <div class="form-group">
+                <label>Kit Carretera</label>
+                <select id="edit_kit">
+                    <option value="completo">Completo ✅</option>
+                    <option value="incompleto">Incompleto ⚠️</option>
+                    <option value="no-tiene">Sin Kit 🚨</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Observaciones</label>
+            <textarea id="edit_observaciones" placeholder="Sin novedades"></textarea>
+        </div>
+
+        <button class="btn-guardar" id="btnGuardar" onclick="guardarCambios()">
+            💾 Guardar Cambios
+        </button>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="db.js"></script>
+<script>
+const sesion = JSON.parse(localStorage.getItem('usuario_sesion') || '{}');
+
+/* ── FORMATO FECHA — maneja todos los formatos que llegan de Google Sheets ── */
+function formatFecha(str) {
+    if (!str) return '---';
+
+    // Ya está bien: DD/MM/YYYY
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) return str;
+
+    // ISO corto: YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+        const [y, m, d] = str.split('-');
+        return d + '/' + m + '/' + y;
+    }
+
+    // ISO largo o con zona horaria: "Thu May 28 2026 02:00:00 GMT-0500..."
+    // Usamos UTC para evitar que el offset cambie el día
+    try {
+        const ts = Date.parse(str);
+        if (!isNaN(ts)) {
+            const d = new Date(ts);
+            // Extraer partes en UTC para no desplazar el día por zona horaria
+            const dd = String(d.getUTCDate()).padStart(2, '0');
+            const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+            const yy = d.getUTCFullYear();
+            return dd + '/' + mm + '/' + yy;
+        }
+    } catch(e) {}
+
+    return str; // fallback: devolver como está
+}
+
+function formatHora(str) {
+    if (!str) return '---';
+    if (/^\d{2}:\d{2}/.test(str)) return str.substring(0, 5);
+    const d = new Date(str);
+    if (isNaN(d)) return str;
+    return d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
+}
+
+/* ── CARGAR SALIDAS ── */
+async function cargarSalidas() {
+    const lista = document.getElementById('lista-salidas');
+    if (!sesion.nombre) { window.location.href = 'index.html'; return; }
+
+    try {
+        const { data, error } = await DB.supabase
+            .from('Traslado')
+            .select('*')
+            .ilike('conductor', '%' + sesion.nombre + '%')
+            .order('id_salida', { ascending: false });
+
+        if (error) throw new Error(error.message);
+
+        // Deduplicar por id_salida (por si acaso)
+        const vistos = new Set();
+        const unicos = (data || []).filter(t => {
+            if (vistos.has(t.id_salida)) return false;
+            vistos.add(t.id_salida);
+            return true;
+        });
+
+        if (unicos.length === 0) {
+            lista.innerHTML = '<div class="loader"><p>📭 No tienes salidas registradas.</p></div>';
+            return;
+        }
+
+        lista.innerHTML = unicos.map(t => {
+            const motivo  = t.motivo_de_salida || 'Servicio';
+            const ruta    = (t.origen && t.destino)
+                ? t.origen + ' ➔ ' + t.destino
+                : (t.origen || t.destino || 'Sin ruta');
+            const kmTotal = (t.km__salida && t.km__ingreso)
+                ? (parseInt(t.km__ingreso) - parseInt(t.km__salida)) + ' KM'
+                : '---';
+            const dataAttr = JSON.stringify(t).replace(/'/g, "&#39;");
+
+            return `<div class="card-salida">
+                <div class="salida-top">
+                    <div>
+                        <div class="placa">🚗 ${t.placa || 'S/P'}</div>
+                        <span class="motivo">${motivo}</span>
+                    </div>
+                    <div class="fecha">
+                        ${formatFecha(t.fecha)}<br>
+                        ${formatHora(t.hora_de_salida)}
+                    </div>
+                </div>
+
+                ${t.nombre_del_fallecido ? `<div class="ruta">⚱️ <b>${t.nombre_del_fallecido}</b></div>` : ''}
+                <div class="ruta">📍 ${ruta}</div>
+
+                <div class="detalle-grid">
+                    <div class="detalle-item">KM Salida<b>${t.km__salida || '---'}</b></div>
+                    <div class="detalle-item">KM Ingreso<b>${t.km__ingreso || '---'}</b></div>
+                    <div class="detalle-item">Total Recorrido<b>${kmTotal}</b></div>
+                    <div class="detalle-item">Coordinador<b>${t.coordinador_en_turno || '---'}</b></div>
+                </div>
+
+                ${t.observaciones ? `<div class="ruta" style="margin-top:8px;font-size:12px;color:#64748b;">📝 ${t.observaciones}</div>` : ''}
+
+                <div class="btn-row">
+                    <button class="btn-editar" onclick="abrirModal(this)" data-t='${dataAttr}'>
+                        ✏️ Editar
+                    </button>
+                    <button class="btn-wa" onclick="enviarWA(this)" data-t='${dataAttr}'>
+                        <span>💬</span> Reenviar WhatsApp
+                    </button>
+                </div>
+            </div>`;
+        }).join('');
+
+    } catch (err) {
+        lista.innerHTML = `<div class="loader" style="color:red;">❌ Error: ${err.message}</div>`;
+    }
+}
+
+/* ── ABRIR MODAL ── */
+function abrirModal(btn) {
+    const t = JSON.parse(btn.getAttribute('data-t').replace(/&#39;/g, "'"));
+
+    document.getElementById('edit_id').value             = t.id_salida || '';
+    document.getElementById('edit_placa').value           = t.placa || '';
+    document.getElementById('edit_hora_salida').value     = t.hora_de_salida ? t.hora_de_salida.substring(0,5) : '';
+    document.getElementById('edit_motivo').value          = t.motivo_de_salida || 'SERVICIO';
+    document.getElementById('edit_fallecido').value       = t.nombre_del_fallecido || '';
+    document.getElementById('edit_clinica').value         = t.clinica_hospital_o_rsd || '';
+    document.getElementById('edit_prestacion').value      = t.numero_prestacion || '';
+    document.getElementById('edit_origen').value          = t.origen || '';
+    document.getElementById('edit_destino').value         = t.destino || '';
+    document.getElementById('edit_km_salida').value       = t.km__salida || '';
+    document.getElementById('edit_kit').value             = t.kit_carretera || 'completo';
+    document.getElementById('edit_observaciones').value   = t.observaciones || '';
+
+    document.getElementById('modalOverlay').classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function cerrarModal() {
+    document.getElementById('modalOverlay').classList.remove('active');
+    document.body.style.overflow = '';
+}
+
+document.getElementById('modalOverlay').addEventListener('click', function(e) {
+    if (e.target === this) cerrarModal();
+});
+
+/* ── GUARDAR — usa DB.actualizarTraslado() de db.js ── */
+async function guardarCambios() {
+    const btn = document.getElementById('btnGuardar');
+    btn.disabled = true;
+    btn.textContent = '⏳ Guardando...';
+
+    const idSalida = document.getElementById('edit_id').value;
+
+    const payload = {
+        placa:          document.getElementById('edit_placa').value.trim(),
+        hora_salida:    document.getElementById('edit_hora_salida').value,
+        motivo:         document.getElementById('edit_motivo').value,
+        fallecido:      document.getElementById('edit_fallecido').value.trim(),
+        clinica:        document.getElementById('edit_clinica').value.trim(),
+        prestacion:     document.getElementById('edit_prestacion').value.trim(),
+        origen:         document.getElementById('edit_origen').value.trim(),
+        destino:        document.getElementById('edit_destino').value.trim(),
+        km_salida:      document.getElementById('edit_km_salida').value,
+        kit_carretera:  document.getElementById('edit_kit').value,
+        observaciones:  document.getElementById('edit_observaciones').value.trim(),
+        // Mantener datos del conductor de sesión
+        conductor:      sesion.nombre  || '',
+        nnum_telefono:  sesion.telefono || '',
+        regional:       sesion.regional || '',
+    };
+
+    const res = await DB.actualizarTraslado(idSalida, payload);
+
+    if (res.ok) {
+        mostrarToast('✅ Cambios guardados correctamente', 'ok');
+        cerrarModal();
+        await cargarSalidas(); // refrescar lista
+    } else {
+        mostrarToast('❌ Error: ' + (res.error || 'Intenta de nuevo'), 'err');
+    }
+
+    btn.disabled = false;
+    btn.textContent = '💾 Guardar Cambios';
+}
+
+/* ── WHATSAPP ── */
+function enviarWA(btn) {
+    const t = JSON.parse(btn.getAttribute('data-t').replace(/&#39;/g, "'"));
+
+    const hora = new Date().getHours();
+    const saludo = hora < 12 ? "*Buenos Días* ☀️" : hora < 18 ? "*Buenas Tardes* 🌤️" : "*Buenas Noches* 🌙";
+
+    let estadoCarroza = "✅ Todo En Orden";
+    if (t.kit_carretera === 'incompleto') estadoCarroza = "⚠️ Pendientes en Kit";
+    else if (t.kit_carretera === 'no-tiene') estadoCarroza = "🚨 Sin Kit de Carretera";
+
+    const msg = saludo + "\n\n" +
+        "*REPORTE DE SALIDA DE CARROZA* 🚗💨\n" +
+        "───────────────────\n" +
+        "*Regional:* "      + (t.regional || '---') + "\n" +
+        "*Fecha:* "         + formatFecha(t.fecha)  + "\n" +
+        "*Coordinador:* "   + (t.coordinador_en_turno || '---') + "\n" +
+        "*Hora Salida:* "   + formatHora(t.hora_de_salida) + "\n" +
+        "*Placa:* "         + (t.placa || '---') + "\n" +
+        "*Motivo:* "        + (t.motivo_de_salida || '---') + "\n" +
+        "*Fallecido:* "     + (t.nombre_del_fallecido || '---') + "\n" +
+        "*Recogida:* "      + (t.clinica_hospital_o_rsd || '---') + "\n" +
+        "*Origen:* "        + (t.origen || '---') + "\n" +
+        "*Destino:* "       + (t.destino || '---') + "\n" +
+        "*KM Salida:* "     + (t.km__salida || '---') + "\n" +
+        "*Kit Carretera:* " + (t.kit_carretera || '---') + "\n" +
+        "*Conductor:* "     + (t.conductor || '---') + "\n" +
+        "*Teléfono:* "      + (t.nnum_telefono || '---') + "\n" +
+        "───────────────────\n" +
+        "*📝 Observaciones:* " + (t.observaciones || 'Sin novedades') + "\n\n" +
+        "*Estado del Vehículo:* " + estadoCarroza;
+
+    const esMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
+    const url = (esMobile ? "https://wa.me/" : "https://web.whatsapp.com/send") + "?text=" + encodeURIComponent(msg);
+    window.open(url, '_blank');
+}
+
+/* ── TOAST ── */
+function mostrarToast(msg, tipo = '') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show ' + tipo;
+    setTimeout(() => { t.className = 'toast'; }, 3500);
+}
+
+window.onload = cargarSalidas;
+</script>
+</body>
+</html>

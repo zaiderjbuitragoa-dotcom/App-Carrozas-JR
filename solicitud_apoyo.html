@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J.R. — Solicitudes de Apoyo</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --azul: #001a70; --celeste: #e8f0fe; --blanco: #ffffff;
+            --verde: #10b981; --naranja: #f59e0b; --rojo: #dc2626;
+            --gris: #64748b; --fondo: #f0f4ff;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--fondo); font-family: 'DM Sans', sans-serif; color: #1e293b; min-height: 100vh; }
+
+        .header {
+            background: var(--azul); color: white;
+            padding: 18px 20px 16px; position: sticky; top: 0; z-index: 50;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .header-left { display: flex; align-items: center; gap: 10px; }
+        .header h1 { font-size: 16px; font-weight: 800; }
+        .header small { font-size: 10px; opacity: 0.7; display: block; }
+        .btn-back { background: rgba(255,255,255,0.15); border: none; color: white; padding: 8px 13px; border-radius: 10px; font-weight: 700; font-size: 13px; cursor: pointer; font-family: inherit; }
+
+        .filtros-bar {
+            display: flex; gap: 8px; padding: 14px 16px 10px;
+            overflow-x: auto; background: var(--blanco);
+            border-bottom: 1.5px solid #e2e8f0; position: sticky; top: 58px; z-index: 40;
+        }
+        .filtros-bar::-webkit-scrollbar { display: none; }
+        .filtro {
+            padding: 7px 14px; border-radius: 20px; border: 1.5px solid #e2e8f0;
+            background: var(--fondo); font-size: 12px; font-weight: 700;
+            color: var(--gris); cursor: pointer; white-space: nowrap; flex-shrink: 0; transition: 0.15s;
+            font-family: inherit;
+        }
+        .filtro.on { background: var(--azul); color: white; border-color: var(--azul); }
+
+        .lista { padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+
+        .sol-card {
+            background: var(--blanco); border-radius: 18px;
+            overflow: hidden; box-shadow: 0 2px 10px rgba(0,26,112,0.06);
+            border: 1.5px solid #e8efff; animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+        .sol-card.urgente { border-left: 4px solid var(--naranja); }
+        .sol-card.critica { border-left: 4px solid var(--rojo); animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0%,100%{box-shadow:0 2px 10px rgba(220,38,38,0.1);} 50%{box-shadow:0 2px 20px rgba(220,38,38,0.3);} }
+
+        .sol-urgencia-bar {
+            padding: 6px 16px; font-size: 11px; font-weight: 800;
+            text-transform: uppercase; letter-spacing: 0.5px;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .bar-normal  { background: #ecfdf5; color: #065f46; }
+        .bar-urgente { background: #fffbeb; color: #92400e; }
+        .bar-critica { background: #fef2f2; color: #991b1b; }
+
+        .sol-body { padding: 16px; }
+        .sol-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+        .sol-regional { font-size: 18px; font-weight: 800; color: var(--azul); }
+        .sol-tiempo { font-size: 10px; color: var(--gris); text-align: right; line-height: 1.5; }
+
+        .sol-tipo {
+            display: inline-block; background: var(--celeste); color: var(--azul);
+            font-size: 10px; font-weight: 800; padding: 3px 10px;
+            border-radius: 6px; text-transform: uppercase; margin-bottom: 12px;
+        }
+
+        .sol-ruta {
+            background: var(--fondo); border-radius: 12px; padding: 12px 14px;
+            display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
+            font-size: 13px; font-weight: 700;
+        }
+        .sol-ruta .ciudad { color: var(--azul); flex: 1; }
+        .sol-ruta .flecha { color: #94a3b8; font-size: 16px; }
+
+        .sol-detalles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+        .detalle-item { background: var(--fondo); border-radius: 10px; padding: 9px 11px; }
+        .detalle-item .d-label { font-size: 10px; color: var(--gris); font-weight: 700; text-transform: uppercase; margin-bottom: 2px; }
+        .detalle-item .d-val { font-size: 13px; font-weight: 700; color: #1e293b; }
+
+        .sol-obs {
+            font-size: 12px; color: #475569; background: #fffbeb;
+            border-radius: 8px; padding: 8px 11px; margin-bottom: 14px;
+            border-left: 3px solid var(--naranja); line-height: 1.5;
+        }
+
+        .alcance-tag { font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 6px; margin-left: 6px; }
+        .tag-nacional   { background: #f5f3ff; color: #6d28d9; }
+        .tag-regional   { background: #ecfdf5; color: #065f46; }
+        .tag-especifica { background: #fff7ed; color: #c2410c; }
+
+        .btn-aceptar {
+            width: 100%; padding: 15px; border: none; border-radius: 13px;
+            background: var(--verde); color: white; font-weight: 800; font-size: 15px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            gap: 10px; transition: 0.2s; box-shadow: 0 4px 12px rgba(16,185,129,0.25);
+            font-family: inherit;
+        }
+        .btn-aceptar:active { transform: scale(0.98); }
+        .btn-aceptar:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+        .sol-aceptada-info {
+            background: #ecfdf5; border-radius: 12px; padding: 12px 14px;
+            text-align: center; font-size: 13px; font-weight: 700; color: #065f46;
+        }
+
+        .empty { text-align: center; padding: 60px 20px; color: var(--gris); }
+        .empty .icon { font-size: 48px; margin-bottom: 12px; }
+        .empty p { font-size: 15px; font-weight: 600; }
+        .empty small { font-size: 12px; margin-top: 6px; display: block; }
+
+        .loader { display: flex; align-items: center; justify-content: center; padding: 60px; color: var(--gris); font-size: 14px; gap: 10px; }
+        .spinner { width: 20px; height: 20px; border: 2px solid #e2e8f0; border-top-color: var(--azul); border-radius: 50%; animation: spin 0.7s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .toast {
+            position: fixed; bottom: 24px; left: 50%;
+            transform: translateX(-50%) translateY(60px);
+            background: #1e293b; color: white; padding: 13px 22px;
+            border-radius: 14px; font-size: 13px; font-weight: 600;
+            z-index: 999; opacity: 0; transition: 0.3s; white-space: nowrap;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+        .modal-bg {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.4); backdrop-filter: blur(4px);
+            z-index: 200; align-items: flex-end; justify-content: center;
+        }
+        .modal-bg.open { display: flex; }
+        .modal-sheet {
+            background: white; border-radius: 24px 24px 0 0;
+            padding: 28px 22px 36px; width: 100%; max-width: 520px;
+        }
+        .modal-sheet h3 { font-size: 18px; font-weight: 800; color: var(--azul); margin-bottom: 6px; }
+        .modal-sheet p { font-size: 13px; color: var(--gris); margin-bottom: 20px; line-height: 1.5; }
+        .modal-ruta {
+            background: var(--fondo); border-radius: 12px; padding: 14px;
+            font-size: 14px; font-weight: 700; color: var(--azul);
+            text-align: center; margin-bottom: 20px;
+        }
+        .modal-btns { display: flex; flex-direction: column; gap: 10px; }
+        .btn-confirmar {
+            width: 100%; padding: 16px; border: none; border-radius: 13px;
+            background: var(--verde); color: white; font-weight: 800; font-size: 16px;
+            cursor: pointer; font-family: inherit; transition: 0.2s;
+        }
+        .btn-confirmar:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-cancelar-m {
+            width: 100%; padding: 13px; border: 1.5px solid #e2e8f0; border-radius: 13px;
+            background: white; color: var(--gris); font-weight: 700; font-size: 14px;
+            cursor: pointer; font-family: inherit;
+        }
+
+        .refresh-bar { text-align: center; padding: 10px; }
+        .btn-refresh { background: none; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 8px 16px; font-size: 12px; font-weight: 700; color: var(--gris); cursor: pointer; font-family: inherit; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-left">
+        <button class="btn-back" onclick="irAtras()">←</button>
+        <div>
+            <h1>🤝 Solicitudes de Apoyo</h1>
+            <small id="sub-info">Cargando...</small>
+        </div>
+    </div>
+    <div id="badge-pendientes" style="display:none; background:#ef4444; color:white; font-size:12px; font-weight:800; padding:5px 10px; border-radius:10px;"></div>
+</div>
+
+<div class="filtros-bar">
+    <div class="filtro on" onclick="setFiltro('disponibles', this)">⏳ Disponibles</div>
+    <div class="filtro"    onclick="setFiltro('mi_regional', this)">📍 Mi Regional</div>
+    <div class="filtro"    onclick="setFiltro('nacional', this)">🌎 Nacional</div>
+    <div class="filtro"    onclick="setFiltro('mis_aceptadas', this)">✅ Mis Aceptadas</div>
+    <div class="filtro"    onclick="setFiltro('mis_solicitudes', this)">📝 Mis Solicitudes</div>
+</div>
+
+<div class="lista" id="lista">
+    <div class="loader"><div class="spinner"></div> Cargando solicitudes...</div>
+</div>
+
+<div class="refresh-bar">
+    <button class="btn-refresh" onclick="cargar()">↻ Actualizar</button>
+</div>
+
+<div class="modal-bg" id="modal-bg">
+    <div class="modal-sheet">
+        <h3>🤝 Confirmar Apoyo</h3>
+        <p>Al aceptar, quedarás asignado a este servicio y se abrirá el formulario de salida con los datos prellenados.</p>
+        <div class="modal-ruta" id="modal-ruta-info">---</div>
+        <div class="modal-btns">
+            <button class="btn-confirmar" id="btn-confirmar-final" onclick="confirmarAceptar()">
+                ✅ ACEPTAR Y LLENAR SALIDA
+            </button>
+            <button class="btn-cancelar-m" onclick="cerrarModal()">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="db.js"></script>
+<script>
+// v12.23 — ya no necesitamos APPS_SCRIPT_URL suelto:
+// todas las peticiones pasan por DB (db.js) con caché persistente
+// de 6h, limitador de concurrencia y fallback ante saturación.
+
+let sesion = {};
+let filtroActual = 'disponibles';
+let todasSolicitudes = [];
+let solPendiente = null;
+
+window.onload = async function() {
+    sesion = JSON.parse(localStorage.getItem('usuario_sesion') || '{}');
+    if (!sesion.nombre) { window.location.href = 'index.html'; return; }
+
+    var regional = sesion.regional || localStorage.getItem('jr_regional_usuario') || 'Pereira';
+    document.getElementById('sub-info').textContent = sesion.nombre + ' · ' + regional;
+
+    await cargar();
+    setInterval(cargar, 30000);
+};
+
+// 🔧 FIX: se envuelve sesion.usuario y sesion.rol con String(...) antes de
+// llamar .toLowerCase(), porque si vienen guardados en localStorage como
+// algo distinto a texto (número, boolean, etc.), (valor || '') no los
+// convierte en string vacío y .toLowerCase() truena.
+function irAtras() {
+    var esAdmin = String(sesion.usuario||'').toLowerCase() === 'admin' || String(sesion.rol||'').toLowerCase() === 'admin';
+    var esCoord = String(sesion.rol||'').toLowerCase().indexOf('coordinador') >= 0;
+    window.location.href = esAdmin ? 'dashboard.html' : esCoord ? 'panel_coordinador.html' : 'panel_conductor.html';
+}
+
+async function cargar() {
+    // v12.23 — invalidar caché local de solicitudes para que cada
+    // visita a esta pantalla vea las solicitudes más recientes.
+    // Se invalida la hoja pero no el resto del caché global.
+    if (window.DB) DB.invalidarCache('solicitud_apoyo');
+    try {
+        const resultado = await DB.obtenerHoja('solicitud_apoyo');
+        if (!resultado.ok) throw new Error(resultado.error || 'Error al cargar solicitudes');
+        const data = resultado.data;
+
+        todasSolicitudes = (Array.isArray(data) ? data : []).sort(function(a, b) {
+            return String(b.created_at || '').localeCompare(String(a.created_at || ''));
+        });
+
+        renderLista();
+        actualizarBadge();
+    } catch(e) {
+        document.getElementById('lista').innerHTML =
+            '<div class="empty"><div class="icon">❌</div><p>Error al cargar</p><small>' + e.message + '</small></div>';
+    }
+}
+
+// ✅ CORREGIDO: "regional" como palabra = solicitud para la regional del solicitante
+function solicitudEsParaMiRegional(s, miRegional) {
+    var norm = function(str) {
+        return String(str || '').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    };
+    var alc    = norm(s.alcance || '');
+    var reg    = norm(miRegional);
+    var regSol = norm(s.regional_solicitante || '');
+
+    return (
+        alc === 'nacional' ||
+        alc === reg ||
+        (alc === 'regional' && regSol === reg)
+    );
+}
+
+function actualizarBadge() {
+    var miRegional = sesion.regional || localStorage.getItem('jr_regional_usuario') || 'Pereira';
+    var pendientes = todasSolicitudes.filter(function(s) {
+        return (s.estado||'').toLowerCase() === 'pendiente' && solicitudEsParaMiRegional(s, miRegional);
+    }).length;
+    var badge = document.getElementById('badge-pendientes');
+    if (pendientes > 0) {
+        badge.style.display = 'block';
+        badge.textContent = pendientes + ' pendiente' + (pendientes > 1 ? 's' : '');
+    } else {
+        badge.style.display = 'none';
+    }
+}
+
+function setFiltro(f, el) {
+    filtroActual = f;
+    document.querySelectorAll('.filtro').forEach(function(b) { b.classList.remove('on'); });
+    el.classList.add('on');
+    renderLista();
+}
+
+function renderLista() {
+    var miRegional = sesion.regional || localStorage.getItem('jr_regional_usuario') || 'Pereira';
+    var norm = function(str) {
+        return String(str || '').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    };
+    var lista = todasSolicitudes.slice();
+
+    if (filtroActual === 'disponibles') {
+        // Solo pendientes de mi regional
+        lista = lista.filter(function(s) {
+            return (s.estado||'').toLowerCase() === 'pendiente' && solicitudEsParaMiRegional(s, miRegional);
+        });
+    } else if (filtroActual === 'mi_regional') {
+        // Todas (cualquier estado) de mi regional
+        lista = lista.filter(function(s) {
+            return solicitudEsParaMiRegional(s, miRegional);
+        });
+    } else if (filtroActual === 'nacional') {
+        lista = lista.filter(function(s) {
+            return norm(s.alcance) === 'nacional';
+        });
+    } else if (filtroActual === 'mis_aceptadas') {
+        lista = lista.filter(function(s) {
+            var ca = (s['conductor_aceptó'] || s['conductor_acepto'] || '').toLowerCase().trim();
+            return ca === (sesion.nombre||'').toLowerCase().trim();
+        });
+    } else if (filtroActual === 'mis_solicitudes') {
+        // 🆕 Solicitudes creadas por MÍ como coordinador(a), sin importar su estado
+        lista = lista.filter(function(s) {
+            return norm(s.coordinador) === norm(sesion.nombre || '');
+        });
+    }
+
+    var div = document.getElementById('lista');
+    if (!lista.length) {
+        var icono = filtroActual === 'disponibles' ? '🎉' : filtroActual === 'mis_solicitudes' ? '📋' : '📭';
+        var msg   = filtroActual === 'disponibles' ? 'Sin solicitudes pendientes para tu regional' :
+                    filtroActual === 'mis_solicitudes' ? 'Aún no has creado solicitudes de apoyo' :
+                    'Nada aquí todavía';
+        div.innerHTML = '<div class="empty"><div class="icon">' + icono + '</div><p>' + msg + '</p><small>Actualiza en unos minutos</small></div>';
+        return;
+    }
+    div.innerHTML = lista.map(function(s) { return renderCard(s, miRegional, filtroActual); }).join('');
+}
+
+function renderCard(s, miRegional, filtroActual) {
+    var norm = function(str) {
+        return String(str || '').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    };
+    var yaAceptada      = (s.estado||'').toLowerCase() !== 'pendiente';
+    var conductorAcepto = s['conductor_aceptó'] || s['conductor_acepto'] || '';
+    var esLaMia         = norm(conductorAcepto) === norm(sesion.nombre||'');
+    var tiempo          = tiempoAtras(s.created_at);
+
+    var urgencia = (s.urgencia||'normal').toLowerCase();
+    var barClass = urgencia === 'critica' ? 'bar-critica' : urgencia === 'urgente' ? 'bar-urgente' : 'bar-normal';
+    var barIcon  = urgencia === 'critica' ? '🚨 CRÍTICA'  : urgencia === 'urgente' ? '⚡ URGENTE'  : '✅ Normal';
+    var cardClass= urgencia === 'critica' ? 'critica'     : urgencia === 'urgente' ? 'urgente'    : '';
+
+    var alcanceTag = '';
+    if (norm(s.alcance) === 'nacional') {
+        alcanceTag = '<span class="alcance-tag tag-nacional">🌎 Nacional</span>';
+    } else if (norm(s.alcance) === norm(miRegional)) {
+        alcanceTag = '<span class="alcance-tag tag-especifica">🎯 Para ' + miRegional + '</span>';
+    } else if (norm(s.alcance) === 'regional') {
+        alcanceTag = '<span class="alcance-tag tag-regional">📍 ' + (s.regional_solicitante||'Regional') + '</span>';
+    } else {
+        alcanceTag = '<span class="alcance-tag tag-regional">📍 ' + (s.alcance||'Regional') + '</span>';
+    }
+
+    var fechaLimpia = formatFecha(s.fecha_servicio);
+    var horaLimpia  = formatHora(s.hora_requerida);
+    var idSol       = String(s.id || '');
+
+    var detalles = '';
+    if (s.nombre_fallecido) detalles += '<div class="detalle-item"><div class="d-label">Fallecido</div><div class="d-val">⚱️ ' + s.nombre_fallecido + '</div></div>';
+    if (s.clinica_hospital) detalles += '<div class="detalle-item"><div class="d-label">Lugar</div><div class="d-val">🏥 ' + s.clinica_hospital + '</div></div>';
+    if (fechaLimpia)        detalles += '<div class="detalle-item"><div class="d-label">Fecha</div><div class="d-val">📅 ' + fechaLimpia + '</div></div>';
+    if (horaLimpia)         detalles += '<div class="detalle-item"><div class="d-label">Hora</div><div class="d-val">🕒 ' + horaLimpia + '</div></div>';
+
+    var boton = '';
+    if (filtroActual === 'mis_solicitudes') {
+        // 🆕 Vista de solo lectura para el coordinador que creó la solicitud
+        if ((s.estado||'').toLowerCase() === 'pendiente') {
+            boton = '<div class="sol-aceptada-info" style="background:#fffbeb;color:#92400e;">⏳ Pendiente · esperando conductor</div>';
+        } else {
+            boton = '<div class="sol-aceptada-info">✅ ' + estadoLabel(s.estado) + ' · Aceptó ' + (conductorAcepto || '---') + '</div>';
+        }
+    } else if (!yaAceptada) {
+        boton = '<button class="btn-aceptar" id="btn-ac-' + idSol + '" onclick="pedirConfirmar(\'' + idSol + '\')"><span>🤝</span> ACEPTAR ESTE SERVICIO</button>';
+    } else if (esLaMia) {
+        boton = '<div class="sol-aceptada-info">✅ Aceptada por ti · Estado: ' + estadoLabel(s.estado) + '</div>';
+    } else {
+        boton = '<div class="sol-aceptada-info" style="background:#f1f5f9;color:var(--gris);">Aceptada por ' + (conductorAcepto||'otro conductor') + '</div>';
+    }
+
+    return '<div class="sol-card ' + cardClass + '">' +
+        '<div class="sol-urgencia-bar ' + barClass + '">' + barIcon + alcanceTag + '</div>' +
+        '<div class="sol-body">' +
+            '<div class="sol-top">' +
+                '<div>' +
+                    '<div class="sol-regional">📍 ' + (s.regional_solicitante||'---') + '</div>' +
+                    '<div style="font-size:11px;color:var(--gris);margin-top:2px;">Solicitado por ' + (s.coordinador||'---') + '</div>' +
+                '</div>' +
+                '<div class="sol-tiempo">' + tiempo + '</div>' +
+            '</div>' +
+            '<div class="sol-tipo">' + (s.tipo_servicio||'---') + '</div>' +
+            '<div class="sol-ruta">' +
+                '<div class="ciudad">🚩 ' + (s.origen||'---') + '</div>' +
+                '<div class="flecha">➔</div>' +
+                '<div class="ciudad" style="text-align:right;">🏁 ' + (s.destino||'---') + '</div>' +
+            '</div>' +
+            '<div class="sol-detalles">' + detalles + '</div>' +
+            (s.observaciones ? '<div class="sol-obs">📝 ' + s.observaciones + '</div>' : '') +
+            boton +
+        '</div>' +
+    '</div>';
+}
+
+function formatFecha(val) {
+    if (!val || String(val).trim() === '') return '';
+    var s = String(val).trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
+    try {
+        var d = new Date(s);
+        if (!isNaN(d.getTime()) && d.getFullYear() > 1970 && d.getFullYear() < 2100) {
+            return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+        }
+    } catch(e) {}
+    return s;
+}
+
+function formatHora(val) {
+    if (!val || String(val).trim() === '') return '';
+    var s = String(val).trim();
+    if (/^\d{1,2}:\d{2}/.test(s)) return s.substring(0, 5);
+    try {
+        var d = new Date(s);
+        if (!isNaN(d.getTime())) {
+            if (d.getFullYear() <= 1900) {
+                return String(d.getUTCHours()).padStart(2,'0') + ':' + String(d.getUTCMinutes()).padStart(2,'0');
+            }
+            return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+        }
+    } catch(e) {}
+    return s;
+}
+
+function pedirConfirmar(id) {
+    solPendiente = todasSolicitudes.find(function(s) { return String(s.id) === String(id); });
+    if (!solPendiente) { toast('⚠️ No se encontró la solicitud', '#f59e0b'); return; }
+
+    var btnCard = document.getElementById('btn-ac-' + id);
+    if (btnCard) btnCard.disabled = true;
+
+    document.getElementById('modal-ruta-info').innerHTML =
+        '🚩 ' + (solPendiente.origen||'---') + '  ➔  🏁 ' + (solPendiente.destino||'---') +
+        (solPendiente.nombre_fallecido ? '<br><small style="font-weight:500;color:#64748b;">⚱️ ' + solPendiente.nombre_fallecido + '</small>' : '');
+
+    document.getElementById('btn-confirmar-final').disabled = false;
+    document.getElementById('btn-confirmar-final').textContent = '✅ ACEPTAR Y LLENAR SALIDA';
+    document.getElementById('modal-bg').classList.add('open');
+}
+
+function cerrarModal() {
+    document.getElementById('modal-bg').classList.remove('open');
+    if (solPendiente) {
+        var btnCard = document.getElementById('btn-ac-' + solPendiente.id);
+        if (btnCard) btnCard.disabled = false;
+    }
+    solPendiente = null;
+}
+
+async function confirmarAceptar() {
+    if (!solPendiente) return;
+
+    var btn = document.getElementById('btn-confirmar-final');
+    btn.disabled = true;
+    btn.textContent = '⏳ Procesando...';
+
+    try {
+        if (!solPendiente.id) throw new Error('La solicitud no tiene ID válido');
+
+        var res = await DB.actualizar(
+            'solicitud_apoyo',
+            { estado: 'aceptada', 'conductor_aceptó': sesion.nombre },
+            'id',
+            String(solPendiente.id)
+        );
+
+        if (!res || res.ok === false) throw new Error(res && res.error ? res.error : 'Error al actualizar solicitud');
+
+        // Notificación interna (no crítico)
+        try {
+            await DB.insertar('notificaciones_apoyo', {
+                tipo:      'apoyo_aceptado',
+                titulo:    '✅ Apoyo Aceptado',
+                cuerpo:    sesion.nombre + ' aceptó: ' + (solPendiente.origen||'') + ' → ' + (solPendiente.destino||''),
+                regional:  solPendiente.regional_solicitante || '',
+                alcance:   solPendiente.alcance || '',
+                leido:     false,
+                remitente: sesion.nombre,
+                created_at: new Date().toISOString()
+            });
+        } catch(eN) { console.warn('Notif:', eN.message); }
+
+
+        toast('✅ Apoyo aceptado — abriendo formulario...', '#10b981');
+
+        var s = solPendiente;
+        var params = new URLSearchParams({
+            id:        String(s.id),
+            fallecido: s.nombre_fallecido || '',
+            recogida:  s.clinica_hospital || '',
+            origen:    s.origen           || '',
+            destino:   s.destino          || '',
+            motivo:    s.tipo_servicio    || ''
+        });
+
+        cerrarModal();
+        setTimeout(function() {
+            window.location.href = 'registro_salida.html?' + params.toString();
+        }, 900);
+
+    } catch(e) {
+        toast('❌ Error: ' + e.message, '#dc2626');
+        btn.disabled = false;
+        btn.textContent = '✅ ACEPTAR Y LLENAR SALIDA';
+        if (solPendiente) {
+            var btnCard = document.getElementById('btn-ac-' + solPendiente.id);
+            if (btnCard) btnCard.disabled = false;
+        }
+    }
+}
+
+function estadoLabel(e) {
+    var m = { pendiente:'Pendiente', aceptada:'Aceptada', en_curso:'En Curso', completada:'Completada' };
+    return m[(e||'').toLowerCase()] || e;
+}
+
+function tiempoAtras(ts) {
+    if (!ts) return '';
+    var m = Math.floor((Date.now() - new Date(ts)) / 60000);
+    if (m < 1)  return 'Ahora';
+    if (m < 60) return 'Hace ' + m + 'min';
+    var h = Math.floor(m/60);
+    if (h < 24) return 'Hace ' + h + 'h';
+    return 'Hace ' + Math.floor(h/24) + 'd';
+}
+
+function toast(msg, color) {
+    var t = document.getElementById('toast');
+    t.textContent = msg; t.style.background = color || '#1e293b';
+    t.classList.add('show');
+    setTimeout(function() { t.classList.remove('show'); }, 3000);
+}
+</script>
+<script src="config-aplicar.js"></script>
+</body>
+</html>

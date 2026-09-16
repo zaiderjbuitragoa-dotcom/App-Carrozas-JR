@@ -1,0 +1,1181 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J.R. — Control de Taller</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --azul: #001a70; --celeste: #e3f2fd; --blanco: #ffffff; --amarillo: #f59e0b; --rojo: #dc2626; --verde: #10b981; --cian: #0891b2; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--celeste); font-family: 'DM Sans', sans-serif; padding: 15px; color: #1e293b; }
+        .container { max-width: 900px; margin: auto; }
+
+        .nav-header { margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; }
+        .btn-volver { text-decoration: none; color: var(--azul); font-weight: 700; font-size: 14px; background: var(--blanco); padding: 10px 16px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); cursor: pointer; border: none; font-family: inherit; }
+
+        .card { background: var(--blanco); padding: 25px; border-radius: 25px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 20px; border-top: 5px solid var(--azul); }
+        .card.edit-mode { border-top-color: var(--amarillo); background: #fffcf5; }
+
+        /* ORDENES POR AVERIA */
+        .card-ordenes { background: var(--blanco); padding: 25px; border-radius: 25px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 20px; border-top: 5px solid var(--rojo); }
+        .ordenes-titulo { font-size: 15px; font-weight: 800; color: var(--rojo); text-transform: uppercase; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
+        .badge-ordenes { background: #fef2f2; color: var(--rojo); font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 8px; }
+
+        .orden-item { background: #fffafa; border: 1.5px solid #fecaca; border-radius: 16px; padding: 16px; margin-bottom: 12px; animation: fadeIn 0.3s ease; }
+        .orden-item:last-child { margin-bottom: 0; }
+        .orden-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 8px; }
+        .orden-placa { font-size: 18px; font-weight: 800; color: var(--azul); }
+        .orden-falla { font-size: 11px; font-weight: 800; background: #fee2e2; color: #991b1b; padding: 4px 10px; border-radius: 8px; text-transform: uppercase; }
+        .orden-fecha { font-size: 11px; color: #94a3b8; }
+        .orden-desc { font-size: 13px; color: #475569; background: #f8fafc; border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; line-height: 1.6; white-space: pre-line; }
+        .orden-reportado { font-size: 11px; color: #64748b; margin-bottom: 12px; }
+
+        .liberar-form { border-top: 1.5px dashed #fca5a5; padding-top: 14px; margin-top: 4px; }
+        .liberar-form label { font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 5px; display: block; }
+        .liberar-form textarea { width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-family: inherit; font-size: 13px; margin-bottom: 10px; resize: vertical; }
+        .liberar-form textarea:focus { outline: none; border-color: var(--azul); }
+
+        .liberar-btns { display: flex; gap: 8px; }
+        .btn-liberar-ok { flex: 1; padding: 13px; border: none; border-radius: 12px; background: var(--verde); color: white; font-weight: 800; font-size: 13px; cursor: pointer; transition: 0.2s; font-family: inherit; display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .btn-liberar-ok:active { transform: scale(0.97); }
+        .btn-liberar-ok:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-liberar-taller { flex: 1; padding: 13px; border: none; border-radius: 12px; background: #fee2e2; color: var(--rojo); font-weight: 800; font-size: 13px; cursor: pointer; transition: 0.2s; font-family: inherit; display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .btn-liberar-taller:active { transform: scale(0.97); }
+        .btn-liberar-taller:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* INSPECCION DE KILOMETRAJE */
+        .card-inspeccion { background: var(--blanco); padding: 25px; border-radius: 25px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 20px; border-top: 5px solid var(--cian); }
+        .inspeccion-titulo { font-size: 15px; font-weight: 800; color: var(--cian); text-transform: uppercase; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+        .badge-inspeccion { background: #ecfeff; color: var(--cian); font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 8px; text-transform: none; }
+        .inspeccion-sub { font-size: 12px; color: #64748b; margin-bottom: 18px; }
+
+        .info-km-insp { background: #ecfeff; border: 1.5px solid #67e8f9; border-radius: 12px; padding: 11px 14px; font-size: 12px; color: #0e7490; font-weight: 600; margin-bottom: 15px; align-items: center; gap: 10px; }
+
+        .insp-resumen { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; margin-bottom: 15px; font-size: 13px; color: #1e293b; line-height: 1.8; }
+        .insp-resumen b { color: var(--azul); }
+        .insp-resumen.ok b.vida { color: var(--verde); }
+        .insp-resumen.warn b.vida { color: var(--amarillo); }
+        .insp-resumen.danger b.vida { color: var(--rojo); }
+
+        .btn-registrar-insp { background: var(--cian); color: white; border: none; width: 100%; padding: 15px; border-radius: 14px; font-weight: 800; font-size: 15px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: 0 4px 14px rgba(8,145,178,0.25); font-family: inherit; margin-top: 5px; }
+        .btn-registrar-insp:active { transform: scale(0.98); }
+        .btn-registrar-insp:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        /* FORMULARIO */
+        h2 { color: var(--azul); text-align: center; font-size: 18px; margin-bottom: 25px; text-transform: uppercase; }
+        label { display: block; font-size: 11px; font-weight: 700; color: #64748b; margin-bottom: 5px; text-transform: uppercase; }
+        input, select, textarea { width: 100%; padding: 12px; border: 1.5px solid #e2e8f0; border-radius: 12px; font-size: 14px; font-family: inherit; margin-bottom: 15px; background: #f8fafc; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--azul); background: white; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+        .info-km { background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 12px; padding: 11px 14px; font-size: 12px; color: #166534; font-weight: 600; margin-bottom: 15px; display: none; align-items: center; gap: 10px; }
+
+        .bloque-aceite { background: #fffbeb; border: 1.5px solid #fcd34d; border-radius: 14px; padding: 16px; margin-bottom: 15px; display: none; }
+        .bloque-aceite .ba-titulo { font-size: 12px; font-weight: 800; color: #92400e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+        .ba-resumen { background: #fff; border-radius: 10px; padding: 12px 14px; margin-top: 10px; font-size: 13px; color: #1e293b; line-height: 1.8; border: 1px solid #fde68a; }
+        .ba-resumen b { color: var(--azul); }
+
+        .btn-registrar { background: var(--azul); color: white; border: none; width: 100%; padding: 15px; border-radius: 14px; font-weight: 800; font-size: 15px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: 0 4px 14px rgba(0,26,112,0.2); font-family: inherit; }
+        .btn-registrar:active { transform: scale(0.98); }
+        .btn-registrar:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-cancelar { background: #fee2e2; color: #991b1b; border: none; padding: 12px; border-radius: 12px; font-weight: 700; cursor: pointer; margin-top: 10px; width: 100%; display: none; font-size: 14px; font-family: inherit; }
+
+        /* HISTORIAL */
+        .historial { background: var(--blanco); padding: 20px 25px; border-radius: 25px; overflow-x: auto; box-shadow: 0 4px 14px rgba(0,0,0,0.04); }
+        .historial-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .historial-header h2 { margin: 0; font-size: 14px; text-align: left; }
+        .badge-total { background: var(--celeste); color: var(--azul); font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 8px; }
+
+        table { width: 100%; border-collapse: collapse; min-width: 700px; }
+        th { text-align: left; font-size: 10px; color: #64748b; padding: 10px 8px; border-bottom: 2px solid var(--celeste); text-transform: uppercase; white-space: nowrap; }
+        td { padding: 10px 8px; font-size: 13px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+        tr:last-child td { border-bottom: none; }
+
+        .tipo-pill { font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 6px; text-transform: uppercase; white-space: nowrap; }
+        .tp-aceite  { background: #fef3c7; color: #92400e; }
+        .tp-caja    { background: #e0f2fe; color: #075985; }
+        .tp-transmision { background: #fae8ff; color: #86198f; }
+        .tp-frenos  { background: #fee2e2; color: #991b1b; }
+        .tp-llantas { background: #ede9fe; color: #5b21b6; }
+        .tp-sinc    { background: #ecfdf5; color: #065f46; }
+        .tp-averia  { background: #fef2f2; color: #991b1b; border: 1px solid #fca5a5; }
+        .tp-inspeccion { background: #ecfeff; color: #0e7490; border: 1px solid #a5f3fc; }
+        .tp-otro    { background: #f1f5f9; color: #475569; }
+
+        .km-prox-badge { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 6px; background: #fffbeb; color: #92400e; white-space: nowrap; }
+        .btn-edit { background: var(--celeste); color: var(--azul); border: none; padding: 5px 10px; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 11px; transition: 0.15s; font-family: inherit; }
+        .btn-edit:hover { background: var(--azul); color: white; }
+        .empty { text-align: center; color: #94a3b8; padding: 30px; font-size: 13px; }
+
+        @keyframes fadeIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:none; } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <div class="nav-header">
+        <button class="btn-volver" onclick="irAtras()">&#8592; Volver</button>
+        <span style="font-size:13px; color:#64748b; font-weight:600;">&#128296; Control de Taller</span>
+    </div>
+
+    <!-- ORDENES PENDIENTES POR AVERIA -->
+    <div class="card-ordenes" id="seccion-ordenes" style="display:none;">
+        <div class="ordenes-titulo">
+            Ordenes Pendientes por Averia
+            <span class="badge-ordenes" id="badge-ordenes">0</span>
+        </div>
+        <div id="lista-ordenes">
+            <p class="empty">Cargando ordenes...</p>
+        </div>
+    </div>
+
+    <!-- INSPECCION DE KILOMETRAJE -->
+    <div class="card-inspeccion" id="seccion-inspeccion">
+        <div class="inspeccion-titulo">
+            Inspeccion de Kilometraje
+            <span class="badge-inspeccion">Actualiza el KM sin generar un servicio</span>
+        </div>
+        <div class="inspeccion-sub">Registra el KM actual del odometro en cualquier momento para saber cuanta vida le queda a la carroza antes del proximo cambio de aceite, de caja o de transmision.</div>
+
+        <div class="grid-2">
+            <div>
+                <label>Placa del Vehiculo *</label>
+                <select id="insp-placa" onchange="alSeleccionarPlacaInspeccion()">
+                    <option value="">Cargando flota...</option>
+                </select>
+            </div>
+            <div>
+                <label>Fecha de Inspeccion *</label>
+                <input type="date" id="insp-fecha">
+            </div>
+        </div>
+
+        <label>Sistema a Revisar *</label>
+        <select id="insp-tipo" onchange="alSeleccionarPlacaInspeccion()">
+            <option value="Cambio de Aceite">Aceite de Motor</option>
+            <option value="Cambio de Aceite de Caja">Aceite de Caja</option>
+            <option value="Cambio de Aceite de Transmision">Aceite de Transmision</option>
+        </select>
+
+        <div class="info-km-insp" id="info-km-insp" style="display:none;"></div>
+
+        <label>Kilometraje Actual (odometro) *</label>
+        <input type="number" id="insp-km" placeholder="Ej: 158200" min="0" oninput="calcularVidaRestanteInspeccion()">
+
+        <div class="insp-resumen" id="insp-resumen">Selecciona una placa e ingresa el KM actual para ver la vida restante.</div>
+
+        <div id="insp-manual-wrap" style="display:none;">
+            <label>Proximo Cambio Programado (KM) — no hay registro previo, ingresalo tu</label>
+            <input type="number" id="insp-km-proximo-manual" placeholder="Ej: 165000" min="0" oninput="calcularVidaRestanteInspeccion()">
+        </div>
+
+        <label>Observaciones (opcional)</label>
+        <textarea id="insp-obs" rows="2" placeholder="Novedades encontradas en la inspeccion..."></textarea>
+
+        <button type="button" class="btn-registrar-insp" onclick="registrarInspeccion()">
+            REGISTRAR INSPECCION
+        </button>
+    </div>
+
+    <!-- FORMULARIO MANTENIMIENTO -->
+    <div class="card" id="contenedor-form">
+        <h2 id="titulo-form">Registro de Mantenimiento</h2>
+
+        <form id="form-taller">
+            <div class="grid-2">
+                <div>
+                    <label>Placa del Vehiculo *</label>
+                    <select id="placa" required onchange="alSeleccionarPlaca()">
+                        <option value="">Cargando flota...</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Fecha *</label>
+                    <input type="date" id="fecha" required>
+                </div>
+            </div>
+
+            <div class="info-km" id="info-km">
+                KM actual registrado: <b id="km-actual-txt">---</b>
+            </div>
+
+            <div class="grid-2">
+                <div>
+                    <label>Tipo de Servicio *</label>
+                    <select id="tipo_servicio" required onchange="alCambiarTipo()">
+                        <option value="Cambio de Aceite">Cambio de Aceite (Motor)</option>
+                        <option value="Cambio de Aceite de Caja">Cambio de Aceite de Caja</option>
+                        <option value="Cambio de Aceite de Transmision">Cambio de Aceite de Transmision</option>
+                        <option value="Frenos">Frenos</option>
+                        <option value="Llantas">Llantas</option>
+                        <option value="Sincronizacion">Sincronizacion</option>
+                        <option value="Suspension">Suspension</option>
+                        <option value="Electrico">Electrico</option>
+                        <option value="Lavado">Lavado</option>
+                        <option value="Otro">Otro</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Kilometraje al Servicio *</label>
+                    <input type="number" id="km_servicio" required placeholder="Ej: 155000" min="0" oninput="calcularProximoCambio()">
+                </div>
+            </div>
+
+            <div style="display:flex; align-items:center; gap:8px; margin:-6px 0 15px 2px;">
+                <input type="checkbox" id="km_actual_distinto" onchange="toggleKmActualDistinto()" style="width:auto; margin:0;">
+                <label for="km_actual_distinto" style="margin:0; text-transform:none; font-size:12px; cursor:pointer;">
+                    Estoy registrando un servicio ya realizado (tirilla/fecha anterior) y el KM actual del vehiculo es mayor al del servicio
+                </label>
+            </div>
+
+            <div id="wrap-km-actual-real" style="display:none;">
+                <label>KM Actual del Vehiculo (odometro en este momento) *</label>
+                <input type="number" id="km_actual_real" placeholder="Ej: 371720" min="0">
+                <div style="font-size:11px; color:#64748b; margin:-10px 0 15px 2px;">
+                    Este es el KM con el que quedara el vehiculo registrado en el sistema (el que usa "Salidas"). El KM al Servicio de arriba solo se usa para calcular el proximo cambio.
+                </div>
+            </div>
+
+            <div class="bloque-aceite" id="bloque-aceite">
+                <div class="ba-titulo">Configuracion del Proximo Cambio de Aceite</div>
+                <div class="grid-2">
+                    <div>
+                        <label>Intervalo de KM para proximo cambio</label>
+                        <select id="intervalo-km" onchange="calcularProximoCambio()">
+                            <option value="3000">Cada 3.000 KM</option>
+                            <option value="5000" selected>Cada 5.000 KM</option>
+                            <option value="7500">Cada 7.500 KM</option>
+                            <option value="10000">Cada 10.000 KM</option>
+                            <option value="custom">Personalizado...</option>
+                        </select>
+                    </div>
+                    <div id="custom-km-wrap" style="display:none;">
+                        <label>KM personalizado</label>
+                        <input type="number" id="custom-km" placeholder="Ej: 6000" min="1000" oninput="calcularProximoCambio()">
+                    </div>
+                </div>
+                <div class="ba-resumen" id="ba-resumen">Ingresa el KM del servicio para ver el calculo.</div>
+            </div>
+
+            <div class="grid-2">
+                <div>
+                    <label>Costo ($)</label>
+                    <input type="number" id="costo" placeholder="Ej: 350000" min="0" value="0">
+                </div>
+                <div>
+                    <label>Taller / Mecanico</label>
+                    <input type="text" id="taller" placeholder="Nombre del taller o mecanico">
+                </div>
+            </div>
+
+            <label>Responsable del Registro</label>
+            <input type="text" id="responsable" placeholder="Coordinador o tecnico" readonly style="background:#eef5ff; font-weight:600;">
+
+            <label>Observaciones</label>
+            <textarea id="observaciones" rows="2" placeholder="Detalles del servicio..."></textarea>
+
+            <button type="submit" class="btn-registrar" id="btn-submit">
+                <span id="btn-texto">GUARDAR MANTENIMIENTO</span>
+            </button>
+            <button type="button" id="btn-cancelar" class="btn-cancelar" onclick="cancelarEdicion()">
+                CANCELAR EDICION
+            </button>
+        </form>
+    </div>
+
+    <!-- HISTORIAL -->
+    <div class="historial">
+        <div class="historial-header">
+            <h2>Ultimos Mantenimientos</h2>
+            <span class="badge-total" id="badge-total">0 registros</span>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Fecha</th><th>Placa</th><th>Servicio</th>
+                    <th>KM Servicio</th><th>Proximo KM</th>
+                    <th>Costo</th><th>Taller</th><th>Responsable</th><th></th>
+                </tr>
+            </thead>
+            <tbody id="tbody-mant">
+                <tr><td colspan="9" class="empty">Cargando registros...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+<script src="db.js"></script>
+<script>
+    // ── ESTADO GLOBAL
+    var editandoID    = null;
+    var flotaData     = [];
+    var historialData = [];   // cache del historial para edicion segura por indice
+    var inspKmProximoCambio = 0; // cache del proximo cambio para la placa + tipo seleccionado en inspeccion
+
+    // ── TIPOS DE SERVICIO QUE MANEJAN INTERVALO DE KM (aceite motor / caja / transmision)
+    var TIPOS_CON_INTERVALO = ['Cambio de Aceite', 'Cambio de Aceite de Caja', 'Cambio de Aceite de Transmision'];
+    function esTipoConIntervalo(tipo) {
+        return TIPOS_CON_INTERVALO.indexOf(tipo) !== -1;
+    }
+    function etiquetaTipo(tipo) {
+        var etiquetas = {
+            'Cambio de Aceite': 'aceite de motor',
+            'Cambio de Aceite de Caja': 'aceite de caja',
+            'Cambio de Aceite de Transmision': 'aceite de transmision'
+        };
+        return etiquetas[tipo] || 'aceite';
+    }
+
+    // ── INIT
+    window.onload = async function() {
+        document.getElementById('fecha').valueAsDate = new Date();
+        document.getElementById('insp-fecha').valueAsDate = new Date();
+        var sesion = JSON.parse(localStorage.getItem('usuario_sesion') || '{}');
+        if (sesion.nombre) document.getElementById('responsable').value = sesion.nombre;
+        document.getElementById('bloque-aceite').style.display = 'block';
+        actualizarOpcionesIntervalo('Cambio de Aceite');
+        await cargarPlacas();
+        await cargarOrdenesPendientes();
+        await cargarHistorial();
+    };
+
+    // ── NAVEGACION
+    // Usa la MISMA lógica de roles que index.html al hacer login, para que
+    // "Volver" regrese siempre al panel correcto según el rol de la sesión:
+    //   admin / administrador          -> dashboard.html
+    //   gestor_flota (Gestor de Flotas JR / Parque Automotor) -> panel_automotor.html
+    //   coordinador                    -> panel_coordinador.html
+    //   cualquier otro (conductor)     -> panel_conductor.html
+    function irAtras() {
+        var sesion = JSON.parse(localStorage.getItem('usuario_sesion') || '{}');
+        var norm = function(s) { return String(s || '').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g,''); };
+        var rol = norm(sesion.rol), usr = norm(sesion.usuario);
+
+        if (rol === 'admin' || rol === 'administrador' || rol === 'administracion' || usr === 'admin') {
+            window.location.href = 'dashboard.html';
+        } else if (rol === 'gestor_flota' || rol === 'gestor de flotas jr' || rol === 'gestor de flota jr' || rol === 'gestor flota jr') {
+            window.location.href = 'panel_automotor.html';
+        } else if (rol === 'coordinador') {
+            window.location.href = 'panel_coordinador.html';
+        } else {
+            window.location.href = 'panel_conductor.html';
+        }
+    }
+
+    // ── CARGAR PLACAS
+    async function cargarPlacas() {
+        try {
+            var res = await DB.supabase.from('carrozas').select('placa, modelo, kilometraje_actual').order('placa');
+            flotaData = res.data || [];
+            var opciones;
+            if (flotaData.length > 0) {
+                opciones = '<option value="">&#8212; Seleccione placa &#8212;</option>' +
+                    flotaData.map(function(c) {
+                        return '<option value="' + c.placa + '">' + c.placa +
+                               (c.modelo ? ' - ' + c.modelo : '') + '</option>';
+                    }).join('');
+            } else {
+                opciones = '<option value="">Sin vehiculos registrados</option>';
+            }
+            document.getElementById('placa').innerHTML = opciones;
+            document.getElementById('insp-placa').innerHTML = opciones;
+        } catch(e) {
+            console.error('Error cargando placas:', e);
+        }
+    }
+
+    // ── MOSTRAR/OCULTAR CAMPO DE KM ACTUAL REAL (cuando el servicio es de fecha anterior)
+    function toggleKmActualDistinto() {
+        var check = document.getElementById('km_actual_distinto').checked;
+        var wrap  = document.getElementById('wrap-km-actual-real');
+        wrap.style.display = check ? 'block' : 'none';
+        if (check) {
+            var kmServicio = document.getElementById('km_servicio').value;
+            document.getElementById('km_actual_real').value = kmServicio || '';
+        } else {
+            document.getElementById('km_actual_real').value = '';
+        }
+    }
+
+    // ── AL SELECCIONAR PLACA (formulario de mantenimiento)
+    function alSeleccionarPlaca() {
+        var placa  = document.getElementById('placa').value;
+        var veh    = flotaData.find(function(c) { return c.placa === placa; });
+        var infoEl = document.getElementById('info-km');
+        if (veh && placa) {
+            document.getElementById('km-actual-txt').textContent =
+                Number(veh.kilometraje_actual || 0).toLocaleString() + ' KM';
+            document.getElementById('km_servicio').value = veh.kilometraje_actual || '';
+            infoEl.style.display = 'flex';
+            calcularProximoCambio();
+        } else {
+            infoEl.style.display = 'none';
+        }
+    }
+
+    // ── BUSCAR EL ULTIMO CAMBIO (de un tipo con intervalo) COMPLETADO DE UNA PLACA
+    async function buscarUltimoCambioAceite(placa, tipo) {
+        try {
+            var res = await DB.supabase
+                .from('mantenimientos')
+                .select('km_proximo_cambio, kilometraje_servicio, fecha')
+                .eq('placa', placa)
+                .eq('tipo_servicio', tipo)
+                .eq('estado_orden', 'completada')
+                .order('fecha', { ascending: false })
+                .limit(1);
+            if (res.data && res.data.length > 0) return res.data[0];
+            return null;
+        } catch(e) {
+            console.error('Error buscando ultimo cambio registrado:', e);
+            return null;
+        }
+    }
+
+    // ── BUSCAR LA ULTIMA INSPECCION (del mismo tipo) QUE TENGA UN PROXIMO CAMBIO GUARDADO
+    // (sirve como respaldo cuando la carroza nunca tuvo un cambio registrado formalmente
+    // en taller, pero ya se definio manualmente en una inspeccion previa)
+    //
+    // NOTA: el wrapper DB.supabase (GASQueryBuilder en db.js) NO implementa el metodo
+    // .gt(), solo .eq()/.is()/.ilike()/.order()/.limit(), por eso el filtro de
+    // "km_proximo_cambio > 0" se hace en JS del lado del cliente.
+    async function buscarUltimaInspeccionConProximo(placa, tipo) {
+        try {
+            var res = await DB.supabase
+                .from('mantenimientos')
+                .select('km_proximo_cambio, kilometraje_servicio, fecha')
+                .eq('placa', placa)
+                .eq('estado_orden', 'inspeccion')
+                .eq('tipo_servicio', tipo)
+                .order('fecha', { ascending: false })
+                .limit(20);
+
+            if (res.data && res.data.length > 0) {
+                var conProximo = res.data.filter(function(r) {
+                    return Number(r.km_proximo_cambio) > 0;
+                });
+                if (conProximo.length > 0) return conProximo[0];
+            }
+            return null;
+        } catch(e) {
+            console.error('Error buscando inspeccion con proximo cambio:', e);
+            return null;
+        }
+    }
+
+    // ── OBTENER LA MEJOR REFERENCIA DE "PROXIMO CAMBIO" PARA UNA PLACA + TIPO
+    // 1) el ultimo cambio de ese tipo (motor/caja/transmision) completado en taller,
+    // 2) si no hay, la ultima inspeccion de ese mismo tipo que ya tenga un proximo
+    // cambio guardado manualmente.
+    async function obtenerReferenciaProximoCambio(placa, tipo) {
+        var ultimoCambio = await buscarUltimoCambioAceite(placa, tipo);
+        if (ultimoCambio && ultimoCambio.km_proximo_cambio) return ultimoCambio;
+        var ultimaInsp = await buscarUltimaInspeccionConProximo(placa, tipo);
+        if (ultimaInsp) return ultimaInsp;
+        return null;
+    }
+
+    // ── AL SELECCIONAR PLACA O TIPO (inspeccion de kilometraje)
+    async function alSeleccionarPlacaInspeccion() {
+        var placa   = document.getElementById('insp-placa').value;
+        var tipo    = document.getElementById('insp-tipo').value;
+        var veh     = flotaData.find(function(c) { return c.placa === placa; });
+        var infoEl  = document.getElementById('info-km-insp');
+        var resumen = document.getElementById('insp-resumen');
+
+        if (!veh || !placa) {
+            infoEl.style.display = 'none';
+            inspKmProximoCambio = 0;
+            resumen.className = 'insp-resumen';
+            resumen.innerHTML = 'Selecciona una placa e ingresa el KM actual para ver la vida restante.';
+            return;
+        }
+
+        infoEl.style.display = 'flex';
+        infoEl.textContent = 'Ultimo KM registrado en el sistema: ' +
+            Number(veh.kilometraje_actual || 0).toLocaleString() + ' KM';
+        document.getElementById('insp-km').value = veh.kilometraje_actual || '';
+
+        resumen.className = 'insp-resumen';
+        resumen.innerHTML = 'Consultando el ultimo cambio de ' + etiquetaTipo(tipo) + ' registrado...';
+
+        var ref = await obtenerReferenciaProximoCambio(placa, tipo);
+        inspKmProximoCambio = (ref && ref.km_proximo_cambio) ? Number(ref.km_proximo_cambio) : 0;
+
+        var manualWrap = document.getElementById('insp-manual-wrap');
+        var manualInput = document.getElementById('insp-km-proximo-manual');
+        if (!inspKmProximoCambio) {
+            manualWrap.style.display = 'block';
+            manualInput.value = '';
+        } else {
+            manualWrap.style.display = 'none';
+            manualInput.value = '';
+        }
+
+        calcularVidaRestanteInspeccion();
+    }
+
+    // ── CALCULAR VIDA RESTANTE (inspeccion de kilometraje)
+    function calcularVidaRestanteInspeccion() {
+        var km      = parseInt(document.getElementById('insp-km').value) || 0;
+        var resumen = document.getElementById('insp-resumen');
+        var placa   = document.getElementById('insp-placa').value;
+        var tipo    = document.getElementById('insp-tipo').value;
+        var etiqueta = etiquetaTipo(tipo);
+
+        if (!placa) {
+            resumen.className = 'insp-resumen';
+            resumen.innerHTML = 'Selecciona una placa e ingresa el KM actual para ver la vida restante.';
+            return;
+        }
+        if (!km) {
+            resumen.className = 'insp-resumen';
+            resumen.innerHTML = 'Ingresa el KM actual del odometro para ver la vida restante.';
+            return;
+        }
+        var manualInput = document.getElementById('insp-km-proximo-manual');
+        var proximoManual = parseInt(manualInput.value) || 0;
+        var proximoEfectivo = inspKmProximoCambio || proximoManual;
+
+        if (!proximoEfectivo) {
+            resumen.className = 'insp-resumen';
+            resumen.innerHTML = 'KM actual a registrar: <b>' + km.toLocaleString() + ' KM</b><br>' +
+                'Esta placa nunca ha tenido un cambio de ' + etiqueta + ' registrado. Ingresa arriba a que KM esta programado el proximo cambio para poder calcular la vida restante desde ahora.';
+            return;
+        }
+
+        var vidaRestante = proximoEfectivo - km;
+        var estado, clase;
+        if (vidaRestante <= 0) {
+            estado = 'VENCIDO - ya paso el KM del proximo cambio';
+            clase  = 'danger';
+        } else if (vidaRestante <= 500) {
+            estado = 'Proximo a vencer';
+            clase  = 'warn';
+        } else {
+            estado = 'En buen estado';
+            clase  = 'ok';
+        }
+
+        resumen.className = 'insp-resumen ' + clase;
+        resumen.innerHTML =
+            'KM actual a registrar: <b>' + km.toLocaleString() + ' KM</b><br>' +
+            'Proximo cambio de ' + etiqueta + ' programado a los: <b>' + proximoEfectivo.toLocaleString() + ' KM</b><br>' +
+            'Vida restante: <b class="vida">' + vidaRestante.toLocaleString() + ' KM</b> &mdash; ' + estado;
+    }
+
+    // ── REGISTRAR INSPECCION DE KILOMETRAJE
+    async function registrarInspeccion() {
+        var placa = document.getElementById('insp-placa').value;
+        var tipo  = document.getElementById('insp-tipo').value;
+        var km    = parseInt(document.getElementById('insp-km').value) || 0;
+        var fecha = document.getElementById('insp-fecha').value;
+        var obs   = document.getElementById('insp-obs').value.trim();
+
+        if (!placa) { alert('Selecciona una placa'); return; }
+        if (!km)    { alert('Ingresa el kilometraje actual'); return; }
+
+        var veh = flotaData.find(function(c) { return c.placa === placa; });
+        if (veh && km < Number(veh.kilometraje_actual || 0)) {
+            var continuar = confirm(
+                'El KM ingresado (' + km.toLocaleString() + ') es menor al KM actualmente registrado (' +
+                Number(veh.kilometraje_actual).toLocaleString() + '). Deseas continuar de todas formas?'
+            );
+            if (!continuar) return;
+        }
+
+        var btn = document.querySelector('.btn-registrar-insp');
+        btn.disabled = true;
+        btn.textContent = 'GUARDANDO...';
+
+        var sesion = JSON.parse(localStorage.getItem('usuario_sesion') || '{}');
+        var proximoManual = parseInt(document.getElementById('insp-km-proximo-manual').value) || 0;
+        var proximoAGuardar = inspKmProximoCambio || proximoManual || 0;
+
+        if (!proximoAGuardar) {
+            var continuarSinProximo = confirm(
+                'No definiste un proximo cambio de ' + etiquetaTipo(tipo) + ' para esta placa. La inspeccion se guardara igual, ' +
+                'pero no se podra calcular la vida restante hasta que se registre un cambio o lo definas manualmente. Continuar?'
+            );
+            if (!continuarSinProximo) {
+                btn.disabled = false;
+                btn.textContent = 'REGISTRAR INSPECCION';
+                return;
+            }
+        }
+
+        // El tipo_servicio se guarda igual al sistema seleccionado (motor / caja / transmision)
+        // para que cada uno lleve su propio historial y su propio "proximo cambio". Los tres
+        // contienen la palabra "Aceite", asi que cualquier deteccion basada en /aceite/i en
+        // db.js los sigue reconociendo igual que antes. El campo estado_orden se mantiene en
+        // 'inspeccion' para que el historial de esta misma pantalla la siga distinguiendo de
+        // un cambio real hecho en taller (badge INSPECCION vs CERRADA).
+        var registro = {
+            id:                   'I-' + Date.now(),
+            placa:                placa,
+            fecha:                fecha,
+            tipo_servicio:        tipo,
+            kilometraje_servicio: km,
+            costo:                0,
+            taller:               '-',
+            responsable:          sesion.nombre || '---',
+            observaciones:        obs || 'Inspeccion de rutina de kilometraje.',
+            km_proximo_cambio:    proximoAGuardar,
+            estado_orden:         'inspeccion'
+        };
+
+        try {
+            var res = await DB.supabase.from('mantenimientos').insert([registro]);
+            if (res.error) throw res.error;
+
+            await DB.actualizarCarroza(placa, { kilometraje_actual: km });
+            if (veh) veh.kilometraje_actual = km;
+
+            alert('Inspeccion registrada. KM actual actualizado a ' + km.toLocaleString() + ' KM.');
+
+            document.getElementById('insp-obs').value = '';
+            await cargarHistorial();
+            await alSeleccionarPlacaInspeccion();
+        } catch(e) {
+            alert('Error al registrar la inspeccion: ' + e.message);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'REGISTRAR INSPECCION';
+        }
+    }
+
+    // ── AL CAMBIAR TIPO DE SERVICIO
+    function alCambiarTipo() {
+        var tipo = document.getElementById('tipo_servicio').value;
+        var muestra = esTipoConIntervalo(tipo);
+        document.getElementById('bloque-aceite').style.display = muestra ? 'block' : 'none';
+        if (muestra) {
+            actualizarOpcionesIntervalo(tipo);
+            actualizarTituloBloqueAceite(tipo);
+            calcularProximoCambio();
+        }
+    }
+
+    // ── TITULO DEL BLOQUE SEGUN EL TIPO (motor / caja / transmision)
+    function actualizarTituloBloqueAceite(tipo) {
+        var titulos = {
+            'Cambio de Aceite': 'Configuracion del Proximo Cambio de Aceite (Motor)',
+            'Cambio de Aceite de Caja': 'Configuracion del Proximo Cambio de Aceite de Caja',
+            'Cambio de Aceite de Transmision': 'Configuracion del Proximo Cambio de Aceite de Transmision'
+        };
+        document.querySelector('#bloque-aceite .ba-titulo').textContent =
+            titulos[tipo] || 'Configuracion del Proximo Cambio';
+    }
+
+    // ── OPCIONES DE INTERVALO SEGUN EL TIPO
+    // Motor: intervalos cortos (3.000 - 10.000 KM). Caja y Transmision: intervalos
+    // mucho mas largos (20.000 - 50.000 KM), tipico de estos sistemas.
+    function actualizarOpcionesIntervalo(tipo) {
+        var sel = document.getElementById('intervalo-km');
+        var valorAnterior = sel.value;
+        var opciones;
+        if (tipo === 'Cambio de Aceite') {
+            opciones = [
+                { v: 3000,  t: 'Cada 3.000 KM' },
+                { v: 5000,  t: 'Cada 5.000 KM', sel: true },
+                { v: 7500,  t: 'Cada 7.500 KM' },
+                { v: 10000, t: 'Cada 10.000 KM' }
+            ];
+        } else {
+            opciones = [
+                { v: 20000, t: 'Cada 20.000 KM' },
+                { v: 30000, t: 'Cada 30.000 KM', sel: true },
+                { v: 40000, t: 'Cada 40.000 KM' },
+                { v: 50000, t: 'Cada 50.000 KM' }
+            ];
+        }
+        sel.innerHTML = opciones.map(function(o) {
+            return '<option value="' + o.v + '"' + (o.sel ? ' selected' : '') + '>' + o.t + '</option>';
+        }).join('') + '<option value="custom">Personalizado...</option>';
+
+        // Si el valor previamente seleccionado sigue siendo una opcion valida (o era "custom"),
+        // se conserva para no perder la seleccion al reabrir el mismo tipo.
+        var valoresValidos = opciones.map(function(o) { return String(o.v); });
+        if (valorAnterior === 'custom' || valoresValidos.indexOf(valorAnterior) !== -1) {
+            sel.value = valorAnterior;
+            if (valorAnterior === 'custom') document.getElementById('custom-km-wrap').style.display = 'block';
+        } else {
+            document.getElementById('custom-km-wrap').style.display = 'none';
+        }
+    }
+
+    // ── OBTENER INTERVALO
+    function getIntervalo() {
+        var sel = document.getElementById('intervalo-km').value;
+        if (sel === 'custom') {
+            document.getElementById('custom-km-wrap').style.display = 'block';
+            return parseInt(document.getElementById('custom-km').value) || 0;
+        } else {
+            document.getElementById('custom-km-wrap').style.display = 'none';
+            return parseInt(sel);
+        }
+    }
+
+    // ── CALCULAR PROXIMO CAMBIO
+    function calcularProximoCambio() {
+        var kmServicio = parseInt(document.getElementById('km_servicio').value) || 0;
+        var intervalo  = getIntervalo();
+        var resumen    = document.getElementById('ba-resumen');
+        var tipo       = document.getElementById('tipo_servicio').value;
+        var etiqueta   = etiquetaTipo(tipo);
+        if (!kmServicio || !intervalo) {
+            resumen.innerHTML = 'Ingresa el KM del servicio para ver el calculo.';
+            return;
+        }
+        var kmProximo = kmServicio + intervalo;
+        resumen.innerHTML =
+            'KM del servicio actual: <b>' + kmServicio.toLocaleString() + ' KM</b><br>' +
+            'Intervalo del cambio: <b>cada ' + intervalo.toLocaleString() + ' KM</b><br>' +
+            'Proximo cambio de ' + etiqueta + ' a los: <b style="color:#92400e; font-size:15px;">' +
+            kmProximo.toLocaleString() + ' KM</b>';
+    }
+
+    // ── GUARDAR / ACTUALIZAR MANTENIMIENTO
+    document.getElementById('form-taller').onsubmit = async function(e) {
+        e.preventDefault();
+        var btn = document.getElementById('btn-submit');
+        var txt = document.getElementById('btn-texto');
+        btn.disabled      = true;
+        txt.textContent   = 'GUARDANDO...';
+
+        var placa = document.getElementById('placa').value;
+        if (!placa) {
+            alert('Selecciona una placa');
+            btn.disabled    = false;
+            txt.textContent = editandoID ? 'ACTUALIZAR CAMBIOS' : 'GUARDAR MANTENIMIENTO';
+            return;
+        }
+
+        var tipo       = document.getElementById('tipo_servicio').value;
+        var kmServicio = parseInt(document.getElementById('km_servicio').value) || 0;
+        var esAceite   = esTipoConIntervalo(tipo);
+        var intervalo  = esAceite ? getIntervalo() : 0;
+
+        var esKmDistinto  = document.getElementById('km_actual_distinto').checked;
+        var kmActualReal  = parseInt(document.getElementById('km_actual_real').value) || 0;
+        var kmParaCarroza = (esKmDistinto && kmActualReal > 0) ? kmActualReal : kmServicio;
+
+        if (esKmDistinto && kmActualReal > 0 && kmActualReal < kmServicio) {
+            var continuarKm = confirm(
+                'El KM actual (' + kmActualReal.toLocaleString() + ') que ingresaste es menor al KM del servicio (' +
+                kmServicio.toLocaleString() + '). Deseas continuar de todas formas?'
+            );
+            if (!continuarKm) {
+                btn.disabled    = false;
+                txt.textContent = editandoID ? 'ACTUALIZAR CAMBIOS' : 'GUARDAR MANTENIMIENTO';
+                return;
+            }
+        }
+
+        var kmProximo = (esAceite && intervalo > 0 && kmServicio > 0) ? (kmServicio + intervalo) : 0;
+
+        var registro = {
+            id:                   editandoID ? String(editandoID) : ('M-' + Date.now()),
+            placa:                placa,
+            fecha:                document.getElementById('fecha').value,
+            tipo_servicio:        tipo,
+            kilometraje_servicio: kmServicio,
+            costo:                parseFloat(document.getElementById('costo').value) || 0,
+            taller:               document.getElementById('taller').value.trim(),
+            responsable:          document.getElementById('responsable').value.trim(),
+            observaciones:        document.getElementById('observaciones').value.trim(),
+            km_proximo_cambio:    kmProximo,
+            estado_orden:         'completada'
+        };
+
+        console.log('==== GUARDANDO MANTENIMIENTO ====');
+        console.log('ID generado:', registro.id);
+        console.log('Placa:', registro.placa);
+        console.log('KM servicio:', kmServicio);
+        console.log('Intervalo:', intervalo);
+        console.log('KM proximo cambio:', kmProximo);
+        console.log('Objeto completo:', registro);
+
+        var res;
+        try {
+            if (editandoID) {
+                res = await DB.supabase.from('mantenimientos').update(registro).eq('id', editandoID);
+            } else {
+                res = await DB.supabase.from('mantenimientos').insert([registro]);
+            }
+        } catch(err) {
+            alert('Error inesperado al guardar: ' + err.message);
+            btn.disabled    = false;
+            txt.textContent = editandoID ? 'ACTUALIZAR CAMBIOS' : 'GUARDAR MANTENIMIENTO';
+            return;
+        }
+
+        if (res.error) {
+            alert('Error al guardar: ' + res.error.message);
+            btn.disabled    = false;
+            txt.textContent = editandoID ? 'ACTUALIZAR CAMBIOS' : 'GUARDAR MANTENIMIENTO';
+            return;
+        }
+
+        try {
+            var proxFecha = new Date(registro.fecha);
+            proxFecha.setMonth(proxFecha.getMonth() + 3);
+            await DB.actualizarCarroza(placa, {
+                kilometraje_actual:    kmParaCarroza,
+                ultimo_mantenimiento:  registro.fecha,
+                proximo_mantenimiento: proxFecha.toISOString().split('T')[0],
+                estado:                'Disponible',
+                estado_parque_automotor: ''
+            });
+        } catch(err) {
+            console.warn('Advertencia al actualizar carroza:', err.message);
+        }
+
+        alert(editandoID ? 'Registro actualizado correctamente' : 'Mantenimiento guardado correctamente');
+        cancelarEdicion();
+        await cargarHistorial();
+        await cargarOrdenesPendientes();
+    };
+
+    // ── ORDENES PENDIENTES POR AVERIA
+    async function cargarOrdenesPendientes() {
+        try {
+            var res = await DB.supabase
+                .from('mantenimientos')
+                .select('*')
+                .eq('estado_orden', 'pendiente')
+                .order('fecha', { ascending: false });
+
+            var seccion = document.getElementById('seccion-ordenes');
+            var lista   = document.getElementById('lista-ordenes');
+            var badge   = document.getElementById('badge-ordenes');
+
+            if (!res.data || res.data.length === 0) {
+                seccion.style.display = 'none';
+                return;
+            }
+
+            seccion.style.display = 'block';
+            badge.textContent = res.data.length + ' pendiente' + (res.data.length > 1 ? 's' : '');
+
+            lista.innerHTML = res.data.map(function(o, idx) {
+                var falla = (o.tipo_servicio || '').replace('Averia - ', '').replace('Avería — ', '');
+                var rowId = String(o.id || '').trim();
+
+                return '<div class="orden-item" id="orden-item-' + idx + '" ' +
+                            'data-row-id="' + rowId + '" ' +
+                            'data-placa="' + (o.placa || '') + '" ' +
+                            'data-fecha="' + (o.fecha || '') + '" ' +
+                            'data-tipo="' + (o.tipo_servicio || '') + '">' +
+                    '<div class="orden-header">' +
+                        '<div class="orden-placa">' + (o.placa || '---') + '</div>' +
+                        '<span class="orden-falla">' + falla + '</span>' +
+                        '<span class="orden-fecha">' + (o.fecha || '---') + '</span>' +
+                    '</div>' +
+                    '<div class="orden-reportado">Reportado por: <b>' + (o.responsable || '---') + '</b></div>' +
+                    '<div class="orden-desc">' + (o.observaciones || '---') + '</div>' +
+                    '<div class="liberar-form">' +
+                        '<label>Observaciones al recibir el vehiculo</label>' +
+                        '<textarea id="obs-liberar-' + idx + '" rows="2" ' +
+                            'placeholder="Como se recibe el vehiculo? Quedo bien reparado?"></textarea>' +
+                        '<div class="liberar-btns">' +
+                            '<button class="btn-liberar-ok" onclick="liberarVehiculo(' + idx + ', true)">' +
+                                'LISTO - Marcar Disponible' +
+                            '</button>' +
+                            '<button class="btn-liberar-taller" onclick="liberarVehiculo(' + idx + ', false)">' +
+                                'Sigue en Taller' +
+                            '</button>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>';
+            }).join('');
+        } catch(e) {
+            console.error('Error cargando ordenes pendientes:', e);
+        }
+    }
+
+    // ── LIBERAR VEHICULO
+    async function liberarVehiculo(idx, disponible) {
+        var ordenEl = document.getElementById('orden-item-' + idx);
+        var placa   = ordenEl.dataset.placa;
+        var rowId   = ordenEl.dataset.rowId;
+        var obs     = document.getElementById('obs-liberar-' + idx).value.trim();
+
+        if (!obs) {
+            alert('Por favor ingresa las observaciones de como se recibe el vehiculo.');
+            return;
+        }
+
+        var btnOk  = ordenEl.querySelector('.btn-liberar-ok');
+        var btnTal = ordenEl.querySelector('.btn-liberar-taller');
+        btnOk.disabled  = true;
+        btnTal.disabled = true;
+        btnOk.textContent = 'Procesando...';
+
+        var sesion      = JSON.parse(localStorage.getItem('usuario_sesion') || '{}');
+        var nuevoEstado = disponible ? 'Disponible' : 'En Taller';
+        var estadoOrden = disponible ? 'completada'  : 'en_proceso';
+
+        var obsOriginal = ordenEl.querySelector('.orden-desc').textContent.trim();
+        var obsCompleta =
+            obsOriginal + '\n\n--- REVISION ---\n' + obs + '\n\n' +
+            'Revisado por: ' + (sesion.nombre || '---') + '\n' +
+            'Fecha revision: ' + new Date().toLocaleDateString('es-CO') + '\n' +
+            'Estado final: ' + nuevoEstado;
+
+        try {
+            var resUpdate;
+
+            if (rowId) {
+                resUpdate = await DB.actualizar(
+                    'mantenimientos',
+                    { estado_orden: estadoOrden, observaciones: obsCompleta },
+                    'id',
+                    rowId
+                );
+            } else {
+                console.warn('Orden sin id - usando placa como clave:', placa);
+                resUpdate = await DB.actualizar(
+                    'mantenimientos',
+                    { estado_orden: estadoOrden, observaciones: obsCompleta },
+                    'placa',
+                    placa
+                );
+            }
+
+            // Actualizar estado del vehiculo en carrozas
+            await DB.actualizarCarroza(placa, {
+                estado: nuevoEstado,
+                estado_parque_automotor: disponible ? '' : 'TALLER'
+            });
+
+            console.log('Orden actualizada:', resUpdate);
+
+            // ── FEEDBACK VISUAL INMEDIATO ──────────────────────────────────
+            if (disponible) {
+                ordenEl.style.background  = '#f0fdf4';
+                ordenEl.style.borderColor = '#86efac';
+                ordenEl.querySelector('.liberar-form').innerHTML =
+                    '<div style="text-align:center; padding:12px; color:#065f46; font-weight:800; font-size:14px;">' +
+                    'Vehiculo ' + placa + ' marcado como DISPONIBLE<br>' +
+                    '<span style="font-size:12px; font-weight:400;">La orden quedo cerrada en el historial.</span></div>';
+            } else {
+                ordenEl.style.background  = '#fffbeb';
+                ordenEl.style.borderColor = '#fcd34d';
+                ordenEl.querySelector('.liberar-form').innerHTML =
+                    '<div style="text-align:center; padding:12px; color:#92400e; font-weight:800; font-size:14px;">' +
+                    'Vehiculo ' + placa + ' continua EN TALLER<br>' +
+                    '<span style="font-size:12px; font-weight:400;">La novedad quedo registrada.</span></div>';
+            }
+
+            // ── ELIMINAR TARJETA DEL DOM Y RECARGAR CON DELAY ─────────────
+            setTimeout(async function() {
+                ordenEl.remove();
+
+                var lista     = document.getElementById('lista-ordenes');
+                var restantes = lista.querySelectorAll('.orden-item');
+                if (restantes.length === 0) {
+                    document.getElementById('seccion-ordenes').style.display = 'none';
+                } else {
+                    var badge = document.getElementById('badge-ordenes');
+                    badge.textContent = restantes.length + ' pendiente' + (restantes.length > 1 ? 's' : '');
+                }
+
+                await cargarHistorial();
+
+                await new Promise(function(r) { setTimeout(r, 3000); });
+                await cargarOrdenesPendientes();
+
+            }, 2500);
+
+        } catch(e) {
+            alert('Error al procesar: ' + e.message);
+            btnOk.disabled  = false;
+            btnTal.disabled = false;
+            btnOk.textContent = 'LISTO - Marcar Disponible';
+        }
+    }
+
+    // ── FORMATEAR FECHA
+    function formatearFecha(f) {
+        if (!f) return '---';
+        var s = String(f).trim();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+        var d = new Date(s);
+        if (!isNaN(d.getTime())) {
+            var y  = d.getFullYear();
+            var mo = String(d.getMonth() + 1).padStart(2, '0');
+            var dy = String(d.getDate()).padStart(2, '0');
+            return y + '-' + mo + '-' + dy;
+        }
+        return s;
+    }
+
+    // ── HISTORIAL
+    async function cargarHistorial() {
+        try {
+            var res = await DB.supabase
+                .from('mantenimientos')
+                .select('*')
+                .order('fecha', { ascending: false })
+                .limit(30);
+
+            var tbody = document.getElementById('tbody-mant');
+            document.getElementById('badge-total').textContent =
+                (res.data ? res.data.length : 0) + ' registros';
+
+            if (!res.data || res.data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" class="empty">Sin registros de mantenimiento.</td></tr>';
+                return;
+            }
+
+            historialData = res.data;
+
+            tbody.innerHTML = res.data.map(function(m, idx) {
+                var tipo = m.tipo_servicio || '';
+                var cls  = 'tp-otro';
+                if (tipo.includes('Caja'))            cls = 'tp-caja';
+                else if (tipo.includes('Transmision') || tipo.includes('Transmisión')) cls = 'tp-transmision';
+                else if (tipo.includes('Aceite'))     cls = 'tp-aceite';
+                else if (tipo.includes('Freno'))  cls = 'tp-frenos';
+                else if (tipo.includes('Llanta')) cls = 'tp-llantas';
+                else if (tipo.includes('Sinc'))   cls = 'tp-sinc';
+                else if (tipo.includes('nspec'))  cls = 'tp-inspeccion';
+                else if (tipo.includes('veria'))  cls = 'tp-averia';
+
+                // Si es una inspeccion (estado_orden === 'inspeccion'), el pill
+                // de tipo se mantiene visualmente como inspeccion, para no
+                // perder la distincion visual frente a un cambio real hecho en taller.
+                if (m.estado_orden === 'inspeccion') cls = 'tp-inspeccion';
+
+                var kmServNum = parseInt(m.kilometraje_servicio) || 0;
+                var kmProxNum = parseInt(m.km_proximo_cambio)    || 0;
+
+                var kmProxCell;
+                if (m.estado_orden === 'inspeccion') {
+                    kmProxCell = kmProxNum > 0
+                        ? '<span class="km-prox-badge">' + Number(kmProxNum).toLocaleString() + ' KM</span>'
+                        : '<span style="color:#94a3b8; font-size:11px;">-</span>';
+                } else if (kmProxNum > 0 && kmProxNum > kmServNum) {
+                    kmProxCell = '<span class="km-prox-badge">' +
+                        Number(kmProxNum).toLocaleString() + ' KM</span>';
+                } else if (kmProxNum > 0 && kmProxNum <= kmServNum) {
+                    kmProxCell = '<span style="font-size:10px; background:#fee2e2; color:#991b1b; ' +
+                        'padding:3px 8px; border-radius:6px; font-weight:700;" ' +
+                        'title="KM proximo parece incorrecto">! ' +
+                        Number(kmProxNum).toLocaleString() + ' KM</span>';
+                } else {
+                    kmProxCell = '<span style="color:#94a3b8; font-size:11px;">-</span>';
+                }
+
+                var estadoPill = '';
+                if (m.estado_orden === 'pendiente') {
+                    estadoPill = '<span style="font-size:10px; background:#fef2f2; color:#991b1b; ' +
+                        'padding:2px 6px; border-radius:5px; font-weight:700; margin-right:4px;">PENDIENTE</span>';
+                } else if (m.estado_orden === 'completada') {
+                    estadoPill = '<span style="font-size:10px; background:#ecfdf5; color:#065f46; ' +
+                        'padding:2px 6px; border-radius:5px; font-weight:700; margin-right:4px;">CERRADA</span>';
+                } else if (m.estado_orden === 'inspeccion') {
+                    estadoPill = '<span style="font-size:10px; background:#ecfeff; color:#0e7490; ' +
+                        'padding:2px 6px; border-radius:5px; font-weight:700; margin-right:4px;">INSPECCION</span>';
+                }
+
+                return '<tr>' +
+                    '<td>' + formatearFecha(m.fecha) + '</td>' +
+                    '<td><b>' + (m.placa || '---') + '</b></td>' +
+                    '<td>' + estadoPill + '<span class="tipo-pill ' + cls + '">' + tipo + '</span></td>' +
+                    '<td>' + Number(kmServNum).toLocaleString() + ' KM</td>' +
+                    '<td>' + kmProxCell + '</td>' +
+                    '<td>$' + Number(m.costo || 0).toLocaleString() + '</td>' +
+                    '<td style="font-size:11px;">' + (m.taller || '---') + '</td>' +
+                    '<td style="font-size:11px;">' + (m.responsable || '---') + '</td>' +
+                    '<td><button class="btn-edit" onclick="prepararEdicion(' + idx + ')">EDITAR</button></td>' +
+                '</tr>';
+            }).join('');
+        } catch(e) {
+            console.error('Error cargando historial:', e);
+        }
+    }
+
+    // ── PREPARAR EDICION
+    function prepararEdicion(idx) {
+        var m = historialData[idx];
+        if (!m) {
+            alert('No se pudo cargar el registro. Recarga la pagina e intenta de nuevo.');
+            return;
+        }
+
+        editandoID = m.id || null;
+
+        document.getElementById('contenedor-form').classList.add('edit-mode');
+        document.getElementById('titulo-form').innerText      = 'Editando Registro';
+        document.getElementById('btn-texto').textContent      = 'ACTUALIZAR CAMBIOS';
+        document.getElementById('btn-cancelar').style.display = 'block';
+
+        document.getElementById('placa').value         = m.placa         || '';
+        document.getElementById('fecha').value         = m.fecha         || '';
+        document.getElementById('tipo_servicio').value = m.tipo_servicio || '';
+        document.getElementById('km_servicio').value   = m.kilometraje_servicio || '';
+        document.getElementById('costo').value         = m.costo         || 0;
+        document.getElementById('taller').value        = m.taller        || '';
+        document.getElementById('responsable').value   = m.responsable   || '';
+        document.getElementById('observaciones').value = m.observaciones || '';
+
+        alSeleccionarPlaca();
+        alCambiarTipo(); // deja las opciones de intervalo y el titulo listos segun el tipo
+
+        // Ahora si se restaura el intervalo exacto que quedo guardado en el registro,
+        // despues de que alCambiarTipo ya dejo las opciones correctas para este tipo.
+        if (esTipoConIntervalo(m.tipo_servicio) && m.km_proximo_cambio && m.kilometraje_servicio) {
+            var intervaloRegistrado = parseInt(m.km_proximo_cambio) - parseInt(m.kilometraje_servicio);
+            var selIntervalo = document.getElementById('intervalo-km');
+            var opcionesValidas = (m.tipo_servicio === 'Cambio de Aceite')
+                ? [3000, 5000, 7500, 10000]
+                : [20000, 30000, 40000, 50000];
+            if (opcionesValidas.includes(intervaloRegistrado)) {
+                selIntervalo.value = String(intervaloRegistrado);
+            } else if (intervaloRegistrado > 0) {
+                selIntervalo.value = 'custom';
+                document.getElementById('custom-km').value = intervaloRegistrado;
+                document.getElementById('custom-km-wrap').style.display = 'block';
+            }
+        }
+
+        // km_servicio se restaura de nuevo por si alSeleccionarPlaca lo sobreescribio
+        // con el KM actual de la carroza en vez del KM real que tenia el servicio.
+        document.getElementById('km_servicio').value = m.kilometraje_servicio || '';
+
+        calcularProximoCambio();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // ── CANCELAR EDICION
+    function cancelarEdicion() {
+        editandoID = null;
+        document.getElementById('form-taller').reset();
+        document.getElementById('fecha').valueAsDate = new Date();
+
+        var sesion = JSON.parse(localStorage.getItem('usuario_sesion') || '{}');
+        if (sesion.nombre) document.getElementById('responsable').value = sesion.nombre;
+
+        document.getElementById('contenedor-form').classList.remove('edit-mode');
+        document.getElementById('titulo-form').innerText      = 'Registro de Mantenimiento';
+        document.getElementById('btn-texto').textContent      = 'GUARDAR MANTENIMIENTO';
+        document.getElementById('btn-cancelar').style.display = 'none';
+        document.getElementById('btn-submit').disabled        = false;
+        document.getElementById('info-km').style.display      = 'none';
+        document.getElementById('bloque-aceite').style.display = 'block';
+        actualizarOpcionesIntervalo('Cambio de Aceite');
+        actualizarTituloBloqueAceite('Cambio de Aceite');
+        document.getElementById('custom-km-wrap').style.display = 'none';
+        document.getElementById('ba-resumen').innerHTML        = 'Ingresa el KM del servicio para ver el calculo.';
+        document.getElementById('km_actual_distinto').checked  = false;
+        document.getElementById('wrap-km-actual-real').style.display = 'none';
+        document.getElementById('km_actual_real').value        = '';
+    }
+</script>
+</body>
+</html>

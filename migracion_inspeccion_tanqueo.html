@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Migración Inicial — Inspección → Estado de Flota</title>
+<style>
+  :root{
+    --bg:#eef3fb; --card:#ffffff; --field:#f3f7fd; --line:#c9daf2;
+    --blue:#1d55c9; --blue-soft:#2f6fed; --blue-deep:#123a8a;
+    --text:#16233d; --muted:#647089; --green:#1f9d5c; --amber:#b9790a; --red:#c73a34;
+  }
+  *{box-sizing:border-box; font-family: Arial, "Segoe UI", sans-serif;}
+  body{ background:var(--bg); color:var(--text); margin:0; padding:18px 14px 60px; }
+
+  .nav-row{ max-width:1200px; margin:0 auto 16px; display:flex; justify-content:space-between; align-items:center; }
+  .btn-volver{ color:var(--blue); text-decoration:none; font-size:14px; font-weight:700; background:none; border:none; cursor:pointer; }
+  .status-pill{ display:inline-flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); }
+  .status-pill .dot{width:7px; height:7px; border-radius:50%; background:var(--muted);}
+  .status-pill.on .dot{background:var(--green);}
+  .status-pill.on{color:var(--green);}
+
+  .card{
+    max-width:1200px; margin:0 auto; background:var(--card);
+    border:2px solid var(--blue); border-radius:14px; padding:24px;
+    box-shadow:0 6px 24px rgba(29,85,201,.1);
+  }
+  h1{ text-align:center; font-size:21px; color:var(--blue-deep); margin:0 0 8px; }
+  .subt{ text-align:center; color:var(--muted); font-size:13px; margin-bottom:20px; }
+
+  .info-box{
+    background:#fff9e6; border:1px solid var(--amber); border-radius:10px;
+    padding:14px 16px; margin-bottom:20px; color:#856404; font-size:13px; line-height:1.5;
+  }
+  .info-box b{ color:#6b4c00; }
+
+  .toolbar{
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
+    margin-bottom:14px;
+  }
+  .toolbar label{ font-size:13px; color:var(--muted); display:flex; align-items:center; gap:6px; }
+  .btn{
+    border:none; border-radius:8px; padding:10px 16px; font-weight:700; font-size:13px;
+    cursor:pointer; text-transform:uppercase; letter-spacing:.02em;
+  }
+  .btn-primary{ background:var(--blue); color:#fff; }
+  .btn-primary:hover{ background:var(--blue-deep); }
+  .btn-primary:disabled{ opacity:.5; cursor:not-allowed; }
+  .btn-secundario{ background:var(--field); color:var(--blue); border:1px solid var(--line); }
+
+  .tabla-wrap{ overflow-x:auto; border:1px solid var(--line); border-radius:10px; }
+  table{ width:100%; border-collapse:collapse; font-size:12.5px; min-width:1000px; }
+  th{
+    text-align:left; color:var(--muted); font-weight:700; text-transform:uppercase;
+    font-size:10px; letter-spacing:.03em; padding:10px 8px; border-bottom:1px solid var(--line);
+    background:var(--field); position:sticky; top:0;
+  }
+  td{ padding:8px; border-bottom:1px solid var(--line); color:#33415c; vertical-align:middle; }
+  tr:last-child td{ border-bottom:none; }
+  tr.aplicada td{ background:rgba(31,157,92,.06); }
+  tr.sin-datos td{ color:#a0abc0; }
+  tr.fila-oculta{ display:none; }
+
+  input.mini{
+    width:100px; background:var(--field); border:1px solid var(--line); border-radius:6px;
+    padding:6px 8px; font-size:12.5px; color:var(--text);
+  }
+  input.mini:disabled{ background:#e7edf7; color:#7c88a0; }
+
+  .tag{ font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:20px; }
+  .tag-ok{ background:#d1fae5; color:#047857; }
+  .tag-pend{ background:#fef3c7; color:#92400e; }
+  .tag-sin{ background:#f1f5f9; color:#64748b; }
+
+  .btn-fila{
+    border:none; border-radius:6px; padding:6px 10px; font-size:11px; font-weight:700;
+    cursor:pointer; background:var(--blue); color:#fff;
+  }
+  .btn-fila:disabled{ background:#a0abc0; cursor:default; }
+
+  .resumen{ margin-top:16px; font-size:13px; color:var(--muted); text-align:center; }
+  .msg-global{ text-align:center; margin-top:10px; font-size:13px; font-weight:700; min-height:18px; }
+  .msg-global.ok{ color:var(--green); }
+  .msg-global.err{ color:var(--red); }
+</style>
+</head>
+<body>
+
+  <div class="nav-row">
+    <button class="btn-volver" onclick="volver()">← Volver al Panel</button>
+    <span class="status-pill" id="pillConexion"><span class="dot"></span><span>Conectando…</span></span>
+  </div>
+
+  <div class="card">
+    <h1>🔄 Migración Inicial — Inspección → Estado de Flota</h1>
+    <div class="subt">Toma el kilometraje y nivel de combustible de la última inspección de cada carroza y los deja como punto de partida en el sistema.</div>
+
+    <div class="info-box">
+      <b>Cómo funciona:</b> esto actualiza <code>kilometraje_actual</code> y <code>combustible_galones</code> directamente en la hoja de carrozas — <u>no</u> crea un tanqueo falso, así que no afecta el cálculo de rendimiento. Desde el primer tanqueo real que registres con tiquete en <b>tanqueo.html</b>, el sistema empieza a calcular km recorridos y rendimiento normalmente.
+      Úsalo <b>una sola vez por carroza</b> como arranque inicial; si ya tiene tanqueos reales registrados, ya no lo necesita (puedes desmarcarla).
+      El cruce se hace <b>por placa</b>, así que cada regional puede inspeccionar en momentos distintos sin pisar a las demás — usa el filtro de <b>Regional</b> para migrar solo las carrozas de tu zona cuando termines tus inspecciones.
+    </div>
+
+    <div class="toolbar">
+      <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+        <label><input type="checkbox" id="chkTodas" checked onchange="toggleTodas(this.checked)"> Seleccionar / deseleccionar visibles</label>
+        <label>Regional:
+          <select id="filtroRegional" onchange="filtrarPorRegional()" style="padding:6px 10px; border-radius:8px; border:1px solid var(--line); background:var(--field); font-size:13px; color:var(--text);">
+            <option value="">Todas las regionales</option>
+          </select>
+        </label>
+      </div>
+      <div style="display:flex; gap:10px;">
+        <button class="btn btn-secundario" onclick="cargarTodo()">↻ Recargar datos</button>
+        <button class="btn btn-primary" id="btnAplicarTodo" onclick="aplicarSeleccionadas()">Aplicar seleccionadas</button>
+      </div>
+    </div>
+
+    <div class="tabla-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th></th>
+            <th>Placa</th>
+            <th>Modelo</th>
+            <th>KM actual (sistema)</th>
+            <th>Fecha inspección</th>
+            <th>KM inspección</th>
+            <th>Nivel combustible</th>
+            <th>Combustible a aplicar (gal)</th>
+            <th>Estado</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tbody">
+          <tr><td colspan="10" style="text-align:center; padding:20px; color:var(--muted);">Cargando flota e inspecciones…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="resumen" id="resumen"></div>
+    <div class="msg-global" id="msgGlobal"></div>
+  </div>
+
+  <script src="db.js"></script>
+  <script>
+    // ── Control de acceso: solo con sesión iniciada desde index.html ──
+    (function verificarAcceso(){
+      const s = localStorage.getItem('usuario_sesion');
+      if (!s) { window.location.replace('index.html'); return; }
+      try { JSON.parse(s); } catch(e) { localStorage.removeItem('usuario_sesion'); window.location.replace('index.html'); }
+    })();
+
+    // ── Volver a la página de origen real (dashboard o panel_automotor) ──
+    // Navega DIRECTO a la URL del referrer (no usa history.back(), que
+    // depende de toda la pila de navegación de la pestaña y puede saltar
+    // a un punto equivocado si hubo más pasos antes en esa misma pestaña).
+    function volver() {
+      const ref = document.referrer;
+      if (ref && ref.indexOf(window.location.host) !== -1) {
+        window.location.href = ref;
+      } else {
+        window.location.href = 'panel_automotor.html';
+      }
+    }
+
+    const CAPACIDAD_DEFAULT = 55; // debe coincidir con CAPACIDAD_TANQUE_DEFAULT de db.js
+
+    // Mismo criterio de niveles que usan inspeccion.html y tanqueo.html
+    const PCT_NIVEL = { 'F':100, '3/4':75, '1/2':50, '1/4':25, 'E':10 };
+
+    function parseDDMMAAAA(str){
+      if(!str) return null;
+      const p = String(str).trim().split('/');
+      if(p.length !== 3) return null;
+      const dd = parseInt(p[0],10), mm = parseInt(p[1],10);
+      const aaaa = parseInt(p[2].length===4 ? p[2] : ('20'+p[2]).slice(-4), 10);
+      if(!dd || !mm || !aaaa) return null;
+      return new Date(aaaa, mm-1, dd);
+    }
+    function claveOrdenInspeccion(insp){
+      const d = parseDDMMAAAA(insp.FECHA);
+      const base = d ? d.getTime() : 0;
+      const hora = String(insp.HORA||'').replace(':','').padStart(4,'0');
+      return base + (parseInt(hora,10) || 0);
+    }
+    function norm(s){ return String(s||'').replace(/[^A-Z0-9]/gi,'').toUpperCase(); }
+    function fmtNum(n){ return new Intl.NumberFormat('es-CO').format(Math.round(n||0)); }
+
+    let FLOTA = [];
+    let ULTIMA_INSPECCION = {}; // placa normalizada -> fila de inspección más reciente
+
+    async function chequearConexion(){
+      const pill = document.getElementById('pillConexion');
+      const r = await DB.testConexion();
+      if (r.ok) { pill.classList.add('on'); pill.querySelector('span:last-child').textContent = 'Conectado'; }
+      else { pill.querySelector('span:last-child').textContent = 'Sin conexión'; }
+    }
+
+    async function cargarTodo(){
+      const tbody = document.getElementById('tbody');
+      tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:20px; color:var(--muted);">Cargando flota e inspecciones…</td></tr>';
+      document.getElementById('msgGlobal').textContent = '';
+
+      const [flotaRes, inspRes] = await Promise.all([
+        DB.obtenerFlota(),
+        DB.supabase.from('Inspeccion_Vehiculo').select(),
+      ]);
+
+      FLOTA = (flotaRes.ok && flotaRes.data) ? flotaRes.data : [];
+      const inspecciones = (inspRes && inspRes.data) ? inspRes.data : [];
+
+      ULTIMA_INSPECCION = {};
+      inspecciones.forEach(insp => {
+        const key = norm(insp.PLACA);
+        if (!key) return;
+        const actual = ULTIMA_INSPECCION[key];
+        if (!actual || claveOrdenInspeccion(insp) > claveOrdenInspeccion(actual)) {
+          ULTIMA_INSPECCION[key] = insp;
+        }
+      });
+
+      poblarFiltroRegional();
+      renderTabla();
+    }
+
+    function poblarFiltroRegional(){
+      const sel = document.getElementById('filtroRegional');
+      const valorPrevio = sel.value;
+      const regionales = Array.from(new Set(
+        FLOTA.map(c => (c.regional || '').trim()).filter(Boolean)
+      )).sort((a,b) => a.localeCompare(b));
+
+      sel.innerHTML = '<option value="">Todas las regionales</option>' +
+        regionales.map(r => `<option value="${r}">${r}</option>`).join('');
+
+      if (regionales.includes(valorPrevio)) sel.value = valorPrevio;
+    }
+
+    function filtrarPorRegional(){
+      const regionalSel = document.getElementById('filtroRegional').value;
+      document.querySelectorAll('#tbody tr[data-regional]').forEach(fila => {
+        const coincide = !regionalSel || fila.dataset.regional === regionalSel;
+        fila.classList.toggle('fila-oculta', !coincide);
+      });
+      actualizarResumen();
+    }
+
+    function renderTabla(){
+      const tbody = document.getElementById('tbody');
+      if (!FLOTA.length) {
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:20px; color:var(--muted);">No hay carrozas registradas.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = FLOTA.map((c, i) => {
+        const key = norm(c.placa);
+        const insp = ULTIMA_INSPECCION[key];
+        const kmSistema = parseFloat(c.kilometraje_actual) || 0;
+        const capacidad = parseFloat(c.capacidad_galones) || CAPACIDAD_DEFAULT;
+
+        if (!insp) {
+          return `
+            <tr class="sin-datos" data-idx="${i}" data-regional="${(c.regional||'').trim()}">
+              <td><input type="checkbox" disabled></td>
+              <td><b>${c.placa||'—'}</b></td>
+              <td>${c.modelo||'—'}</td>
+              <td>${fmtNum(kmSistema)} km</td>
+              <td colspan="4">Sin inspección registrada para esta placa</td>
+              <td><span class="tag tag-sin">Sin datos</span></td>
+              <td></td>
+            </tr>`;
+        }
+
+        const kmInsp = parseFloat(insp.KILOMETRAJE) || 0;
+        const kmSugerido = kmInsp > kmSistema ? kmInsp : kmSistema;
+        const pct = PCT_NIVEL[String(insp.NIVEL_COMBUSTIBLE||'').trim()] ?? 100;
+        const galSugeridos = Math.round((pct/100) * capacidad * 10) / 10;
+
+        return `
+          <tr data-idx="${i}" data-placa="${c.placa}" data-regional="${(c.regional||'').trim()}">
+            <td><input type="checkbox" class="chkFila" checked></td>
+            <td><b>${c.placa||'—'}</b></td>
+            <td>${c.modelo||'—'}</td>
+            <td>${fmtNum(kmSistema)} km</td>
+            <td>${insp.FECHA||'—'} ${insp.HORA||''}</td>
+            <td><input type="number" class="mini inKm" value="${kmSugerido}"></td>
+            <td>${insp.NIVEL_COMBUSTIBLE||'—'} (${pct}%)</td>
+            <td><input type="number" class="mini inGal" step="0.1" value="${galSugeridos}"></td>
+            <td><span class="tag tag-pend estadoTag">Pendiente</span></td>
+            <td><button class="btn-fila" onclick="aplicarFila(${i})">Aplicar</button></td>
+          </tr>`;
+      }).join('');
+
+      filtrarPorRegional();
+    }
+
+    function actualizarResumen(){
+      const regionalSel = document.getElementById('filtroRegional').value;
+      const filasVisibles = Array.from(document.querySelectorAll('#tbody tr[data-regional]'))
+        .filter(f => !f.classList.contains('fila-oculta'));
+      const conInspVisibles = filasVisibles.filter(f => f.dataset.placa).length;
+
+      const total = FLOTA.length;
+      const conInsp = Object.keys(ULTIMA_INSPECCION).length;
+
+      document.getElementById('resumen').textContent = regionalSel
+        ? `${regionalSel}: ${conInspVisibles} de ${filasVisibles.length} carroza(s) con inspección registrada.`
+        : `${conInsp} de ${total} carrozas tienen inspección registrada (todas las regionales).`;
+    }
+
+    function toggleTodas(marcar){
+      document.querySelectorAll('#tbody tr:not(.fila-oculta) .chkFila').forEach(chk => chk.checked = marcar);
+    }
+
+    async function aplicarFila(idx){
+      const fila = document.querySelector(`tr[data-idx="${idx}"]`);
+      if (!fila) return;
+      const placa = fila.dataset.placa;
+      const btn = fila.querySelector('.btn-fila');
+      const tag = fila.querySelector('.estadoTag');
+      const km = parseFloat(fila.querySelector('.inKm').value) || 0;
+      const gal = parseFloat(fila.querySelector('.inGal').value) || 0;
+
+      btn.disabled = true; btn.textContent = '…';
+      tag.className = 'tag tag-pend estadoTag'; tag.textContent = 'Aplicando…';
+
+      try {
+        const res = await DB.actualizarCarroza(placa, {
+          kilometraje_actual: km,
+          combustible_galones: gal,
+        });
+        if (res.ok) {
+          DB.invalidarCache('carrozas');
+          fila.classList.add('aplicada');
+          tag.className = 'tag tag-ok estadoTag'; tag.textContent = '✅ Aplicado';
+          fila.querySelector('.inKm').disabled = true;
+          fila.querySelector('.inGal').disabled = true;
+          fila.querySelector('.chkFila').checked = false;
+          fila.querySelector('.chkFila').disabled = true;
+          btn.remove();
+        } else {
+          tag.className = 'tag tag-sin estadoTag'; tag.textContent = '❌ Error';
+          btn.disabled = false; btn.textContent = 'Reintentar';
+        }
+      } catch(e) {
+        tag.className = 'tag tag-sin estadoTag'; tag.textContent = '❌ Error';
+        btn.disabled = false; btn.textContent = 'Reintentar';
+      }
+    }
+
+    async function aplicarSeleccionadas(){
+      const filas = Array.from(document.querySelectorAll('tr[data-placa]:not(.fila-oculta)'))
+        .filter(f => {
+          const chk = f.querySelector('.chkFila');
+          return chk && chk.checked && !chk.disabled;
+        });
+
+      if (!filas.length) {
+        document.getElementById('msgGlobal').textContent = 'No hay filas seleccionadas para aplicar.';
+        document.getElementById('msgGlobal').className = 'msg-global err';
+        return;
+      }
+
+      if (!confirm(`Vas a aplicar los datos de inspección a ${filas.length} carroza(s). ¿Continuar?`)) return;
+
+      const btnTodo = document.getElementById('btnAplicarTodo');
+      btnTodo.disabled = true; btnTodo.textContent = 'Aplicando…';
+      document.getElementById('msgGlobal').textContent = '';
+
+      let ok = 0, error = 0;
+      for (const fila of filas) {
+        const idx = fila.dataset.idx;
+        try {
+          await aplicarFila(idx);
+          ok++;
+        } catch(e) { error++; }
+      }
+
+      btnTodo.disabled = false; btnTodo.textContent = 'Aplicar seleccionadas';
+      const msg = document.getElementById('msgGlobal');
+      msg.textContent = `Listo: ${ok} carroza(s) actualizadas${error ? `, ${error} con error` : ''}.`;
+      msg.className = 'msg-global ' + (error ? 'err' : 'ok');
+    }
+
+    chequearConexion();
+    cargarTodo();
+  </script>
+</body>
+</html>

@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J.R. — Reporte de Avería</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --azul: #004a99; --celeste: #e3f2fd; --blanco: #ffffff; --rojo: #dc2626; --gris: #f8fbff; --verde: #25d366; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--celeste); font-family: 'DM Sans', sans-serif; padding: 10px; }
+        .container { max-width: 650px; margin: 0 auto; background: var(--blanco); border-radius: 20px; box-shadow: 0 10px 25px rgba(0,74,153,0.1); overflow: hidden; }
+        .header { background: var(--rojo); color: white; padding: 20px; text-align: center; }
+        .header h2 { font-size: 18px; margin: 0; }
+        .header p { font-size: 10px; opacity: 0.9; margin-top: 5px; font-weight: bold; }
+        .content { padding: 20px; }
+        .section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #546e7a; margin: 20px 0 10px; border-bottom: 2px solid var(--celeste); padding-bottom: 5px; font-weight: 700; }
+        label { display: block; font-size: 12px; font-weight: 700; margin-bottom: 5px; color: var(--azul); text-transform: uppercase; margin-top: 10px; }
+        input, select, textarea { width: 100%; padding: 12px; margin-bottom: 12px; border: 2px solid var(--celeste); border-radius: 10px; font-family: inherit; color: var(--azul); background: var(--gris); font-size: 14px; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--azul); }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .upload-container { border: 2px dashed var(--rojo); border-radius: 15px; padding: 15px; text-align: center; background: #fff5f5; cursor: pointer; margin-bottom: 12px; }
+        .preview-gallery { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+        .thumb-wrap { position: relative; width: 100%; aspect-ratio: 1/1; }
+        .thumb-wrap img { width: 100%; height: 100%; border-radius: 8px; object-fit: cover; border: 1px solid #fecaca; }
+        .btn-del { position: absolute; top: -5px; right: -5px; background: #ff4444; color: white; border: none; border-radius: 50%; width: 22px; height: 22px; cursor: pointer; font-weight: bold; }
+        .acciones { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+        .btn-accion-enviar { width: 100%; padding: 16px; border: none; border-radius: 14px; font-weight: 800; font-size: 15px; cursor: pointer; background: var(--rojo); color: white; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: 0 4px 14px rgba(220,38,38,0.25); transition: 0.2s; font-family: inherit; }
+        .btn-accion-enviar:disabled { opacity: 0.55; cursor: not-allowed; box-shadow: none; }
+        .btn-accion-enviar:active { transform: scale(0.98); }
+        .btn-accion-wa { width: 100%; padding: 16px; border: none; border-radius: 14px; font-weight: 800; font-size: 15px; cursor: pointer; background: #25d366; color: white; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: 0 4px 14px rgba(37,211,102,0.3); transition: 0.2s; font-family: inherit; }
+        .btn-accion-wa:active { transform: scale(0.98); }
+        .btn-accion-volver { width: 100%; padding: 13px; border: 1.5px solid #e2e8f0; border-radius: 14px; font-weight: 600; font-size: 14px; cursor: pointer; background: transparent; color: #94a3b8; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s; font-family: inherit; }
+        .btn-accion-volver:active { background: #f1f5f9; }
+        .badge-usuario { background: #eef5ff; border: 2px solid var(--azul); font-weight: bold; }
+
+        /* ── BANNER ORDEN TALLER ── */
+        .orden-banner {
+            display: none;
+            background: #fff7ed; border: 2px solid #f59e0b;
+            border-radius: 14px; padding: 14px 16px; margin-top: 14px;
+            font-size: 13px; color: #92400e; line-height: 1.6;
+        }
+        .orden-banner .ob-titulo { font-weight: 800; font-size: 14px; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h2>⚠️ REPORTE DE AVERÍA</h2>
+        <p id="rol-info"></p>
+    </div>
+
+    <div class="content">
+        <div class="section-title">Datos del Responsable</div>
+        <div class="grid-2">
+            <div>
+                <label>Reportado por</label>
+                <input type="text" id="reportado_por" readonly class="badge-usuario">
+            </div>
+            <div>
+                <label>Regional</label>
+                <select id="regional">
+                    <option>Pereira</option><option>Armenia</option>
+                    <option>Risaralda</option><option>Antioquia</option>
+                    <option>Caldas</option><option>Quindío</option>
+                    <option>Valle Norte</option><option>Valle Centro</option>
+                    <option>Valle Sur</option><option>C/ Marca</option>
+                    <option>Tolima Norte</option><option>Palmira</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="section-title">Datos del Vehículo</div>
+        <label>Seleccionar Vehículo</label>
+        <select id="vehiculo">
+            <option value="">Cargando flota...</option>
+        </select>
+
+        <div class="section-title">Síntomas y Descripción</div>
+        <label>Tipo de Falla</label>
+        <select id="tipo_falla">
+            <option value="">Seleccionar tipo...</option>
+            <option>Falla mecánica</option>
+            <option>Falla eléctrica</option>
+            <option>Accidente / Golpe</option>
+            <option>Llantas</option>
+            <option>Frenos</option>
+            <option>Suspensión</option>
+            <option>Otro</option>
+        </select>
+
+        <label>Descripción de Síntomas</label>
+        <textarea id="sintomas" rows="3" placeholder="Describe brevemente la falla..."></textarea>
+
+        <label>Observaciones Adicionales</label>
+        <textarea id="observaciones" rows="2" placeholder="Notas extra para el taller..."></textarea>
+
+        <div class="section-title">Evidencias Fotográficas (Máx. 4)</div>
+        <div class="upload-container" onclick="document.getElementById('fotos-input').click()">
+            <span id="upload-text">📸 Toca para subir fotos</span>
+            <input type="file" id="fotos-input" accept="image/*" multiple hidden onchange="procesarFotos(this)">
+        </div>
+        <div class="preview-gallery" id="galeria"></div>
+
+        <!-- Banner que aparece tras guardar exitosamente -->
+        <div class="orden-banner" id="orden-banner">
+            <div class="ob-titulo">🔧 Orden de Taller Creada Automáticamente</div>
+            La avería quedó registrada como <b>orden pendiente en el módulo de Taller</b>.<br>
+            El coordinador podrá verla en <b>Control de Taller → Órdenes por Avería</b> y liberar el vehículo cuando esté listo.
+        </div>
+
+        <div class="acciones">
+            <button class="btn-accion-enviar" id="btn-envio" onclick="guardarAveria()">
+                <span>🚨</span> ENVIAR AVERÍA AL SISTEMA
+            </button>
+            <button class="btn-accion-wa" onclick="enviarWhatsAppAveria()">
+                <span>💬</span> INFORMAR POR WHATSAPP
+            </button>
+            <button class="btn-accion-volver" onclick="irAtras()">← Volver</button>
+        </div>
+    </div>
+</div>
+
+<script src="db.js"></script>
+<script>
+    let fotosArray = [];
+
+    window.onload = async () => {
+        const sesion = JSON.parse(localStorage.getItem('usuario_sesion') || '{}');
+        if (!sesion.nombre) { window.location.href = 'index.html'; return; }
+
+        document.getElementById('reportado_por').value = sesion.nombre;
+        const esAdmin = (sesion.usuario || '').toLowerCase() === 'admin' || (sesion.rol || '').toLowerCase() === 'admin';
+        document.getElementById('rol-info').innerText = "SESIÓN: " + (esAdmin ? "ADMINISTRADOR" : "CONDUCTOR");
+
+        // Pre-seleccionar regional del conductor
+        if (sesion.regional) {
+            const sel = document.getElementById('regional');
+            for (let o of sel.options) { if (o.value === sesion.regional || o.text === sesion.regional) { sel.value = o.value; break; } }
+        }
+
+        const select = document.getElementById('vehiculo');
+        try {
+            const res = await DB.obtenerFlota();
+            if (res.data && res.data.length > 0) {
+                select.innerHTML = '<option value="">Seleccionar...</option>';
+                res.data.forEach(v => {
+                    const opt = document.createElement('option');
+                    opt.value = v.placa + '|' + (v.modelo || 'Vehículo') + '|' + (v.kilometraje_actual || 0);
+                    opt.textContent = v.placa + ' — ' + (v.modelo || '');
+                    select.appendChild(opt);
+                });
+            } else {
+                select.innerHTML = '<option value="">No hay flota registrada</option>';
+            }
+        } catch(err) {
+            select.innerHTML = '<option value="">Error al conectar</option>';
+        }
+    };
+
+    function irAtras() {
+        const sesion = JSON.parse(localStorage.getItem('usuario_sesion') || '{}');
+        const norm = s => String(s || '').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+        const rol = norm(sesion.rol), usr = norm(sesion.usuario);
+        if (rol === 'admin' || rol === 'administracion' || usr === 'admin') window.location.href = "dashboard.html";
+        else if (rol === 'coordinador') window.location.href = "panel_coordinador.html";
+        else window.location.href = "panel_conductor.html";
+    }
+
+    // 🆕 FIX BUG "Error al guardar con fotos pesadas": misma solución
+    // aplicada en registro_salida.html — se comprime cada foto antes de
+    // guardarla en fotosArray para no exceder los límites de Google
+    // Sheets / Apps Script al enviar el reporte.
+    // 🆕 Compresión más agresiva (antes 1280px/0.72/700KB) para que las
+    // fotos suban más rápido, sobre todo con señal débil en carretera.
+    const FOTO_MAX_ANCHO = 1000;
+    const FOTO_CALIDAD   = 0.60;
+    const FOTO_MAX_CHARS = 400000;
+
+    function comprimirImagen(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onerror = () => reject(new Error('No se pudo leer la imagen ' + file.name));
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onerror = () => reject(new Error('Imagen inválida: ' + file.name));
+                img.onload = () => {
+                    const escala  = Math.min(1, FOTO_MAX_ANCHO / img.width);
+                    const canvas  = document.createElement('canvas');
+                    canvas.width  = Math.max(1, Math.round(img.width  * escala));
+                    canvas.height = Math.max(1, Math.round(img.height * escala));
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                    let calidad = FOTO_CALIDAD;
+                    let dataUrl = canvas.toDataURL('image/jpeg', calidad);
+                    let intentos = 0;
+                    while (dataUrl.length > FOTO_MAX_CHARS && intentos < 3) {
+                        calidad = Math.max(0.30, calidad - 0.15);
+                        dataUrl = canvas.toDataURL('image/jpeg', calidad);
+                        intentos++;
+                    }
+                    resolve(dataUrl);
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    async function procesarFotos(input) {
+        const archivos = Array.from(input.files).slice(0, 4 - fotosArray.length);
+        if (archivos.length === 0) return;
+
+        document.getElementById('upload-text').innerText = '⏳ Procesando fotos...';
+
+        for (const f of archivos) {
+            try {
+                const comprimida = await comprimirImagen(f);
+                if (comprimida.length > FOTO_MAX_CHARS) {
+                    alert('⚠️ La foto "' + f.name + '" sigue siendo muy pesada incluso después de comprimirla. Prueba con otra foto.');
+                    continue;
+                }
+                fotosArray.push(comprimida);
+            } catch (err) {
+                console.error('Error comprimiendo foto:', err);
+                alert('❌ No se pudo procesar la foto "' + f.name + '".');
+            }
+        }
+        renderGaleria();
+        input.value = '';
+    }
+
+    function renderGaleria() {
+        document.getElementById('galeria').innerHTML = fotosArray.map((img, i) =>
+            '<div class="thumb-wrap"><img src="' + img + '"><button class="btn-del" onclick="eliminarFoto(' + i + ')">×</button></div>'
+        ).join('');
+        document.getElementById('upload-text').innerText = fotosArray.length + ' de 4 fotos cargadas';
+    }
+
+    function eliminarFoto(i) { fotosArray.splice(i, 1); renderGaleria(); }
+
+    async function guardarAveria() {
+        const btn      = document.getElementById('btn-envio');
+        const v_select = document.getElementById('vehiculo').value;
+        const falla    = document.getElementById('tipo_falla').value;
+
+        if (!v_select || !falla) { alert("Por favor selecciona el Vehículo y el Tipo de Falla"); return; }
+
+        const partes  = v_select.split('|');
+        const placa   = partes[0];
+        const nombreV = partes[1] || 'Vehículo';
+
+        btn.disabled = true;
+        btn.innerHTML = '<span>⏳</span> ENVIANDO...';
+
+        const sesion = JSON.parse(localStorage.getItem('usuario_sesion') || '{}');
+
+        const datos = {
+            reportado_por:        sesion.nombre,
+            regional:             document.getElementById('regional').value,
+            placa_vehiculo:       placa,
+            tipo_vehiculo:        nombreV,
+            tipo_falla:           falla,
+            descripcion_sintomas: document.getElementById('sintomas').value,
+            observaciones:        document.getElementById('observaciones').value,
+            imagen1: fotosArray[0] || "",
+            imagen2: fotosArray[1] || "",
+            imagen3: fotosArray[2] || "",
+            imagen4: fotosArray[3] || ""
+        };
+
+        try {
+            // DB.guardarAveria() ya hace internamente:
+            //   1. Insert en Averias
+            //   2. Update carroza → 'En Taller'
+            //   3. Insert en mantenimientos con estado_orden 'pendiente'
+            const res = await DB.guardarAveria(datos);
+            if (!res.ok) throw new Error(res.error?.message || res.error || 'Error desconocido');
+
+            btn.innerHTML = '<span>✅</span> AVERÍA REGISTRADA';
+            btn.style.background = "#16a34a";
+            document.getElementById('orden-banner').style.display = 'block';
+
+            setTimeout(() => irAtras(), 2500);
+
+        } catch(e) {
+            alert("Error: " + e.message);
+            btn.disabled = false;
+            btn.innerHTML = '<span>🚨</span> ENVIAR AVERÍA AL SISTEMA';
+        }
+    }
+
+    function enviarWhatsAppAveria() {
+        const v_select = document.getElementById('vehiculo').value;
+        if (!v_select) return alert("Seleccione vehículo antes de enviar WhatsApp");
+        const partes = v_select.split('|');
+        const placa = partes[0], nombreV = partes[1] || '';
+        const sesion = JSON.parse(localStorage.getItem('usuario_sesion') || '{}');
+        const hora = new Date().getHours();
+        const saludo = hora < 12 ? "Buenos días ☀️" : hora < 18 ? "Buenas tardes 🌤️" : "Buenas noches 🌙";
+        const msj = saludo + "\n\n" +
+            "*⚠️ REPORTE DE AVERÍA J.R.*\n\n" +
+            "🚗 *Vehículo:* " + placa + " — " + nombreV + "\n" +
+            "🔴 *Falla:* " + document.getElementById('tipo_falla').value + "\n" +
+            "📍 *Regional:* " + document.getElementById('regional').value + "\n" +
+            "👤 *Reportado por:* " + sesion.nombre + "\n" +
+            "📝 *Síntomas:* " + (document.getElementById('sintomas').value || '---') + "\n" +
+            "💬 *Obs:* " + (document.getElementById('observaciones').value || '---') + "\n\n" +
+            "⚙️ _Orden de taller creada automáticamente en el sistema._";
+        window.open("https://wa.me/?text=" + encodeURIComponent(msj), '_blank');
+    }
+</script>
+</body>
+</html>

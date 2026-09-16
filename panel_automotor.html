@@ -1,0 +1,2390 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>J.R. — Panel Parque Automotor</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+    :root {
+        --azul: #001a70;
+        --azul-2: #0d3fb8;
+        --celeste: #e3f2fd;
+        --blanco: #ffffff;
+        --rojo: #ef4444;
+        --verde: #10b981;
+        --naranja: #f59e0b;
+        --gris: #64748b;
+        /* 🆕 Se usaba en la tarjeta de "Taller" pero nunca se había
+           declarado, así que el borde quedaba sin color. */
+        --cian: #06b6d4;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+        background: var(--celeste);
+        font-family: 'DM Sans', sans-serif;
+        margin: 0;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    /* ── HEADER ── */
+    header {
+        width: 100%;
+        max-width: 600px;
+        background: var(--blanco);
+        padding: 20px;
+        border-radius: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+        box-sizing: border-box;
+    }
+
+    .logo-small { color: var(--azul); font-weight: bold; font-size: 18px; }
+    .header-actions { display: flex; align-items: center; gap: 10px; }
+    .btn-bell {
+        position: relative; width: 38px; height: 38px; border-radius: 12px;
+        background: var(--celeste); border: none; cursor: pointer; font-size: 17px;
+        display: flex; align-items: center; justify-content: center;
+    }
+    .btn-salir {
+        background: #fee2e2;
+        color: var(--rojo);
+        padding: 8px 15px;
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: bold;
+        border: none;
+        cursor: pointer;
+    }
+
+    /* ── BIENVENIDA ── */
+    .welcome-box { width: 100%; max-width: 600px; text-align: center; margin-bottom: 25px; }
+    .welcome-box h1 { color: var(--azul); font-size: 24px; margin: 0; line-height: 1.2; }
+    .welcome-box p { color: var(--gris); font-size: 14px; margin-top: 5px; }
+    .welcome-box .clock { color: var(--azul); font-weight: 700; font-size: 13px; margin-top: 6px; }
+
+    /* ── TARJETA PRINCIPAL ── */
+    .monitor-mini {
+        width: 100%;
+        max-width: 600px;
+        background: var(--blanco);
+        border-radius: 25px;
+        padding: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        box-sizing: border-box;
+        margin-bottom: 20px;
+    }
+
+    .monitor-mini h2 {
+        font-size: 15px;
+        color: var(--azul);
+        margin-top: 0;
+        margin-bottom: 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        text-transform: uppercase;
+        font-weight: 700;
+    }
+
+    .btn-ver-todo {
+        background: var(--celeste);
+        color: var(--azul);
+        font-size: 10px;
+        padding: 5px 10px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: bold;
+        border: none;
+        cursor: pointer;
+    }
+
+    /* ── CENTRO DE CONTROL EN VIVO ── */
+    .cc-card {
+        background: linear-gradient(135deg, var(--azul) 0%, var(--azul-2) 100%);
+        color: #fff;
+    }
+    .cc-card h2 { color: #cfe0ff; }
+    .cc-pulse-row { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+    .cc-pulse { width: 9px; height: 9px; border-radius: 50%; background: #34D399; animation: ccPulse 1.8s infinite; }
+    @keyframes ccPulse {
+        0%,100% { box-shadow: 0 0 0 0 rgba(52,211,153,.55); }
+        70% { box-shadow: 0 0 0 9px rgba(52,211,153,0); }
+    }
+    .cc-pulse-row span.txt { font-size: 12px; color: #cfe0ff; font-weight: 600; }
+    .cc-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .cc-stat { background: rgba(255,255,255,.08); border-radius: 14px; padding: 10px 8px; text-align: center; }
+    .cc-stat .num { font-size: 20px; font-weight: 800; line-height: 1; }
+    .cc-stat .lbl { font-size: 9.5px; color: #b9cdf5; text-transform: uppercase; margin-top: 4px; font-weight: 700; letter-spacing: .2px; }
+    .cc-alert-btn {
+        margin-top: 14px; width: 100%; background: rgba(239,68,68,.18); border: 1.5px solid rgba(252,165,165,.4);
+        color: #fecaca; border-radius: 14px; padding: 11px; font-weight: 800; font-size: 12.5px; cursor: pointer;
+        display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+
+    /* ── ETIQUETAS DE GRUPO DE MENÚ (Operación / Mantenimiento / Gestión) ── */
+    .menu-group-label {
+        width: 100%; max-width: 600px; font-size: 11px; text-transform: uppercase;
+        letter-spacing: .6px; color: var(--gris); font-weight: 800; margin: 4px 4px 10px;
+    }
+
+    /* ── GRID DE MENÚ ── */
+    .menu-conductor {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        width: 100%;
+        max-width: 600px;
+        margin-bottom: 25px;
+    }
+
+    .card-condu {
+        background: var(--blanco);
+        padding: 25px 10px;
+        border-radius: 25px;
+        text-align: center;
+        text-decoration: none;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+        transition: 0.3s;
+        border: 1.5px solid transparent;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        color: inherit;
+    }
+    .card-condu:active { transform: scale(0.95); background: #f0f7ff; border-color: var(--azul); }
+    .card-condu i { font-size: 35px; display: block; margin-bottom: 10px; font-style: normal; }
+    .card-condu span { color: var(--azul); font-weight: bold; text-transform: uppercase; font-size: 11px; }
+
+    .badge-rojo {
+        display: none; position: absolute; top: -10px; right: -10px;
+        background: linear-gradient(135deg, #dc2626, #ef4444);
+        color: white; font-size: 14px; font-weight: 900;
+        min-width: 30px; height: 30px; border-radius: 15px;
+        align-items: center; justify-content: center;
+        border: 2.5px solid white; animation: badgePulse 1.5s ease infinite; z-index: 10;
+    }
+    @keyframes badgePulse {
+        0%,100% { transform: scale(1); box-shadow: 0 3px 10px rgba(220,38,38,0.5); }
+        50% { transform: scale(1.18); box-shadow: 0 4px 20px rgba(220,38,38,0.8); }
+    }
+
+    /* ── KPIs (mini chips) ── */
+    .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .kpi-chip { background: var(--celeste); border-radius: 16px; padding: 12px 12px 10px; cursor: pointer; transition: transform .15s, box-shadow .15s; }
+    .kpi-chip:active { transform: scale(0.96); }
+    .kpi-chip:hover { box-shadow: 0 4px 14px rgba(0,26,112,.10); }
+    .kpi-top-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+    .kpi-chip .ic { font-size: 18px; }
+    .kpi-chip .trend { font-size: 9.5px; font-weight: 800; padding: 2px 6px; border-radius: 8px; }
+    .trend-up { color: var(--verde); background: #d1fae5; }
+    .trend-down { color: var(--rojo); background: #fee2e2; }
+    .trend-flat { color: var(--gris); background: #e2e8f0; }
+    .kpi-chip .val { font-size: 17px; font-weight: 800; color: var(--azul); line-height: 1.1; }
+    .kpi-chip .lbl { font-size: 10.5px; color: var(--gris); font-weight: 600; margin-top: 2px; }
+
+    /* ── CHARTS ── */
+    .chart-box { position: relative; height: 210px; }
+    .chart-sub { font-size: 11px; color: var(--gris); margin: -8px 0 12px; }
+
+    /* ── TABLAS Y PILLS ── */
+    table { width: 100%; border-collapse: collapse; }
+    td { padding: 12px 5px; font-size: 13px; border-bottom: 1px solid #f1f5f9; color: #334155; }
+    .status-pill { font-weight: bold; font-size: 10px; padding: 4px 8px; border-radius: 8px; text-transform: uppercase; }
+    .pill-disponible { color: #10b981; background: #ecfdf5; }
+    .pill-servicio, .pill-ruta { color: #3b82f6; background: #eff6ff; }
+    .pill-taller { color: var(--rojo); background: #fef2f2; }
+    .pill-otro { color: var(--gris); background: #f1f5f9; }
+    .pill-vencido { color: #fff; background: var(--rojo); }
+    .pill-proximo { color: #92400e; background: #fef3c7; }
+    .pill-al-dia { color: #10b981; background: #ecfdf5; }
+
+    .fuel-wrap { display: flex; align-items: center; gap: 6px; justify-content: flex-end; margin-top: 5px; }
+    .fuel-bar-mini { width: 60px; height: 6px; background: #e2e8f0; border-radius: 4px; overflow: hidden; }
+    .fuel-fill { height: 100%; border-radius: 4px; transition: width .3s; }
+    .fuel-pct { font-size: 10px; font-weight: 800; }
+
+    /* ── LISTA DE FLOTA (buscador + tarjetas) ── */
+    .fleet-search {
+        width: 100%; padding: 12px 14px; border-radius: 14px; border: none;
+        background: var(--celeste); color: var(--azul); font-family: 'DM Sans', sans-serif;
+        font-size: 13px; font-weight: 600; margin-bottom: 14px;
+    }
+    .fleet-search::placeholder { color: #6b8bd6; }
+    .fleet-row {
+        display: flex; align-items: center; justify-content: space-between; gap: 10px;
+        padding: 12px 4px; border-bottom: 1px solid #f1f5f9; cursor: pointer;
+    }
+    .fleet-row:last-child { border-bottom: none; }
+    .fleet-row:active { background: #f5f9ff; }
+    .fleet-left b { color: var(--azul); font-size: 14px; }
+    .fleet-left .sub { font-size: 11px; color: var(--gris); margin-top: 2px; }
+    .fleet-right { text-align: right; }
+    .fleet-empty { text-align: center; color: var(--gris); font-size: 13px; padding: 20px 0; }
+
+    /* ── EXPORTAR REPORTES ── */
+    .export-select {
+        width: 100%; padding: 12px 14px; border-radius: 14px; border: none;
+        background: var(--celeste); color: var(--azul); font-family: 'DM Sans', sans-serif;
+        font-size: 13px; font-weight: 700; margin-bottom: 12px; appearance: none;
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23001a70' stroke-width='3'><path d='M6 9l6 6 6-6'/></svg>");
+        background-repeat: no-repeat; background-position: right 14px center;
+    }
+    .export-hint { font-size: 11px; color: var(--gris); margin: -6px 0 12px; }
+    .export-actions { display: flex; gap: 10px; }
+    .btn-export {
+        flex: 1; padding: 13px; border-radius: 14px; border: none; font-weight: 800;
+        font-size: 12.5px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px;
+    }
+    .btn-export:active { transform: scale(0.96); }
+    .btn-csv { background: var(--celeste); color: var(--azul); }
+    .btn-excel { background: #d1fae5; color: #047857; }
+
+    /* ── FILTRO DE FECHAS (EXPORTAR) ── */
+    .export-date-row { display: flex; gap: 10px; margin-bottom: 12px; }
+    .export-date-field { flex: 1; }
+    .export-date-field label {
+        display: block; font-size: 10px; color: var(--gris); font-weight: 800;
+        text-transform: uppercase; letter-spacing: .3px; margin-bottom: 5px;
+    }
+    .export-date-field input[type="date"] {
+        width: 100%; padding: 12px 12px; border-radius: 14px; border: none;
+        background: var(--celeste); color: var(--azul); font-family: 'DM Sans', sans-serif;
+        font-size: 13px; font-weight: 700;
+    }
+    .export-date-clear {
+        background: none; border: none; color: var(--azul); font-size: 10.5px; font-weight: 800;
+        cursor: pointer; text-decoration: underline; margin: -6px 0 12px; padding: 0;
+    }
+
+    /* ── SISTEMA DE NOTIFICACIÓN PUSH (OVERLAY) ── */
+    /* 🆕 z-index más alto que .veh-overlay/.veh-sheet (9998/9999): este
+       modal se abre muchas veces DESDE DENTRO del panel de una carroza
+       (p.ej. el botón "📁 Ver historial completo"), así que siempre debe
+       quedar por ENCIMA de ese panel. Antes ambos compartían el mismo
+       z-index (9998/9999) y, al empatar, el navegador desempata por
+       orden en el HTML — como .veh-sheet aparece después en el
+       documento, terminaba tapando al modal de historial, que quedaba
+       "pegado atrás" aunque técnicamente sí se había abierto. */
+    .push-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); backdrop-filter: blur(3px); z-index: 10998; }
+    .push-overlay.visible { display: block; }
+
+    @keyframes slideDown { from{opacity:0;transform:translateY(-30px) scale(0.95);} to{opacity:1;transform:none;} }
+    .push-notif {
+        display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        width: calc(100% - 32px); max-width: 460px; background: #0f172a; border-radius: 24px;
+        padding: 24px 20px 20px; z-index: 10999; box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+        border: 1.5px solid #1e3a5f; animation: slideDown 0.4s cubic-bezier(.22,1,.36,1);
+        max-height: 82vh; overflow-y: auto;
+    }
+    .push-notif.visible { display: block; }
+    .push-close-btn {
+        position: sticky; float: right; top: 0; margin-top: -6px; margin-right: -4px;
+        width: 34px; height: 34px; border-radius: 11px; border: none;
+        background: rgba(255,255,255,.08); color: #e2e8f0; font-size: 15px; cursor: pointer;
+        display: flex; align-items: center; justify-content: center; z-index: 5;
+    }
+    .push-close-btn:hover { background: rgba(255,255,255,.18); }
+    .push-close-btn:active { transform: scale(0.92); }
+    .push-barra-top { width: 40px; height: 4px; background: linear-gradient(90deg, #3b82f6, #8b5cf6, #10b981); border-radius: 4px; margin: 0 auto 18px; clear: both; }
+    .push-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .push-icono { width: 44px; height: 44px; border-radius: 14px; background: var(--azul); display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+    .push-app-name { font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; }
+    .push-titulo { font-size: 18px; font-weight: 800; color: #f1f5f9; margin-bottom: 8px; }
+    .push-body { font-size: 13.5px; color: #94a3b8; line-height: 1.7; margin-bottom: 20px; }
+    .push-body b { color: #e2e8f0; }
+    .push-btn-ver { width: 100%; padding: 15px; border: none; border-radius: 14px; background: var(--verde); color: white; font-weight: 800; font-size: 15px; cursor: pointer; }
+    .push-alert-section { margin-bottom: 14px; }
+    .push-alert-section h4 { font-size: 11px; text-transform: uppercase; letter-spacing: .3px; color: #fca5a5; margin: 0 0 6px; }
+    .push-alert-section ul { list-style: none; margin: 0; padding: 0; }
+    .push-alert-section li { font-size: 13px; color: #cbd5e1; padding: 6px 0; border-bottom: 1px solid #1e293b; }
+    .push-alert-section li:last-child { border-bottom: none; }
+    .push-empty-alert { text-align: center; color: #64748b; font-size: 13px; padding: 10px 0; }
+
+    /* Botón "marcar como resuelto" + caja de observación dentro del modal de novedades */
+    .push-btn-resolver {
+        background: rgba(255,255,255,.10); color: #e2e8f0; border: none; border-radius: 10px;
+        padding: 8px 12px; font-size: 11.5px; font-weight: 800; cursor: pointer;
+    }
+    .push-btn-resolver:hover { background: rgba(255,255,255,.18); }
+    .push-btn-resolver:active { transform: scale(0.97); }
+    .push-btn-resolver:disabled { opacity: .6; cursor: default; }
+    .push-obs-textarea {
+        width: 100%; min-height: 60px; border-radius: 10px; border: 1.5px solid #1e3a5f;
+        background: #0b1626; color: #e2e8f0; padding: 8px 10px; font-family: 'DM Sans', sans-serif;
+        font-size: 12.5px; resize: vertical; box-sizing: border-box; margin-top: 8px;
+    }
+    .push-obs-textarea::placeholder { color: #64748b; }
+    .push-obs-hint { font-size: 10.5px; color: #f87171; margin-top: 4px; display: none; }
+    .push-obs-hint.visible { display: block; }
+
+    /* Responsive: ventanas push más amplias en tablet / escritorio */
+    @media (min-width: 700px){
+        .push-notif { max-width: 560px; max-height: 85vh; padding: 28px 26px 24px; }
+    }
+    @media (min-width: 1100px){
+        .push-notif { max-width: 680px; max-height: 88vh; }
+        .push-titulo { font-size: 20px; }
+    }
+
+    /* ── PANEL INDIVIDUAL DE CARROZA (mismo lenguaje push/monitor) ── */
+    .veh-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); backdrop-filter: blur(3px); z-index: 9998; }
+    .veh-overlay.visible { display: block; }
+    .veh-sheet {
+        display: none; position: fixed; left: 50%; bottom: 0; transform: translateX(-50%);
+        width: 100%; max-width: 600px; max-height: 90vh; overflow-y: auto;
+        background: var(--celeste); border-radius: 26px 26px 0 0; z-index: 9999;
+        box-shadow: 0 -10px 40px rgba(0,0,0,.3); padding-bottom: 24px;
+        animation: slideDown .35s cubic-bezier(.22,1,.36,1);
+    }
+    .veh-sheet.visible { display: block; }
+    .veh-sheet-head {
+        position: sticky; top: 0; background: var(--azul); color: #fff; z-index: 2;
+        padding: 20px 20px 16px; border-radius: 26px 26px 0 0;
+        display: flex; align-items: center; justify-content: space-between;
+    }
+    .veh-sheet-head h2 { margin: 0; font-size: 19px; font-weight: 800; }
+    .veh-sheet-head .sub { font-size: 12px; color: #b9cdf5; margin-top: 3px; }
+    .veh-sheet-head button {
+        width: 34px; height: 34px; border-radius: 10px; border: none; background: rgba(255,255,255,.15);
+        color: #fff; font-size: 15px; cursor: pointer; flex-shrink: 0;
+    }
+    .veh-sheet-head button:hover { background: rgba(255,255,255,.25); }
+    .veh-sheet-body { padding: 18px 20px 4px; }
+    .vm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+    .vm-stat { background: #fff; border-radius: 14px; padding: 12px 14px; }
+    .vm-stat .lbl { font-size: 10px; color: var(--gris); text-transform: uppercase; letter-spacing: .3px; margin-bottom: 4px; font-weight: 700; }
+    .vm-stat .val { font-weight: 800; font-size: 15px; color: var(--azul); }
+    .vm-chart-card { background: #fff; border-radius: 16px; padding: 12px; margin-bottom: 12px; }
+    .vm-chart-card .chart-box { height: 160px; }
+    .vm-chart-card h4 { margin: 0 0 8px; font-size: 11.5px; color: var(--gris); text-transform: uppercase; font-weight: 700; }
+    .vm-section { background: #fff; border-radius: 16px; padding: 14px 16px; margin-bottom: 12px; }
+    .vm-section h4 { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .3px; color: var(--azul); margin: 0 0 8px; }
+    .vm-list { list-style: none; margin: 0; padding: 0; font-size: 12.5px; }
+    .vm-list li { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f1f5f9; color: #334155; }
+    .vm-list li.clickable { cursor: pointer; }
+    .vm-list li.clickable:hover, .vm-list li.clickable:active { background: #f8fafc; }
+    .vm-list li:last-child { border-bottom: none; }
+    .vm-list li span:last-child { text-align: right; color: var(--gris); flex-shrink: 0; }
+    .vm-empty { font-size: 12px; color: var(--gris); padding: 6px 0; }
+
+    /* Responsive: panel de carroza más amplio en tablet / escritorio,
+       y despegado del borde inferior en pantallas grandes para que se
+       sienta como una ventana modal en vez de un bottom-sheet forzado. */
+    @media (min-width: 700px){
+        .veh-sheet { max-width: 680px; max-height: 88vh; }
+        .vm-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+    @media (min-width: 1100px){
+        .veh-sheet { max-width: 820px; bottom: 4vh; max-height: 92vh; border-radius: 26px; box-shadow: 0 20px 60px rgba(0,0,0,.35); }
+        .veh-sheet-head { border-radius: 26px 26px 0 0; }
+    }
+
+    /* ── SCROLL DE GRÁFICOS (tabs) ── */
+    .chart-tabs { display: flex; gap: 8px; overflow-x: auto; margin-bottom: 14px; padding-bottom: 2px; }
+    .chart-tab {
+        flex-shrink: 0; padding: 7px 14px; border-radius: 10px; background: var(--celeste); color: var(--azul);
+        font-size: 11.5px; font-weight: 700; cursor: pointer; border: 1.5px solid transparent; white-space: nowrap;
+    }
+    .chart-tab.active { background: var(--azul); color: #fff; }
+
+    /* ── FICHA DETALLADA DE TRASLADO (historial completo) ── */
+    .traslado-ficha {
+        background: #0b1626; border: 1px solid #1e293b; border-radius: 14px;
+        padding: 14px 14px 12px; margin-bottom: 10px;
+    }
+    .traslado-ficha .tf-row {
+        display: flex; justify-content: space-between; gap: 10px; padding: 3px 0;
+        font-size: 11.5px;
+    }
+    .traslado-ficha .tf-row .tf-lbl { color: #64748b; }
+    .traslado-ficha .tf-row .tf-val { color: #e2e8f0; font-weight: 600; text-align: right; }
+    .traslado-ficha .tf-block {
+        margin-top: 8px; padding-top: 8px; border-top: 1px solid #1e293b;
+    }
+    .traslado-ficha .tf-block-title {
+        font-size: 9.5px; color: #64748b; text-transform: uppercase; font-weight: 800;
+        letter-spacing: .3px; margin-bottom: 4px;
+    }
+</style>
+</head>
+<body>
+
+<!-- ── SISTEMA DE NOTIFICACIÓN PUSH: ALERTAS CRÍTICAS ── -->
+<div class="push-overlay" id="push-overlay" onclick="cerrarPush()"></div>
+<div class="push-notif" id="push-notif">
+    <button class="push-close-btn" onclick="cerrarPush()" title="Cerrar">✕</button>
+    <div class="push-barra-top"></div>
+    <div class="push-header">
+        <div class="push-icono">🚨</div>
+        <div class="push-app-info"><div class="push-app-name">J.R. Carrozas</div></div>
+    </div>
+    <div class="push-titulo" id="push-titulo-txt">Alertas Críticas</div>
+    <div id="push-alertas-body"></div>
+    <button class="push-btn-ver" onclick="cerrarPush()">Entendido</button>
+</div>
+
+<!-- ── PANEL INDIVIDUAL DE CARROZA (bottom sheet) ── -->
+<div class="veh-overlay" id="veh-overlay" onclick="cerrarPanelCarroza()"></div>
+<div class="veh-sheet" id="veh-sheet">
+    <div class="veh-sheet-head">
+        <div>
+            <h2 id="vmPlaca">—</h2>
+            <div class="sub" id="vmSub">—</div>
+        </div>
+        <button onclick="cerrarPanelCarroza()" title="Cerrar">✕</button>
+    </div>
+    <div class="veh-sheet-body" id="vmBody">
+        <div style="text-align:center;padding:40px 0;color:var(--gris);">Cargando información de la carroza...</div>
+    </div>
+</div>
+
+<header>
+    <div class="logo-small">J.R. PARQUE AUTOMOTOR</div>
+    <div class="header-actions">
+        <button class="btn-bell" onclick="mostrarAlertas()" title="Alertas">
+            🔔
+            <div id="badge-alertas" class="badge-rojo" style="top:-6px; right:-6px; min-width:20px; height:20px; font-size:10px;">0</div>
+        </button>
+        <button onclick="cerrarSesion()" class="btn-salir">SALIR</button>
+    </div>
+</header>
+
+<div class="welcome-box">
+    <h1 id="txt-nombre">Hola...</h1>
+    <p>Vista 360° de la flota — sincronizado con Google Sheets</p>
+    <div class="clock" id="clockTxt">—</div>
+</div>
+
+<!-- ── CENTRO DE CONTROL EN TIEMPO REAL ── -->
+<div class="monitor-mini cc-card">
+    <div class="cc-pulse-row">
+        <span class="cc-pulse"></span>
+        <span class="txt">CENTRO DE CONTROL EN TIEMPO REAL</span>
+    </div>
+    <div class="cc-grid">
+        <div class="cc-stat"><div class="num" id="ccDisponibles">—</div><div class="lbl">Disponibles</div></div>
+        <div class="cc-stat"><div class="num" id="ccServicio">—</div><div class="lbl">En servicio</div></div>
+        <div class="cc-stat"><div class="num" id="ccTaller">—</div><div class="lbl">En taller</div></div>
+        <div class="cc-stat"><div class="num" id="ccCombustibleHoy">—</div><div class="lbl">Galones hoy</div></div>
+        <div class="cc-stat"><div class="num" id="ccTrasladosHoy">—</div><div class="lbl">Traslados hoy</div></div>
+        <div class="cc-stat"><div class="num" id="ccAlertas">—</div><div class="lbl">Alertas activas</div></div>
+    </div>
+    <button class="cc-alert-btn" onclick="mostrarAlertas()">🚨 <span id="ccAlertTxt">0 alertas críticas</span></button>
+</div>
+
+<!-- ── MENÚ DE ACCESOS — mismo agrupamiento que el sidebar original ── -->
+<div class="menu-group-label">Operación</div>
+<div class="menu-conductor">
+    <a href="javascript:void(0)" onclick="irASeccion('flotaSection')" class="card-condu"><i>🚐</i><span>Carrozas</span></a>
+    <a href="javascript:void(0)" onclick="mostrarConductores()" class="card-condu"><i>🧑‍✈️</i><span>Conductores</span></a>
+    <a href="javascript:void(0)" onclick="mostrarTraslados()" class="card-condu"><i>🏁</i><span>Traslados</span></a>
+    <a href="inspeccion.html" class="card-condu">
+        <div id="badge-checklist" class="badge-rojo" onclick="event.preventDefault(); event.stopPropagation(); mostrarNovedadesChecklist();" style="cursor:pointer;">0</div>
+        <i>📝</i><span>Entrega Vehículos</span>
+    </a>
+</div>
+
+<div class="menu-group-label">Mantenimiento</div>
+<div class="menu-conductor">
+    <a href="tanqueo.html" class="card-condu" style="border-color:var(--naranja);"><i>⛽</i><span>Combustible</span></a>
+    <a href="javascript:void(0)" onclick="mostrarAverias()" class="card-condu" style="border-color:var(--rojo);">
+        <div id="badge-averias" class="badge-rojo">0</div>
+        <i>⚠️</i><span>Averías</span>
+    </a>
+    <a href="taller.html" class="card-condu" style="border-color:var(--cian);"><i>🔧</i><span>Taller</span></a>
+    <a href="javascript:void(0)" onclick="mostrarDocumentacion()" class="card-condu"><i>📄</i><span>Documentación</span></a>
+</div>
+
+<div class="menu-group-label">Gestión</div>
+<div class="menu-conductor">
+    <a href="javascript:void(0)" onclick="irASeccion('kpiSection')" class="card-condu"><i>📊</i><span>Indicadores</span></a>
+    <a href="javascript:void(0)" onclick="irASeccion('reportesSection')" class="card-condu"><i>📁</i><span>Reportes</span></a>
+</div>
+
+<!-- ── KPIs ── -->
+<div class="monitor-mini" id="kpiSection">
+    <h2>Indicadores Clave</h2>
+    <div class="kpi-grid" id="kpiGrid"></div>
+</div>
+
+<!-- ── GRÁFICOS ── -->
+<div class="monitor-mini">
+    <h2>Indicadores Operativos</h2>
+    <div class="chart-tabs" id="chartTabs">
+        <div class="chart-tab active" data-chart="combustible">Combustible 12m</div>
+        <div class="chart-tab" data-chart="disponibilidad">Disponibilidad</div>
+        <div class="chart-tab" data-chart="ranking">Ranking Km</div>
+        <div class="chart-tab" data-chart="averias">Averías</div>
+        <div class="chart-tab" data-chart="regional">Traslados x Regional</div>
+    </div>
+    <div id="chart-combustible"><div class="chart-sub">Galones consumidos vs. valor gastado</div><div class="chart-box"><canvas id="chartCombustible12m"></canvas></div></div>
+    <div id="chart-disponibilidad" style="display:none;"><div class="chart-sub">Estado actual de la flota</div><div class="chart-box"><canvas id="chartDisponibilidad"></canvas></div></div>
+    <div id="chart-ranking" style="display:none;"><div class="chart-sub">Top carrozas por kilometraje</div><div class="chart-box"><canvas id="chartRankingKm"></canvas></div></div>
+    <div id="chart-averias" style="display:none;"><div class="chart-sub">Últimos 90 días</div><div class="chart-box"><canvas id="chartAverias"></canvas></div></div>
+    <div id="chart-regional" style="display:none;"><div class="chart-sub">Mes en curso</div><div class="chart-box"><canvas id="chartTrasladosRegional"></canvas></div></div>
+</div>
+
+<!-- ── LISTAS DE MONITOREO ── -->
+<div class="monitor-mini">
+    <h2>Averías en Curso <button class="btn-ver-todo" onclick="mostrarAverias()">VER TODO</button></h2>
+    <table><tbody id="tabla-averias"><tr><td style="text-align:center;">Cargando...</td></tr></tbody></table>
+</div>
+
+<div class="monitor-mini">
+    <h2>Novedades en Entrega de Vehículos <button class="btn-ver-todo" onclick="mostrarNovedadesChecklist()">VER TODO</button></h2>
+    <table><tbody id="tabla-checklist"><tr><td style="text-align:center;">Cargando...</td></tr></tbody></table>
+</div>
+
+<div class="monitor-mini">
+    <h2>Traslados Recientes <button class="btn-ver-todo" onclick="mostrarTraslados()">VER TODO</button></h2>
+    <table><tbody id="tabla-traslados"><tr><td style="text-align:center;">Cargando...</td></tr></tbody></table>
+</div>
+
+<div class="monitor-mini">
+    <h2>Tanqueos Recientes <button class="btn-ver-todo" onclick="mostrarTanqueos()">VER TODO</button></h2>
+    <table><tbody id="tabla-tanqueos"><tr><td style="text-align:center;">Cargando...</td></tr></tbody></table>
+</div>
+
+<div class="monitor-mini">
+    <h2>Mantenimientos Pendientes <button class="btn-ver-todo" onclick="mostrarDocumentacion()">VER TODO</button></h2>
+    <table><tbody id="tabla-mantenimientos"><tr><td style="text-align:center;">Cargando...</td></tr></tbody></table>
+</div>
+
+<!-- ── FLOTA COMPLETA ── -->
+<div class="monitor-mini" id="flotaSection">
+    <h2>Estado de Flota General</h2>
+    <input type="text" class="fleet-search" id="fleetSearch" placeholder="Buscar placa, regional o estado...">
+    <div id="fleetList"><div class="fleet-empty">Cargando flota...</div></div>
+    <button class="btn-ver-todo" id="btnToggleFlota" style="width:100%; margin-top:10px; padding:10px; display:none;" onclick="toggleFlotaExpandida()">Ver todas las carrozas</button>
+</div>
+
+<!-- ── EXPORTAR REPORTES ── -->
+<div class="monitor-mini" id="reportesSection">
+    <h2>Exportar Reportes</h2>
+    <select class="export-select" id="exportDataset">
+        <option value="flota">Flota</option>
+        <option value="traslados">Traslados</option>
+        <option value="tanqueos">Tanqueos</option>
+        <option value="averias">Averías</option>
+        <option value="mantenimientos">Mantenimientos</option>
+    </select>
+    <div class="export-date-row">
+        <div class="export-date-field">
+            <label for="exportFechaDesde">Desde</label>
+            <input type="date" id="exportFechaDesde">
+        </div>
+        <div class="export-date-field">
+            <label for="exportFechaHasta">Hasta</label>
+            <input type="date" id="exportFechaHasta">
+        </div>
+    </div>
+    <button type="button" class="export-date-clear" onclick="limpiarFechasExport()">Limpiar fechas</button>
+    <select class="export-select" id="exportPlacaFiltro" style="margin-bottom:8px;">
+        <option value="">Todas las placas</option>
+    </select>
+    <select class="export-select" id="exportRegionalFiltro" style="margin-bottom:8px;">
+        <option value="">Todas las regionales</option>
+    </select>
+    <select class="export-select" id="exportConductorFiltro" style="margin-bottom:8px;">
+        <option value="">Todos los conductores</option>
+    </select>
+    <select class="export-select" id="exportFormaPagoFiltro" style="margin-bottom:8px; display:none;">
+        <option value="">Todas las formas de pago</option>
+    </select>
+    <div class="export-hint">Los filtros de arriba son opcionales y se combinan entre sí. Si los dejas vacíos, se exporta todo el dataset elegido. El rango de fechas filtra por la fecha de cada registro (traslado, tanqueo, avería o mantenimiento); no aplica al dataset "Flota", que es una foto del estado actual. "Flota" también respeta el buscador de la lista de flota más arriba.</div>
+    <div class="export-actions">
+        <button class="btn-export btn-csv" onclick="exportarDatos('csv')">⬇️ CSV</button>
+        <button class="btn-export btn-excel" onclick="exportarDatos('excel')">⬇️ Excel</button>
+    </div>
+</div>
+
+<!-- FOOTER -->
+<div class="monitor-mini" style="text-align:center; margin-bottom:30px;">
+    <div style="font-size:10px; color:#94a3b8; font-weight:600; text-transform:uppercase;">Diseñado & Desarrollado por</div>
+    <div style="font-size:15px; font-weight:800; color:#001a70; margin-top:4px;">Zaider J. Buitrago A.</div>
+    <div style="font-size:10px; color:#a5b4fc; font-weight:700; margin-top:7px;">J.R. CARROZAS © 2026</div>
+</div>
+
+<!-- Conector real de la app (mismo que usan panel_conductor / panel_coordinador / dashboard) -->
+<script src="db.js"></script>
+<script>
+(function verificarAccesoPanel(){
+    const sesionRaw = localStorage.getItem('usuario_sesion');
+    if (!sesionRaw) {
+        window.location.replace('index.html');
+        return;
+    }
+    try {
+        JSON.parse(sesionRaw);
+    } catch(e) {
+        localStorage.removeItem('usuario_sesion');
+        window.location.replace('index.html');
+    }
+})();
+
+(function bloquearBotonAtras(){
+    history.pushState(null, '', location.href);
+    window.addEventListener('popstate', function(){
+        history.pushState(null, '', location.href);
+    });
+})();
+</script>
+<script>
+const norm = str => String(str || '').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+const normPlaca = p => String(p||'').replace(/[^A-Z0-9]/gi,'').toUpperCase();
+const fmtNum = n => new Intl.NumberFormat('es-CO').format(Math.round(n || 0));
+const fmtCOP = n => new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(n || 0);
+
+let userSesion = {};
+let FLOTA = [], TRASLADOS = [], AVERIAS = [], MANTENIMIENTOS = [], TANQUEOS = [], INSPECCIONES = [], USUARIOS = [], CHECKLISTS = [];
+let ESTADOS_VEHICULO = [];
+let charts = {};
+let vmCharts = {};
+let fleetExpanded = false;
+
+window.onload = async () => {
+    const sesionRaw = localStorage.getItem('usuario_sesion');
+    if (sesionRaw) {
+        userSesion = JSON.parse(sesionRaw);
+        document.getElementById('txt-nombre').innerText = "Hola, " + (userSesion.nombre || "Supervisor de Flota");
+    } else {
+        window.location.replace('index.html');
+        return;
+    }
+
+    tickClock(); setInterval(tickClock, 1000);
+    buildCharts();
+    setupChartTabs();
+    setupFleetSearch();
+    setupExportDateInputs();
+    setupExportDatasetToggle();
+    setupModalEscKey();
+
+    try {
+        await refrescarTodo();
+    } catch (err) {
+        console.error('Error cargando datos de la flota:', err);
+        document.getElementById('fleetList').innerHTML = '<div class="fleet-empty">No se pudo conectar con la hoja. Verifica que db.js esté en la misma carpeta.</div>';
+    }
+
+    setInterval(refrescarTodo, 60000);
+};
+
+function tickClock(){
+    const d = new Date();
+    document.getElementById('clockTxt').textContent = d.toLocaleDateString('es-CO',{weekday:'long', day:'2-digit', month:'long'}) + ' · ' + d.toLocaleTimeString('es-CO');
+}
+
+function cerrarSesion(){ localStorage.clear(); window.location.href = "index.html"; }
+
+function setupModalEscKey(){
+    window.addEventListener('keydown', (e)=>{
+        if(e.key !== 'Escape') return;
+        if(document.getElementById('push-notif').classList.contains('visible')) cerrarPush();
+        if(document.getElementById('veh-sheet').classList.contains('visible')) cerrarPanelCarroza();
+    });
+}
+
+function hoyDDMMAAAA(){
+    const h = new Date();
+    return h.getDate().toString().padStart(2,'0') + '/' + (h.getMonth()+1).toString().padStart(2,'0') + '/' + h.getFullYear();
+}
+function parseDDMMAAAA(str){
+    if(!str) return null;
+    const p = String(str).trim().split('/');
+    if(p.length !== 3) return null;
+    const dd = parseInt(p[0],10), mm = parseInt(p[1],10), aaaa = parseInt(p[2].length===4?p[2]:('20'+p[2]).slice(-4),10);
+    if(!dd || !mm || !aaaa) return null;
+    return new Date(aaaa, mm-1, dd);
+}
+function esMismoMes(fechaStr, ref){
+    const d = parseDDMMAAAA(fechaStr);
+    return d && d.getMonth()===ref.getMonth() && d.getFullYear()===ref.getFullYear();
+}
+function sumaCampo(lista, campo){
+    return lista.reduce((acc,r)=> acc + (parseFloat(r[campo]) || 0), 0);
+}
+function normEstado(e){ return String(e||'').trim().toLowerCase(); }
+
+function diasHasta(fechaStr){
+    const d = parseDDMMAAAA(fechaStr);
+    if(!d) return null;
+    const hoy = new Date(); hoy.setHours(0,0,0,0);
+    d.setHours(0,0,0,0);
+    return Math.round((d - hoy) / 86400000);
+}
+
+function fmtFechaCorta(valor){
+    if(valor === null || valor === undefined || valor === '') return '';
+    if(valor instanceof Date){
+        if(isNaN(valor.getTime())) return '';
+        return valor.getDate().toString().padStart(2,'0') + '/' + (valor.getMonth()+1).toString().padStart(2,'0') + '/' + valor.getFullYear();
+    }
+    const str = String(valor).trim();
+    if(/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(str)) return str;
+    const d = new Date(str);
+    if(!isNaN(d.getTime())){
+        return d.getDate().toString().padStart(2,'0') + '/' + (d.getMonth()+1).toString().padStart(2,'0') + '/' + d.getFullYear();
+    }
+    return str;
+}
+function fmtHoraCorta(valor){
+    if(valor === null || valor === undefined || valor === '') return '';
+    if(valor instanceof Date){
+        if(isNaN(valor.getTime())) return '';
+        return valor.getHours().toString().padStart(2,'0') + ':' + valor.getMinutes().toString().padStart(2,'0');
+    }
+    const str = String(valor).trim();
+    const soloHora = str.match(/^(\d{1,2}):(\d{2})(:\d{2})?$/);
+    if(soloHora) return soloHora[1].padStart(2,'0') + ':' + soloHora[2];
+    const conHora = str.match(/(\d{1,2}):(\d{2}):(\d{2})/);
+    if(conHora) return conHora[1].padStart(2,'0') + ':' + conHora[2];
+    const d = new Date(str);
+    if(!isNaN(d.getTime())){
+        return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
+    }
+    return str;
+}
+function normalizarFechas(lista, campos){
+    (lista||[]).forEach(item=>{
+        campos.forEach(campo=>{
+            if(item && item[campo] !== undefined && item[campo] !== null && item[campo] !== ''){
+                item[campo] = fmtFechaCorta(item[campo]);
+            }
+        });
+    });
+    return lista;
+}
+function normalizarHoras(lista, campos){
+    (lista||[]).forEach(item=>{
+        campos.forEach(campo=>{
+            if(item && item[campo] !== undefined && item[campo] !== null && item[campo] !== ''){
+                item[campo] = fmtHoraCorta(item[campo]);
+            }
+        });
+    });
+    return lista;
+}
+
+function fechaDentroDeRango(valorFecha, desdeISO, hastaISO){
+    if(!desdeISO && !hastaISO) return true;
+    const texto = fmtFechaCorta(valorFecha);
+    const d = parseDDMMAAAA(texto);
+    if(!d) return false;
+    d.setHours(0,0,0,0);
+    if(desdeISO){
+        const desde = new Date(desdeISO + 'T00:00:00');
+        if(d < desde) return false;
+    }
+    if(hastaISO){
+        const hasta = new Date(hastaISO + 'T00:00:00');
+        if(d > hasta) return false;
+    }
+    return true;
+}
+
+const ESTADO_INFO = {
+    'disponible': {label:'Disponible', pill:'pill-disponible'},
+    'en servicio': {label:'En servicio', pill:'pill-servicio'},
+    'en taller': {label:'En taller', pill:'pill-taller'},
+};
+function estadoInfo(estado){
+    return ESTADO_INFO[normEstado(estado)] || {label: estado || 'Sin estado', pill:'pill-otro'};
+}
+function estadoPill(estado){
+    const info = estadoInfo(estado);
+    return `<span class="status-pill ${info.pill}">${info.label}</span>`;
+}
+function pillVencimiento(dias){
+    if(dias === null || dias === undefined) return '<span class="status-pill pill-otro">SIN FECHA</span>';
+    if(dias < 0) return `<span class="status-pill pill-vencido">VENCIDO ${Math.abs(dias)}d</span>`;
+    if(dias <= 30) return `<span class="status-pill pill-proximo">${dias}d restantes</span>`;
+    return `<span class="status-pill pill-al-dia">${dias}d</span>`;
+}
+
+/* ==========================================================================
+   NOVEDADES EN CHECKLIST DE ENTREGA (hoja "Checklist_Salida")
+   Un checklist tiene "novedad" cuando alguno de sus campos de estado no
+   trae el valor esperado ("Bueno" / "Sí") — por ejemplo Sistema de Frenos
+   = "Regular" — sin importar que el campo OBSERVACIONES venga vacío.
+   Campos sin dato (celda vacía en la hoja) no se evalúan.
+
+   🔧 Al marcar una novedad como resuelta, se actualiza DIRECTO la fila de
+   Checklist_Salida (sin tabla/hoja nueva): el campo con novedad pasa a
+   "Bueno"/"Sí", y la observación se agrega al campo OBSERVACIONES de esa
+   misma fila. Como el dato queda corregido, la novedad deja de aparecer
+   sola en las próximas cargas — no se necesita un registro aparte.
+   ========================================================================== */
+const CHECKLIST_CAMPOS_OK = {
+    SISTEMA_DE_LUCES: ['bueno'],
+    SISTEMA_DE_FRENOS: ['bueno'],
+    LLANTA_DE_REPUESTO: ['si','sí'],
+    NIVEL_AGUA: ['bueno'],
+    NIVEL_ACEITE: ['bueno'],
+    SOAT: ['si','sí'],
+    TECNOMECANICA: ['si','sí'],
+    BOTIQUIN: ['si','sí'],
+    EXTINTOR: ['si','sí'],
+    CINTURON_DE_SEGURIDAD: ['si','sí'],
+    GATO: ['si','sí'],
+    LLAVE_DE_RUEDAS: ['si','sí'],
+    TRIANGULOS: ['si','sí'],
+    ESTADO_VEHICULO: ['bueno'],
+};
+// Valor "correcto" que se escribe en la propia hoja Checklist_Salida
+// cuando se resuelve una novedad de ese campo específico.
+const CHECKLIST_CAMPOS_VALOR_OK = {
+    SISTEMA_DE_LUCES: 'Bueno',
+    SISTEMA_DE_FRENOS: 'Bueno',
+    LLANTA_DE_REPUESTO: 'Sí',
+    NIVEL_AGUA: 'Bueno',
+    NIVEL_ACEITE: 'Bueno',
+    SOAT: 'Sí',
+    TECNOMECANICA: 'Sí',
+    BOTIQUIN: 'Sí',
+    EXTINTOR: 'Sí',
+    CINTURON_DE_SEGURIDAD: 'Sí',
+    GATO: 'Sí',
+    LLAVE_DE_RUEDAS: 'Sí',
+    TRIANGULOS: 'Sí',
+    ESTADO_VEHICULO: 'Bueno',
+};
+const CHECKLIST_CAMPOS_LABEL = {
+    SISTEMA_DE_LUCES: 'Sistema de luces',
+    SISTEMA_DE_FRENOS: 'Sistema de frenos',
+    LLANTA_DE_REPUESTO: 'Llanta de repuesto',
+    NIVEL_AGUA: 'Nivel de agua',
+    NIVEL_ACEITE: 'Nivel de aceite',
+    SOAT: 'SOAT',
+    TECNOMECANICA: 'Tecnomecánica',
+    BOTIQUIN: 'Botiquín',
+    EXTINTOR: 'Extintor',
+    CINTURON_DE_SEGURIDAD: 'Cinturón de seguridad',
+    GATO: 'Gato',
+    LLAVE_DE_RUEDAS: 'Llave de ruedas',
+    TRIANGULOS: 'Triángulos',
+    ESTADO_VEHICULO: 'Estado general',
+};
+
+// Devuelve la lista de campos con novedad de un registro de checklist,
+// incluyendo la CLAVE real de la columna (campoKey) para poder
+// actualizarla directamente en Checklist_Salida al resolver.
+// Un campo vacío/sin dato no se considera novedad (no se puede evaluar).
+function novedadesDeChecklist(registro){
+    const novedades = [];
+    Object.keys(CHECKLIST_CAMPOS_OK).forEach(campo => {
+        const valor = registro[campo];
+        if(valor === undefined || valor === null || String(valor).trim()==='') return;
+        const ok = CHECKLIST_CAMPOS_OK[campo].includes(norm(valor));
+        if(!ok){
+            novedades.push({ campoKey: campo, campo: CHECKLIST_CAMPOS_LABEL[campo] || campo, valor: String(valor).trim() });
+        }
+    });
+    return novedades;
+}
+
+// Todos los checklists (de cualquier placa) que tienen al menos una novedad
+// PENDIENTE (aún no corregida en la hoja), ordenados del más reciente al
+// más antiguo. Al resolver una novedad se corrige el dato en la propia
+// fila, así que simplemente deja de aparecer aquí — no hay tabla aparte.
+function checklistsConNovedad(){
+    return CHECKLISTS
+        .map(r => ({ registro: r, novedades: novedadesDeChecklist(r) }))
+        .filter(x => x.novedades.length > 0)
+        .sort((a,b)=> (parseDDMMAAAA(b.registro.FECHA)||0) - (parseDDMMAAAA(a.registro.FECHA)||0));
+}
+
+// Alias por compatibilidad — todas las novedades detectadas son, por
+// definición, pendientes (si ya se resolvieron, el dato ya quedó en
+// "Bueno"/"Sí" y novedadesDeChecklist ya no las cuenta).
+function checklistsConNovedadPendientes(){
+    return checklistsConNovedad();
+}
+
+// Actualiza el badge rojo de la tarjeta "Entrega Vehículos" con el número
+// de checklists con alguna novedad pendiente por resolver.
+function actualizarBadgeChecklist(){
+    const items = checklistsConNovedadPendientes();
+    const badge = document.getElementById('badge-checklist');
+    if(!badge) return;
+    if(items.length > 0){ badge.style.display='flex'; badge.innerText = items.length; }
+    else { badge.style.display='none'; }
+}
+
+// Tabla resumen (últimos 6, solo pendientes) en la sección de
+// "Novedades en Entrega de Vehículos" del panel principal.
+function renderTablaChecklist(){
+    const t = document.getElementById('tabla-checklist');
+    if(!t) return;
+    const items = checklistsConNovedadPendientes().slice(0,6);
+    t.innerHTML = items.length ? items.map(({registro, novedades}) => `
+        <tr><td><b>${registro.PLACA||'—'}</b><br><small>${novedades.map(n=>n.campo+': '+n.valor).join(', ')}</small></td>
+        <td style="text-align:right; font-size:11px;">${registro.FECHA || '—'}<br><small style="color:var(--gris);">${registro.CONDUCTOR||''}</small></td></tr>`).join('')
+        : '<tr><td style="text-align:center;">Sin novedades pendientes en checklists recientes.</td></tr>';
+}
+
+// Guarda en memoria los items pendientes que se están mostrando en el modal,
+// para poder referenciarlos por índice desde los botones "Marcar resuelto".
+let _checklistModalPendientes = [];
+
+// Modal completo con todos los checklists con novedad PENDIENTE (al hacer
+// clic en el badge de "Entrega Vehículos" o en "VER TODO" de la lista).
+function mostrarNovedadesChecklist(){
+    const pendientes = checklistsConNovedadPendientes();
+    _checklistModalPendientes = pendientes;
+
+    document.getElementById('push-titulo-txt').textContent = 'Novedades en Entrega de Vehículos';
+
+    let html = `<div style="font-size:11.5px;color:#64748b;margin-bottom:14px;">${pendientes.length} pendiente(s) por resolver</div>`;
+
+    if(!pendientes.length){
+        html += '<div class="push-empty-alert">No hay novedades registradas en los checklists de entrega. ✅</div>';
+    } else {
+        html += `<div class="push-alert-section"><ul>` + pendientes.map(({registro, novedades}, i) => `
+            <li>
+                <div style="display:flex;justify-content:space-between;gap:8px;">
+                    <b style="color:#f1f5f9;">${registro.PLACA || '—'}</b>
+                    <span style="color:#94a3b8;font-size:11px;">${registro.FECHA || '—'}${registro.HORA_SALIDA ? ' · '+registro.HORA_SALIDA : ''}</span>
+                </div>
+                <div style="margin-top:3px;">${novedades.map(n => `${n.campo}: <b style="color:#fcd34d;">${n.valor}</b>`).join(' · ')}</div>
+                <div style="margin-top:3px;color:#94a3b8;">${registro.CONDUCTOR ? 'Conductor: '+registro.CONDUCTOR : ''}${registro.OBSERVACIONES ? ' · Obs: '+registro.OBSERVACIONES : ' · Sin observaciones registradas'}</div>
+                <div id="resolverBox-${i}" style="margin-top:8px;">
+                    <button class="push-btn-resolver" onclick="mostrarCajaResolver(${i})">✅ Marcar como resuelto</button>
+                </div>
+            </li>`).join('') + `</ul></div>`;
+    }
+
+    document.getElementById('push-alertas-body').innerHTML = html;
+    document.getElementById('push-overlay').classList.add('visible');
+    document.getElementById('push-notif').classList.add('visible');
+}
+
+// Abre la casilla de texto para escribir la observación de resolución del
+// item con índice i (dentro de _checklistModalPendientes).
+function mostrarCajaResolver(i){
+    const box = document.getElementById('resolverBox-'+i);
+    if(!box) return;
+    box.innerHTML = `
+        <textarea id="obsResolver-${i}" class="push-obs-textarea" placeholder="Ej: Se llevó al taller y se templó la guaya del freno de mano"></textarea>
+        <div class="push-obs-hint" id="obsHint-${i}">Escribe qué se hizo para resolverlo antes de guardar.</div>
+        <div style="display:flex;gap:8px;margin-top:6px;">
+            <button class="push-btn-resolver" id="btnGuardar-${i}" style="flex:1;background:#10b981;color:#062e21;" onclick="confirmarResolverNovedad(${i})">Guardar</button>
+            <button class="push-btn-resolver" style="flex:1;background:#334155;" onclick="mostrarNovedadesChecklist()">Cancelar</button>
+        </div>`;
+    const ta = document.getElementById('obsResolver-'+i);
+    if(ta) ta.focus();
+}
+
+// 🔧 Guarda la resolución DIRECTO en la fila de Checklist_Salida:
+// - cada campo con novedad pasa a su valor correcto (Bueno/Sí)
+// - la observación se agrega al campo OBSERVACIONES de esa misma fila
+// No se crea ninguna hoja/tabla nueva.
+async function confirmarResolverNovedad(i){
+    const item = _checklistModalPendientes[i];
+    if(!item) return;
+
+    const textarea = document.getElementById('obsResolver-'+i);
+    const hint = document.getElementById('obsHint-'+i);
+    const observacion = (textarea ? textarea.value : '').trim();
+
+    if(!observacion){
+        if(textarea) textarea.style.borderColor = '#ef4444';
+        if(hint) hint.classList.add('visible');
+        return;
+    }
+
+    const btn = document.getElementById('btnGuardar-'+i);
+    if(btn){ btn.disabled = true; btn.textContent = 'Guardando...'; }
+
+    try{
+        if(!window.DB || !DB.supabase) throw new Error('Conector de base de datos no disponible');
+        if(!item.registro.ID) throw new Error('Este checklist no tiene ID; no se puede actualizar.');
+
+        const camposActualizados = {};
+        item.novedades.forEach(n => {
+            camposActualizados[n.campoKey] = CHECKLIST_CAMPOS_VALOR_OK[n.campoKey] || 'Bueno';
+        });
+
+        const fechaHoraTxt = new Date().toLocaleString('es-CO');
+        const nota = `[Resuelto ${fechaHoraTxt} por ${(userSesion && userSesion.nombre) || 'Supervisor'}] ${observacion}`;
+        const obsPrevia = String(item.registro.OBSERVACIONES || '').trim();
+        camposActualizados.OBSERVACIONES = obsPrevia ? (obsPrevia + ' | ' + nota) : nota;
+
+        const { error } = await DB.supabase.from('Checklist_Salida').update(camposActualizados).eq('ID', item.registro.ID);
+        if(error) throw new Error(error.message || 'Error actualizando checklist');
+
+        await refrescarTodo();
+        mostrarNovedadesChecklist();
+    }catch(err){
+        console.error('Error guardando resolución de novedad de checklist:', err);
+        if(btn){ btn.disabled = false; btn.textContent = 'Guardar'; }
+        if(hint){ hint.textContent = 'No se pudo guardar. Verifica tu conexión e inténtalo de nuevo.'; hint.classList.add('visible'); }
+    }
+}
+
+/* ==========================================================================
+   HISTORIAL COMPLETO POR CARROZA (traslados y checklists) — con foto y firma
+   Estas funciones NO tocan las secciones/badges existentes de novedades;
+   solo agregan una vista de historial completo agrupado por mes, con las
+   imágenes y la firma tal como vienen guardadas en la hoja de cálculo
+   (columnas imagen1..imagen4 y firma en "Traslado"; FIRMA_CONDUCTOR en
+   "Checklist_Salida").
+   ========================================================================== */
+function agruparPorMes(lista, campoFecha){
+    const grupos = {};
+    lista.forEach(item=>{
+        const d = parseDDMMAAAA(item[campoFecha]);
+        if(!d) return;
+        const key = d.toLocaleDateString('es-CO',{month:'long', year:'numeric'});
+        if(!grupos[key]) grupos[key] = [];
+        grupos[key].push(item);
+    });
+    return grupos;
+}
+function capitalizar(str){
+    str = String(str||'');
+    return str.charAt(0).toUpperCase() + str.slice(1);
+}
+// 🆕 Google Drive últimamente devuelve 403 Forbidden en varias fotos
+// cuando se usan como <img src="https://drive.google.com/uc?id=..."> —
+// esto pasa por cómo Drive sirve ese endpoint concreto (a veces por
+// límite de peticiones, a veces porque el archivo no quedó compartido
+// como "Cualquiera con el enlace"), y no se puede forzar desde el
+// navegador a que Drive lo autorice. Lo que SÍ se puede hacer: probar
+// automáticamente otros 2 formatos de URL que Google Drive también
+// entiende para el mismo archivo (a veces uno funciona aunque el otro
+// dé 403), y si NINGUNO carga, mostrar un enlace "Ver foto en Drive"
+// en vez de dejar el espacio en blanco — al abrirlo en una pestaña
+// nueva, Drive sí pide el login/permiso normal en vez de bloquear la
+// petición como hotlink.
+function extraerIdDrive(url){
+    if (!url) return null;
+    const patrones = [/[?&]id=([a-zA-Z0-9_-]{15,})/, /\/file\/d\/([a-zA-Z0-9_-]{15,})/, /\/d\/([a-zA-Z0-9_-]{15,})/];
+    for (const p of patrones) {
+        const m = String(url).match(p);
+        if (m) return m[1];
+    }
+    return null;
+}
+function probarFormatoAlternoImagen(img){
+    const id = img.dataset.driveId;
+    if (!id) { reemplazarPorEnlaceDrive(img); return; }
+    const intento = parseInt(img.dataset.intento || '0', 10) + 1;
+    img.dataset.intento = intento;
+    const formatos = [
+        `https://drive.google.com/thumbnail?id=${id}&sz=w1000`,
+        `https://drive.google.com/uc?export=view&id=${id}`,
+    ];
+    if (intento <= formatos.length) {
+        img.src = formatos[intento - 1];
+    } else {
+        reemplazarPorEnlaceDrive(img);
+    }
+}
+function reemplazarPorEnlaceDrive(img){
+    const enlace = img.dataset.enlace;
+    const w = img.style.width || '54px', h = img.style.height || '54px';
+    const a = document.createElement('a');
+    a.href = enlace; a.target = '_blank'; a.rel = 'noopener';
+    a.style.cssText = `display:flex;align-items:center;justify-content:center;width:${w};height:${h};border:1px dashed #475569;border-radius:8px;color:#93c5fd;font-size:9px;text-align:center;text-decoration:none;padding:2px;`;
+    a.textContent = '📂 Ver en Drive';
+    if (img.parentNode) img.parentNode.replaceChild(a, img);
+}
+function imagenAdjunta(src, alto){
+    if(!src) return '';
+    const h = alto || 54;
+    const id = extraerIdDrive(src);
+    const primerIntento = id ? `https://lh3.googleusercontent.com/d/${id}=w1000` : src;
+    const enlaceDrive = id ? `https://drive.google.com/file/d/${id}/view` : src;
+    return `<img src="${primerIntento}" data-drive-id="${id||''}" data-enlace="${enlaceDrive}" data-intento="0" loading="lazy" style="width:${h}px;height:${h}px;object-fit:cover;border-radius:8px;border:1px solid #1e293b;cursor:pointer;" onclick="window.open(this.dataset.enlace,'_blank')" onerror="probarFormatoAlternoImagen(this)">`;
+}
+function firmaAdjunta(src){
+    if(!src) return '';
+    const id = extraerIdDrive(src);
+    const primerIntento = id ? `https://lh3.googleusercontent.com/d/${id}=w1000` : src;
+    const enlaceDrive = id ? `https://drive.google.com/file/d/${id}/view` : src;
+    return `<div style="margin-top:6px;"><span style="font-size:10px;color:#64748b;text-transform:uppercase;font-weight:700;">Firma</span><br>
+        <img src="${primerIntento}" data-drive-id="${id||''}" data-enlace="${enlaceDrive}" data-intento="0" loading="lazy" style="max-width:130px;max-height:52px;border-radius:6px;border:1px solid #1e293b;background:#fff;cursor:pointer;margin-top:3px;" onclick="window.open(this.dataset.enlace,'_blank')" onerror="probarFormatoAlternoImagen(this)"></div>`;
+}
+
+/* ── Ficha detallada de un traslado (TODOS los campos de Registro_Salidas) ── */
+// Fila etiqueta:valor — solo se pinta si hay valor.
+function filaDato(label, valor){
+    if(valor === null || valor === undefined || String(valor).trim() === '') return '';
+    return `<div class="tf-row"><span class="tf-lbl">${label}</span><span class="tf-val">${valor}</span></div>`;
+}
+// Pill Sí/No para campos booleanos tipo "kit_carretera"
+function pillSiNo(valor){
+    const esSi = ['si','sí','true','1','x'].includes(norm(valor));
+    const esNo = ['no','false','0'].includes(norm(valor));
+    if(!esSi && !esNo) return '<span style="color:#64748b;font-size:11px;">Sin registro</span>';
+    return `<span style="font-weight:800;font-size:11px;color:${esSi ? '#34d399' : '#fca5a5'};">${esSi ? '✅ Sí' : '❌ No'}</span>`;
+}
+function imagenesTraslado(t){
+    const campos = ['imagen1','imagen2','imagen3','imagen4'];
+    const imgs = campos.map(c=>t[c]).filter(Boolean);
+    let html = '';
+    if(imgs.length){
+        html += `<div class="tf-block"><div class="tf-block-title">Fotos (${imgs.length})</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">${imgs.map(src=>imagenAdjunta(src, 64)).join('')}</div></div>`;
+    }
+    if(t.firma){
+        html += `<div class="tf-block">${firmaAdjunta(t.firma)}</div>`;
+    }
+    return html;
+}
+// Ficha completa con TODOS los campos de un traslado individual.
+// 🆕 Muestra el detalle COMPLETO (con fotos y firma) de UN solo traslado,
+// bajo demanda al hacer click — antes se renderizaban las fichas completas
+// de los 5 últimos traslados de una vez apenas se abría el panel de la
+// carroza, disparando hasta ~20 peticiones de imágenes a Google Drive en
+// simultáneo (de ahí la carga lenta y las fotos rotas/403). Ahora la lista
+// de "Últimos traslados" vuelve a ser compacta y liviana, y solo se pide
+// (y se cargan sus fotos) el traslado puntual que el usuario clickea.
+function mostrarFichaTrasladoUnico(placa, idSalida, fecha, hora){
+    let t = null;
+    if (idSalida) {
+        t = TRASLADOS.find(x => String(x.placa||'').toUpperCase() === placa.toUpperCase() && String(x.id_salida||'') === String(idSalida));
+    }
+    if (!t) {
+        t = TRASLADOS.find(x => String(x.placa||'').toUpperCase() === placa.toUpperCase() && x.fecha === fecha && x.hora_de_salida === hora);
+    }
+    document.getElementById('push-titulo-txt').textContent = `Traslado — ${placa}${fecha ? ' · '+fecha : ''}`;
+    document.getElementById('push-alertas-body').innerHTML = t
+        ? fichaTraslado(t)
+        : '<div class="push-empty-alert">No se encontró el detalle de este traslado.</div>';
+    document.getElementById('push-overlay').classList.add('visible');
+    document.getElementById('push-notif').classList.add('visible');
+}
+function fichaTraslado(t){
+    const numTel = t.num_telefono || t.numero_telefono || t.nnum_telefono || t.telefono || '';
+    const kmSalida  = (t.km__salida ?? t.km_salida ?? '') !== '' ? (t.km__salida ?? t.km_salida) : '';
+    const kmIngreso = (t.km__ingreso ?? t.km_ingreso ?? '') !== '' ? (t.km__ingreso ?? t.km_ingreso) : '';
+    const totalKm   = t.total_km ?? '';
+
+    return `<div class="traslado-ficha">
+        <div style="display:flex;justify-content:space-between;gap:8px;">
+            <b style="color:#f1f5f9;font-size:13.5px;">${t.fecha || '—'}${t.hora_de_salida ? ' · Salida '+fmtHoraCorta(t.hora_de_salida) : ''}</b>
+            <span style="color:#94a3b8;font-size:11px;">${t.hora_de_ingreso ? 'Ingreso '+fmtHoraCorta(t.hora_de_ingreso) : ''}</span>
+        </div>
+
+        <div style="margin-top:5px;font-size:13px;color:#e2e8f0;font-weight:700;">${t.origen || '—'} ➔ ${t.destino || '—'}</div>
+        ${t.motivo_de_salida ? `<div style="margin-top:2px;color:#94a3b8;font-size:12px;">${t.motivo_de_salida}</div>` : ''}
+
+        ${(t.nombre_del_fallecido || t.clinica_hospital_o_rsd || t.numero_prestacion) ? `
+        <div class="tf-block">
+            <div class="tf-block-title">Servicio funerario</div>
+            ${filaDato('Fallecido(a)', t.nombre_del_fallecido)}
+            ${filaDato('Clínica / Hospital / RSD', t.clinica_hospital_o_rsd)}
+            ${filaDato('N.° de prestación', t.numero_prestacion)}
+        </div>` : ''}
+
+        <div class="tf-block">
+            <div class="tf-block-title">Personal</div>
+            ${filaDato('Conductor', t.conductor)}
+            ${filaDato('Teléfono', numTel)}
+            ${filaDato('Regional', t.regional)}
+            ${filaDato('Coordinador en turno', t.coordinador_en_turno)}
+        </div>
+
+        <div class="tf-block">
+            <div class="tf-block-title">Kilometraje</div>
+            ${filaDato('Km salida', kmSalida !== '' ? fmtNum(kmSalida)+' km' : '')}
+            ${filaDato('Km ingreso', kmIngreso !== '' ? fmtNum(kmIngreso)+' km' : '')}
+            ${filaDato('Total recorrido', totalKm !== '' ? fmtNum(totalKm)+' km' : '')}
+            <div class="tf-row"><span class="tf-lbl">Kit de carretera</span><span class="tf-val">${pillSiNo(t.kit_carretera)}</span></div>
+        </div>
+
+        ${t.observaciones ? `<div class="tf-block">
+            <div class="tf-block-title">Observaciones</div>
+            <div style="color:#cbd5e1;font-size:12px;">${t.observaciones}</div>
+        </div>` : ''}
+
+        ${imagenesTraslado(t)}
+    </div>`;
+}
+
+// Historial completo de traslados de una placa, agrupado por mes, con
+// fotos y firma. Se abre desde el botón "Ver historial completo" del
+// panel individual de la carroza.
+function mostrarHistorialTrasladosCarroza(placa){
+    const lista = TRASLADOS.filter(t => String(t.placa||'').toUpperCase() === placa.toUpperCase())
+        .sort((a,b)=> (parseDDMMAAAA(b.fecha)||0) - (parseDDMMAAAA(a.fecha)||0));
+    const grupos = agruparPorMes(lista, 'fecha');
+    const meses = Object.keys(grupos);
+
+    let html;
+    if(!lista.length){
+        html = '<div class="push-empty-alert">Sin traslados registrados para esta carroza.</div>';
+    } else {
+        html = meses.map(mes => `
+            <div class="push-alert-section">
+                <h4 style="color:#93c5fd;">${capitalizar(mes)} (${grupos[mes].length})</h4>
+                ${grupos[mes].map(t => fichaTraslado(t)).join('')}
+            </div>`).join('');
+    }
+
+    document.getElementById('push-titulo-txt').textContent = `Historial de Traslados — ${placa}`;
+    document.getElementById('push-alertas-body').innerHTML = `<div style="font-size:11.5px;color:#64748b;margin-bottom:14px;">${lista.length} traslado(s) en total</div>${html}`;
+    document.getElementById('push-overlay').classList.add('visible');
+    document.getElementById('push-notif').classList.add('visible');
+}
+
+// Historial completo de checklists de entrega de una placa (todos, no
+// solo los que tienen novedad), agrupado por mes, con la firma del
+// conductor.
+function mostrarHistorialChecklistCarroza(placa){
+    const lista = CHECKLISTS.filter(c => String(c.PLACA||'').toUpperCase() === placa.toUpperCase())
+        .sort((a,b)=> (parseDDMMAAAA(b.FECHA)||0) - (parseDDMMAAAA(a.FECHA)||0));
+    const grupos = agruparPorMes(lista, 'FECHA');
+    const meses = Object.keys(grupos);
+
+    let html;
+    if(!lista.length){
+        html = '<div class="push-empty-alert">Sin checklists de entrega registrados para esta carroza.</div>';
+    } else {
+        html = meses.map(mes => `
+            <div class="push-alert-section">
+                <h4 style="color:#93c5fd;">${capitalizar(mes)} (${grupos[mes].length})</h4>
+                <ul>${grupos[mes].map(c => {
+                    const nov = novedadesDeChecklist(c);
+                    return `<li>
+                        <div style="display:flex;justify-content:space-between;gap:8px;">
+                            <b style="color:#f1f5f9;">${c.FECHA || '—'}${c.HORA_SALIDA ? ' · '+c.HORA_SALIDA : ''}</b>
+                            <span style="color:#94a3b8;font-size:11px;">${c.CONDUCTOR||'—'}</span>
+                        </div>
+                        <div style="margin-top:3px;">${c.TIPO_DE_SERVICIO||'—'}${nov.length ? ' · <span style=\"color:#fcd34d;\">⚠️ '+nov.map(n=>n.campo+': '+n.valor).join(', ')+'</span>' : ''}</div>
+                        ${c.OBSERVACIONES ? `<div style="margin-top:3px;color:#94a3b8;">${c.OBSERVACIONES}</div>` : ''}
+                        ${firmaAdjunta(c.FIRMA_CONDUCTOR)}
+                    </li>`;
+                }).join('')}</ul>
+            </div>`).join('');
+    }
+
+    document.getElementById('push-titulo-txt').textContent = `Historial de Checklists — ${placa}`;
+    document.getElementById('push-alertas-body').innerHTML = `<div style="font-size:11.5px;color:#64748b;margin-bottom:14px;">${lista.length} checklist(s) en total</div>${html}`;
+    document.getElementById('push-overlay').classList.add('visible');
+    document.getElementById('push-notif').classList.add('visible');
+}
+
+/* ==========================================================================
+   CARGA DE DATOS
+   ========================================================================== */
+async function cargarDatos(){
+    await DB.prefetch('carrozas','Traslado','Averias','mantenimientos','Tanqueo','Inspeccion_Vehiculo','usuarios','Checklist_Salida');
+
+    const [flotaRes, trasladosRes, averiasRes, mantRes, tanqueosRes, inspRes, usuariosRes, checklistRes] = await Promise.all([
+        DB.obtenerFlota(),
+        DB.obtenerTrasladosRecientes(1000),
+        DB.obtenerTodasAverias(500),
+        DB.obtenerMantenimientos(1000),
+        DB.obtenerTanqueos(1000),
+        DB.supabase.from('Inspeccion_Vehiculo').select(),
+        DB.supabase.from('usuarios').select(),
+        DB.supabase.from('Checklist_Salida').select(),
+    ]);
+
+    FLOTA          = normalizarFechas(flotaRes.data || [], ['doc_fecha_proximo_vencer','ultimo_hallazgo_fecha','historial_fecha']);
+    TRASLADOS      = normalizarHoras(normalizarFechas(trasladosRes.data || [], ['fecha']), ['hora_de_salida','hora_de_ingreso']);
+    AVERIAS        = averiasRes.data || [];
+    MANTENIMIENTOS = normalizarFechas(mantRes.data || [], ['fecha']);
+    TANQUEOS       = normalizarFechas(tanqueosRes.data || [], ['FECHA']);
+    INSPECCIONES   = normalizarFechas((inspRes && inspRes.data) || [], ['SOAT_VENCE','TECNOMECANICA_VENCE','POLIZA_TODO_RIESGO_VENCE']);
+    USUARIOS       = (usuariosRes && usuariosRes.data) || [];
+    CHECKLISTS     = normalizarHoras(normalizarFechas((checklistRes && checklistRes.data) || [], ['FECHA']), ['HORA_SALIDA','HORA_ENTRADA']);
+
+    ESTADOS_VEHICULO = await Promise.all(
+        FLOTA.map(c => DB.obtenerEstadoCarroza(c.placa).catch(()=>({ok:false})))
+    );
+}
+
+function obtenerConductoresUnicos(){
+    const nombres = USUARIOS
+        .filter(u => String(u.rol||'').trim().toLowerCase() === 'conductor')
+        .map(u => String(u.nombre||'').trim())
+        .filter(Boolean);
+    return [...new Set(nombres)].sort((a,b)=> a.localeCompare(b));
+}
+
+function obtenerFormasPagoUnicas(){
+    const valores = TANQUEOS
+        .map(t => String(t.FORMA_PAGO || '').trim())
+        .filter(Boolean);
+    return [...new Set(valores)].sort((a,b)=> a.localeCompare(b));
+}
+
+function ultimaInspeccionPorPlaca(placa){
+    const pSel = String(placa||'').replace(/[^A-Z0-9]/gi,'').toUpperCase();
+    const propias = INSPECCIONES.filter(i => String(i.PLACA||'').replace(/[^A-Z0-9]/gi,'').toUpperCase() === pSel);
+    if(!propias.length) return null;
+    propias.sort((a,b)=> String(b.created_at || b.FECHA || '').localeCompare(String(a.created_at || a.FECHA || '')));
+    return propias[0];
+}
+
+function documentoMasUrgente(carroza){
+    const candidatos = [];
+
+    if(carroza.doc_fecha_proximo_vencer){
+        const dias = diasHasta(carroza.doc_fecha_proximo_vencer);
+        candidatos.push({
+            tipo: carroza.doc_tipo_proximo_vencer || 'Documento',
+            fecha: carroza.doc_fecha_proximo_vencer,
+            dias: dias !== null ? dias : (parseFloat(carroza.doc_dias_para_vencer) || null),
+            obs: '',
+            fuente: 'parque_automotor',
+        });
+    }
+
+    const insp = ultimaInspeccionPorPlaca(carroza.placa);
+    if(insp){
+        [
+            {tipo:'SOAT', vence: insp.SOAT_VENCE, obs: insp.SOAT_OBS, estado: insp.SOAT_ESTADO},
+            {tipo:'Tecnomecánica', vence: insp.TECNOMECANICA_VENCE, obs: insp.TECNOMECANICA_OBS, estado: insp.TECNOMECANICA_ESTADO},
+            {tipo:'Póliza Todo Riesgo', vence: insp.POLIZA_TODO_RIESGO_VENCE, obs: insp.POLIZA_TODO_RIESGO_OBS, estado: insp.POLIZA_TODO_RIESGO_ESTADO},
+        ].forEach(doc => {
+            if(doc.vence){
+                const dias = diasHasta(doc.vence);
+                if(dias !== null){
+                    candidatos.push({ tipo: doc.tipo, fecha: doc.vence, dias, obs: doc.obs || '', fuente: 'inspeccion', estado: doc.estado });
+                }
+            }
+        });
+    }
+
+    if(!candidatos.length) return null;
+    candidatos.sort((a,b)=> (a.dias===null?9999:a.dias) - (b.dias===null?9999:b.dias));
+    return candidatos[0];
+}
+
+function averiaActivaDeCarroza(carroza){
+    const estadoHallazgo = normEstado(carroza.ultimo_hallazgo_estado);
+    const tieneHallazgoAbierto = !!(carroza.ultimo_hallazgo_clasificacion || carroza.ultimo_hallazgo_detalle) && estadoHallazgo !== 'ejecutado';
+    const estadoParque = normEstado(carroza.estado_parque_automotor);
+    const enTallerOTaller = ['taller','pintura','novedad'].includes(estadoParque);
+
+    if(!tieneHallazgoAbierto && !enTallerOTaller) return null;
+
+    return {
+        placa: carroza.placa,
+        clasificacion: carroza.ultimo_hallazgo_clasificacion || (enTallerOTaller ? (carroza.estado_parque_automotor || 'Novedad') : 'Novedad'),
+        detalle: carroza.historial_novedad_completa || carroza.ultimo_hallazgo_detalle || carroza.observaciones || 'Sin detalle registrado',
+        fecha: carroza.ultimo_hallazgo_fecha || carroza.historial_fecha || '',
+        taller: carroza.historial_taller_nombre || carroza.sede_parque_automotor || '',
+        estadoHallazgo: carroza.ultimo_hallazgo_estado || carroza.estado_parque_automotor || '',
+        diasEnTaller: carroza.dias_en_taller_parque || '',
+        pendiente: tieneHallazgoAbierto,
+    };
+}
+
+/* ==========================================================================
+   KPIs
+   ========================================================================== */
+function calcularKPIs(){
+    const hoy = hoyDDMMAAAA();
+    const ref = new Date();
+
+    const total       = FLOTA.length;
+    const disponibles = FLOTA.filter(c => normEstado(c.estado)==='disponible').length;
+    const enServicio  = FLOTA.filter(c => normEstado(c.estado)==='en servicio').length;
+    const enTaller    = FLOTA.filter(c => normEstado(c.estado)==='en taller').length;
+
+    const averiasActivasFlota = FLOTA.map(averiaActivaDeCarroza).filter(Boolean);
+    const documentosUrgentes  = FLOTA.map(c => ({placa:c.placa, doc: documentoMasUrgente(c)}))
+        .filter(x => x.doc && x.doc.dias !== null && x.doc.dias <= 30);
+
+    const trasladosHoy = TRASLADOS.filter(t => t.fecha === hoy).length;
+    const trasladosMes = TRASLADOS.filter(t => esMismoMes(t.fecha, ref)).length;
+
+    const tanqueosHoy = TANQUEOS.filter(t => t.FECHA === hoy);
+    const tanqueosMes = TANQUEOS.filter(t => esMismoMes(t.FECHA, ref));
+
+    const combustibleHoy = sumaCampo(tanqueosHoy, 'GALONES');
+    const combustibleMes = sumaCampo(tanqueosMes, 'GALONES');
+    const gastoCombustibleHoy = sumaCampo(tanqueosHoy, 'VALOR_TOTAL');
+    const gastoCombustibleMes = sumaCampo(tanqueosMes, 'VALOR_TOTAL');
+
+    const kmTotal    = sumaCampo(FLOTA, 'kilometraje_actual');
+    const kmPromedio = total ? kmTotal/total : 0;
+
+    const rendimientos = TANQUEOS.map(t=>parseFloat(t.RENDIMIENTO_KM_GALON)).filter(v=>v>0);
+    const rendimientoProm = rendimientos.length ? rendimientos.reduce((a,b)=>a+b,0)/rendimientos.length : 0;
+
+    const valorMantenimiento = sumaCampo(MANTENIMIENTOS, 'costo');
+
+    const aceiteVencido  = ESTADOS_VEHICULO.filter(e => e.ok && e.estado_aceite && e.estado_aceite.emoji==='🔴').length;
+    const aceiteProximo  = ESTADOS_VEHICULO.filter(e => e.ok && e.estado_aceite && e.estado_aceite.emoji==='🟡').length;
+    const tanqueBajo     = ESTADOS_VEHICULO.filter(e => e.ok && e.nivel_combustible==='🔴').length;
+
+    const novedadesChecklist = checklistsConNovedadPendientes().length;
+
+    return {
+        total, disponibles, enServicio, enTaller,
+        averiasActivas: averiasActivasFlota.length, mantProgramado: documentosUrgentes.length,
+        trasladosHoy, trasladosMes,
+        combustibleHoy, combustibleMes, gastoCombustibleHoy, gastoCombustibleMes,
+        kmTotal, kmPromedio, rendimientoProm, valorMantenimiento,
+        aceiteVencido, aceiteProximo, tanqueBajo, novedadesChecklist,
+        alertasCriticas: averiasActivasFlota.length + documentosUrgentes.filter(x=>x.doc.dias<0).length + aceiteVencido + tanqueBajo + novedadesChecklist,
+    };
+}
+
+function serieDias(lista, campoFecha, campoValor, n){
+    if(n===undefined) n = 14;
+    const dias = [];
+    for(let i=n-1;i>=0;i--){
+        const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate()-i);
+        dias.push(d);
+    }
+    return dias.map(d=>{
+        const key = d.getDate().toString().padStart(2,'0')+'/'+(d.getMonth()+1).toString().padStart(2,'0')+'/'+d.getFullYear();
+        const filas = lista.filter(r => String(r[campoFecha]||'').trim() === key);
+        return campoValor ? sumaCampo(filas, campoValor) : filas.length;
+    });
+}
+function tendencia(serie){
+    if(serie.length < 4) return {pct:0, dir:'flat'};
+    const mitad = Math.floor(serie.length/2);
+    const antes = serie.slice(0,mitad).reduce((a,b)=>a+b,0);
+    const despues = serie.slice(mitad).reduce((a,b)=>a+b,0);
+    if(antes===0 && despues===0) return {pct:0, dir:'flat'};
+    if(antes===0) return {pct:100, dir:'up'};
+    const pct = Math.round(((despues-antes)/antes)*100);
+    return {pct, dir: pct>0?'up':(pct<0?'down':'flat')};
+}
+
+const KPI_DEFS = (k)=>{
+    const sTraslados   = serieDias(TRASLADOS, 'fecha');
+    const sCombustible = serieDias(TANQUEOS, 'FECHA', 'GALONES');
+    const sGasto       = serieDias(TANQUEOS, 'FECHA', 'VALOR_TOTAL');
+    const tT = tendencia(sTraslados), tC = tendencia(sCombustible), tG = tendencia(sGasto);
+    const flat = {pct:0, dir:'flat'};
+
+    return [
+        {key:'total', label:'Total de carrozas', value:k.total, icon:'🚐', trend:flat},
+        {key:'disponibles', label:'Disponibles', value:k.disponibles, icon:'✅', trend:flat},
+        {key:'enServicio', label:'En servicio', value:k.enServicio, icon:'🛣️', trend:tT},
+        {key:'enTaller', label:'En taller', value:k.enTaller, icon:'🔧', trend:flat},
+        {key:'averiasActivas', label:'Averías activas', value:k.averiasActivas, icon:'⚠️', trend:flat},
+        {key:'novedadesChecklist', label:'Novedades en checklist', value:k.novedadesChecklist, icon:'📝', trend:flat},
+        {key:'mantProgramado', label:'Documentos por vencer (≤30d)', value:k.mantProgramado, icon:'🗓️', trend:flat},
+        {key:'trasladosHoy', label:'Traslados hoy', value:k.trasladosHoy, icon:'🏁', trend:tT},
+        {key:'trasladosMes', label:'Traslados del mes', value:k.trasladosMes, icon:'📅', trend:tT},
+        {key:'combustibleHoy', label:'Combustible hoy (gal)', value:k.combustibleHoy, icon:'⛽', trend:tC, decimal:true},
+        {key:'combustibleMes', label:'Combustible del mes (gal)', value:k.combustibleMes, icon:'⛽', trend:tC, decimal:true},
+        {key:'gastoCombustibleHoy', label:'Gasto combustible hoy', value:k.gastoCombustibleHoy, icon:'💰', trend:tG, money:true},
+        {key:'gastoCombustibleMes', label:'Gasto combustible del mes', value:k.gastoCombustibleMes, icon:'💰', trend:tG, money:true},
+        {key:'kmTotal', label:'Km recorridos (flota)', value:k.kmTotal, icon:'🛞', trend:flat},
+        {key:'kmPromedio', label:'Promedio Km por carroza', value:k.kmPromedio, icon:'📏', trend:flat},
+        {key:'rendimientoProm', label:'Rendimiento prom. Km/Gal', value:k.rendimientoProm, icon:'📈', trend:flat, decimal:true},
+        {key:'valorMantenimiento', label:'Valor en mantenimiento', value:k.valorMantenimiento, icon:'🔩', trend:flat, money:true},
+        {key:'aceite', label:'Aceite vencido/próximo', value:k.aceiteVencido + k.aceiteProximo, icon:'🛢️', trend:flat},
+        {key:'tanqueBajo', label:'Tanques en nivel bajo', value:k.tanqueBajo, icon:'🔋', trend:flat},
+    ];
+};
+
+function renderKPIs(kpis){
+    const grid = document.getElementById('kpiGrid');
+    grid.innerHTML = '';
+    KPI_DEFS(kpis).forEach(k=>{
+        const dispVal = k.money ? fmtCOP(k.value) : (k.decimal ? (k.value||0).toFixed(1) : fmtNum(k.value));
+        const dir = k.trend.dir;
+        const trendCls = dir==='up' ? 'trend-up' : (dir==='down' ? 'trend-down' : 'trend-flat');
+        const trendArrow = dir==='up' ? '↑' : (dir==='down' ? '↓' : '·');
+        const trendTxt = dir==='flat' ? 'estable' : `${trendArrow} ${Math.abs(k.trend.pct)}%`;
+        const chip = document.createElement('div');
+        chip.className = 'kpi-chip';
+        chip.onclick = () => mostrarDetalleKPI(k.key, k.label);
+        chip.innerHTML = `
+            <div class="kpi-top-row">
+                <span class="ic">${k.icon}</span>
+                <span class="trend ${trendCls}">${trendTxt}</span>
+            </div>
+            <div class="val">${dispVal}</div>
+            <div class="lbl">${k.label}</div>`;
+        grid.appendChild(chip);
+    });
+}
+
+function renderControlCenter(kpis){
+    document.getElementById('ccDisponibles').textContent = kpis.disponibles;
+    document.getElementById('ccServicio').textContent = kpis.enServicio;
+    document.getElementById('ccTaller').textContent = kpis.enTaller;
+    document.getElementById('ccCombustibleHoy').textContent = fmtNum(kpis.combustibleHoy);
+    document.getElementById('ccTrasladosHoy').textContent = kpis.trasladosHoy;
+    document.getElementById('ccAlertas').textContent = kpis.alertasCriticas;
+    document.getElementById('ccAlertTxt').textContent = `${kpis.alertasCriticas} alertas críticas`;
+
+    const badgeAlertas = document.getElementById('badge-alertas');
+    if (kpis.alertasCriticas > 0) { badgeAlertas.style.display='flex'; badgeAlertas.innerText = kpis.alertasCriticas; }
+    else { badgeAlertas.style.display='none'; }
+
+    const badgeAverias = document.getElementById('badge-averias');
+    if (kpis.averiasActivas > 0) { badgeAverias.style.display='flex'; badgeAverias.innerText = kpis.averiasActivas; }
+    else { badgeAverias.style.display='none'; }
+
+    actualizarBadgeChecklist();
+}
+
+/* ==========================================================================
+   GRÁFICOS (Chart.js) — paleta azul/celeste
+   ========================================================================== */
+function ultimos12Meses(){
+    const out = [];
+    const ref = new Date();
+    for(let i=11;i>=0;i--){
+        const d = new Date(ref.getFullYear(), ref.getMonth()-i, 1);
+        out.push({label: d.toLocaleDateString('es-CO',{month:'short'}), mes:d.getMonth(), anio:d.getFullYear()});
+    }
+    return out;
+}
+
+function buildCharts(){
+    Chart.defaults.font.family = "'DM Sans',sans-serif";
+    Chart.defaults.color = '#64748b';
+
+    charts.combustible = new Chart(document.getElementById('chartCombustible12m'), {
+        type:'line',
+        data:{ labels:[], datasets:[
+            {label:'Galones', data:[], borderColor:'#001a70', backgroundColor:'rgba(0,26,112,.10)', fill:true, tension:.35, yAxisID:'y'},
+            {label:'Costo (COP)', data:[], borderColor:'#f59e0b', backgroundColor:'rgba(245,158,11,.08)', fill:true, tension:.35, yAxisID:'y1'}
+        ]},
+        options:{ responsive:true, maintainAspectRatio:false, interaction:{mode:'index', intersect:false},
+            plugins:{legend:{position:'bottom', labels:{boxWidth:9, boxHeight:9, usePointStyle:true, font:{size:10}}}},
+            scales:{
+                y:{position:'left', grid:{color:'rgba(0,26,112,.06)'}, ticks:{callback:v=>fmtNum(v), font:{size:9}}},
+                y1:{position:'right', grid:{display:false}, ticks:{callback:v=>'$'+fmtNum(v/1e6)+'M', font:{size:9}}},
+                x:{grid:{display:false}, ticks:{font:{size:9}}}
+            }
+        }
+    });
+
+    charts.disponibilidad = new Chart(document.getElementById('chartDisponibilidad'), {
+        type:'doughnut',
+        data:{ labels:['Disponible','En servicio','En taller'],
+            datasets:[{data:[0,0,0], backgroundColor:['#10b981','#3b82f6','#ef4444'], borderWidth:0}]},
+        options:{responsive:true, maintainAspectRatio:false, cutout:'68%',
+            plugins:{legend:{position:'bottom', labels:{boxWidth:9,boxHeight:9,usePointStyle:true, font:{size:10.5}}}}}
+    });
+
+    charts.rankingKm = new Chart(document.getElementById('chartRankingKm'), { type:'bar',
+        data:{ labels:[], datasets:[{data:[], backgroundColor:'#001a70', borderRadius:6}]},
+        options:{indexAxis:'y', responsive:true, maintainAspectRatio:false,
+            plugins:{legend:{display:false}},
+            scales:{x:{grid:{color:'rgba(0,26,112,.06)'}, ticks:{callback:v=>fmtNum(v), font:{size:9}}}, y:{grid:{display:false}, ticks:{font:{size:10}}}}}
+    });
+
+    charts.averias = new Chart(document.getElementById('chartAverias'), { type:'pie',
+        data:{ labels:[], datasets:[{data:[], backgroundColor:['#ef4444','#f59e0b','#3b82f6','#64748b','#94a3b8','#8b5cf6'], borderWidth:0}]},
+        options:{responsive:true, maintainAspectRatio:false,
+            plugins:{legend:{position:'bottom', labels:{boxWidth:9,boxHeight:9,usePointStyle:true, font:{size:9.5}}}}}
+    });
+
+    charts.trasladosRegional = new Chart(document.getElementById('chartTrasladosRegional'), { type:'bar',
+        data:{ labels:[], datasets:[{data:[], backgroundColor:'#10b981', borderRadius:6}]},
+        options:{responsive:true, maintainAspectRatio:false,
+            plugins:{legend:{display:false}},
+            scales:{y:{grid:{color:'rgba(0,26,112,.06)'}, ticks:{font:{size:9}}}, x:{grid:{display:false}, ticks:{font:{size:9}}}}}
+    });
+}
+
+function actualizarGraficos(){
+    const meses = ultimos12Meses();
+    const galonesPorMes = meses.map(m => sumaCampo(TANQUEOS.filter(t=>{ const d=parseDDMMAAAA(t.FECHA); return d && d.getMonth()===m.mes && d.getFullYear()===m.anio; }), 'GALONES'));
+    const costoPorMes   = meses.map(m => sumaCampo(TANQUEOS.filter(t=>{ const d=parseDDMMAAAA(t.FECHA); return d && d.getMonth()===m.mes && d.getFullYear()===m.anio; }), 'VALOR_TOTAL'));
+    charts.combustible.data.labels = meses.map(m=>m.label);
+    charts.combustible.data.datasets[0].data = galonesPorMes;
+    charts.combustible.data.datasets[1].data = costoPorMes;
+    charts.combustible.update();
+
+    const disponibles = FLOTA.filter(c => normEstado(c.estado)==='disponible').length;
+    const enServicio  = FLOTA.filter(c => normEstado(c.estado)==='en servicio').length;
+    const enTaller    = FLOTA.filter(c => normEstado(c.estado)==='en taller').length;
+    charts.disponibilidad.data.datasets[0].data = [disponibles, enServicio, enTaller];
+    charts.disponibilidad.update();
+
+    const topKm = [...FLOTA].sort((a,b)=>(parseFloat(b.kilometraje_actual)||0)-(parseFloat(a.kilometraje_actual)||0)).slice(0,6);
+    charts.rankingKm.data.labels = topKm.map(c=>c.placa);
+    charts.rankingKm.data.datasets[0].data = topKm.map(c=>parseFloat(c.kilometraje_actual)||0);
+    charts.rankingKm.update();
+
+    const porTipo = {};
+    FLOTA.map(averiaActivaDeCarroza).filter(Boolean).forEach(a=>{ const t = a.clasificacion || 'Sin clasificar'; porTipo[t] = (porTipo[t]||0)+1; });
+    const tiposOrdenados = Object.entries(porTipo).sort((a,b)=>b[1]-a[1]).slice(0,6);
+    charts.averias.data.labels = tiposOrdenados.map(t=>t[0]);
+    charts.averias.data.datasets[0].data = tiposOrdenados.map(t=>t[1]);
+    charts.averias.update();
+
+    const ref = new Date();
+    const trasladosMes = TRASLADOS.filter(t=>esMismoMes(t.fecha, ref));
+    const porRegional = {};
+    trasladosMes.forEach(t=>{ const r = t.regional || 'Sin regional'; porRegional[r] = (porRegional[r]||0)+1; });
+    const regionalesOrdenadas = Object.entries(porRegional).sort((a,b)=>b[1]-a[1]);
+    charts.trasladosRegional.data.labels = regionalesOrdenadas.map(r=>r[0]);
+    charts.trasladosRegional.data.datasets[0].data = regionalesOrdenadas.map(r=>r[1]);
+    charts.trasladosRegional.update();
+}
+
+function setupChartTabs(){
+    const tabs = document.querySelectorAll('.chart-tab');
+    const panels = { combustible:'chart-combustible', disponibilidad:'chart-disponibilidad', ranking:'chart-ranking', averias:'chart-averias', regional:'chart-regional' };
+    tabs.forEach(tab=>{
+        tab.addEventListener('click', ()=>{
+            tabs.forEach(t=>t.classList.remove('active'));
+            tab.classList.add('active');
+            Object.values(panels).forEach(id => document.getElementById(id).style.display = 'none');
+            document.getElementById(panels[tab.dataset.chart]).style.display = 'block';
+        });
+    });
+}
+
+/* ==========================================================================
+   LISTAS DE MONITOREO (averías, traslados, tanqueos, documentación)
+   ========================================================================== */
+function renderListas(){
+    const averiasActivas = FLOTA.map(averiaActivaDeCarroza).filter(Boolean)
+        .sort((a,b)=> (diasHasta(b.fecha)||-9999) - (diasHasta(a.fecha)||-9999))
+        .slice(0,6);
+    const tAv = document.getElementById('tabla-averias');
+    tAv.innerHTML = averiasActivas.length ? averiasActivas.map(av => `
+        <tr><td><b>${av.placa||'—'}</b><br><small>${av.clasificacion||'—'}${av.taller ? ' · '+av.taller : ''}</small></td>
+        <td style="text-align:right; font-size:11px;">${av.fecha || '—'}<br><small style="color:var(--gris);">${av.pendiente ? 'Pendiente' : (av.estadoHallazgo||'')}</small></td></tr>`).join('')
+        : '<tr><td style="text-align:center;">Sin averías reportadas en el parque automotor.</td></tr>';
+
+    renderTablaChecklist();
+
+    const trasladosRec = [...TRASLADOS].sort((a,b)=>(parseDDMMAAAA(b.fecha)||0)-(parseDDMMAAAA(a.fecha)||0)).slice(0,4);
+    const tTr = document.getElementById('tabla-traslados');
+    tTr.innerHTML = trasladosRec.length ? trasladosRec.map(tr => `
+        <tr><td><b>${tr.placa||'—'}</b></td>
+        <td style="text-align:right; font-size:11px;">${tr.origen||'—'} ➔ ${tr.destino||'—'}</td></tr>`).join('')
+        : '<tr><td style="text-align:center;">Sin traslados recientes.</td></tr>';
+
+    const tanqueosRec = [...TANQUEOS].sort((a,b)=>(parseDDMMAAAA(b.FECHA)||0)-(parseDDMMAAAA(a.FECHA)||0)).slice(0,4);
+    const tTq = document.getElementById('tabla-tanqueos');
+    tTq.innerHTML = tanqueosRec.length ? tanqueosRec.map(tq => `
+        <tr><td><b>${tq.PLACA||'—'}</b><br><small>${tq.ESTACION_SERVICIO||''}</small></td>
+        <td style="text-align:right;"><b>${tq.GALONES||0} gal</b><br><small style="color:#64748b;">${fmtCOP(tq.VALOR_TOTAL)}</small></td></tr>`).join('')
+        : '<tr><td style="text-align:center;">Sin tanqueos registrados.</td></tr>';
+
+    const docsUrgentes = FLOTA.map(c => ({placa: c.placa, doc: documentoMasUrgente(c)}))
+        .filter(x => x.doc && x.doc.dias !== null)
+        .sort((a,b)=> a.doc.dias - b.doc.dias)
+        .slice(0,4);
+    const tMa = document.getElementById('tabla-mantenimientos');
+    tMa.innerHTML = docsUrgentes.length ? docsUrgentes.map(x => `
+        <tr><td><b>${x.placa||'—'}</b><br><small>${x.doc.tipo||'—'}</small></td>
+        <td style="text-align:right;">${pillVencimiento(x.doc.dias)}<br><small style="color:var(--gris);">${x.doc.fecha||'—'}</small></td></tr>`).join('')
+        : '<tr><td style="text-align:center;">Sin documentos próximos a vencer.</td></tr>';
+}
+
+/* ==========================================================================
+   FLOTA — lista con combustible + búsqueda
+   ========================================================================== */
+function fuelPillFromEstado(est){
+    if(!est || !est.ok || est.porcentaje_combustible == null){
+        return `<small style="color:#94a3b8;">⛽ sin registro</small>`;
+    }
+    const pct = est.porcentaje_combustible;
+    const color = pct <= 25 ? '#ef4444' : (pct <= 50 ? '#f59e0b' : '#10b981');
+    return `<div class="fuel-wrap">
+        <span class="fuel-pct" style="color:${color};">⛽ ${pct}%</span>
+        <div class="fuel-bar-mini"><div class="fuel-fill" style="width:${pct}%; background:${color};"></div></div>
+    </div>`;
+}
+
+function contarMovimientos(placa){
+    const pSel = String(placa||'').toUpperCase();
+    return TRASLADOS.filter(t => String(t.placa||'').toUpperCase() === pSel).length;
+}
+
+function renderFlota(filtro){
+    filtro = norm(filtro || '');
+    const list = document.getElementById('fleetList');
+    const btnToggle = document.getElementById('btnToggleFlota');
+
+    let filas = FLOTA.map((c, i) => ({ c, est: ESTADOS_VEHICULO[i] || {} }))
+        .filter(({c}) => !filtro || norm(c.placa).includes(filtro) || norm(c.regional).includes(filtro) || norm(c.estado).includes(filtro));
+
+    filas = filas
+        .map(f => ({...f, movimientos: contarMovimientos(f.c.placa)}))
+        .sort((a,b)=> b.movimientos - a.movimientos);
+
+    if(!filas.length){
+        list.innerHTML = '<div class="fleet-empty">No se encontraron carrozas.</div>';
+        btnToggle.style.display = 'none';
+        return;
+    }
+
+    const haySearch = !!filtro;
+    const mostrarTodas = fleetExpanded || haySearch;
+    const filasAMostrar = mostrarTodas ? filas : filas.slice(0, 10);
+
+    list.innerHTML = filasAMostrar.map(({c, est}) => `
+        <div class="fleet-row" onclick="abrirPanelCarroza('${(c.placa||'').replace(/'/g,"")}')">
+            <div class="fleet-left">
+                <b>${c.placa || '—'}</b>
+                <div class="sub">${c.regional || 'Sin regional'} · ${fmtNum(c.kilometraje_actual)} km</div>
+            </div>
+            <div class="fleet-right">
+                ${estadoPill(c.estado)}
+                ${fuelPillFromEstado(est)}
+            </div>
+        </div>`).join('');
+
+    if(haySearch || filas.length <= 10){
+        btnToggle.style.display = 'none';
+    } else {
+        btnToggle.style.display = 'block';
+        btnToggle.textContent = fleetExpanded ? '▲ Ver solo las 10 más movidas' : `▼ Ver todas las carrozas (${filas.length})`;
+    }
+}
+
+function toggleFlotaExpandida(){
+    fleetExpanded = !fleetExpanded;
+    renderFlota(document.getElementById('fleetSearch').value);
+}
+
+function setupFleetSearch(){
+    document.getElementById('fleetSearch').addEventListener('input', (e)=> renderFlota(e.target.value));
+}
+
+/* ==========================================================================
+   DETALLE DE CADA KPI (al hacer click en la tarjeta)
+   ========================================================================== */
+function filaKpi(titulo, sub, extra){
+    return `<li>
+        <div style="display:flex;justify-content:space-between;gap:8px;">
+            <b style="color:#f1f5f9;">${titulo}</b>
+            ${extra ? `<span style="color:#94a3b8;font-size:11px;">${extra}</span>` : ''}
+        </div>
+        ${sub ? `<div style="margin-top:3px;color:#94a3b8;">${sub}</div>` : ''}
+    </li>`;
+}
+function listaVacia(msg){ return `<div class="push-empty-alert">${msg}</div>`; }
+
+function mostrarDetalleKPI(key, label){
+    let filas = '';
+    let subtitulo = '';
+
+    switch(key){
+        case 'total': {
+            const items = [...FLOTA].sort((a,b)=> (a.placa||'').localeCompare(b.placa||''));
+            subtitulo = `${items.length} carroza(s) en la flota`;
+            filas = items.length ? `<ul>${items.map(c => filaKpi(c.placa||'—', c.regional||'Sin regional', estadoInfo(c.estado).label)).join('')}</ul>` : listaVacia('Sin carrozas registradas.');
+            break;
+        }
+        case 'disponibles': case 'enServicio': case 'enTaller': {
+            const estadoBuscado = key==='disponibles' ? 'disponible' : (key==='enServicio' ? 'en servicio' : 'en taller');
+            const items = FLOTA.filter(c => normEstado(c.estado)===estadoBuscado);
+            subtitulo = `${items.length} carroza(s) en estado "${estadoInfo(estadoBuscado).label}"`;
+            filas = items.length ? `<ul>${items.map(c => filaKpi(c.placa||'—', c.regional||'Sin regional', fmtNum(c.kilometraje_actual)+' km')).join('')}</ul>` : listaVacia('No hay carrozas en este estado.');
+            break;
+        }
+        case 'averiasActivas': cerrarModalYAbrir(()=>mostrarAverias()); return;
+        case 'novedadesChecklist': cerrarModalYAbrir(()=>mostrarNovedadesChecklist()); return;
+        case 'mantProgramado': cerrarModalYAbrir(()=>mostrarDocumentacion()); return;
+        case 'valorMantenimiento': cerrarModalYAbrir(()=>mostrarMantenimientos()); return;
+        case 'trasladosHoy': {
+            const hoy = hoyDDMMAAAA();
+            const items = TRASLADOS.filter(t=>t.fecha===hoy);
+            subtitulo = `${items.length} traslado(s) hoy (${hoy})`;
+            filas = items.length ? `<ul>${items.map(t => filaKpi(t.placa||'—', `${t.origen||'—'} ➔ ${t.destino||'—'}`, fmtHoraCorta(t.hora_de_salida)||'')).join('')}</ul>` : listaVacia('Sin traslados registrados hoy.');
+            break;
+        }
+        case 'trasladosMes': {
+            const ref = new Date();
+            const items = [...TRASLADOS].filter(t=>esMismoMes(t.fecha, ref)).sort((a,b)=>(parseDDMMAAAA(b.fecha)||0)-(parseDDMMAAAA(a.fecha)||0));
+            subtitulo = `${items.length} traslado(s) este mes`;
+            filas = items.length ? `<ul>${items.map(t => filaKpi(t.placa||'—', `${t.origen||'—'} ➔ ${t.destino||'—'}`, t.fecha||'')).join('')}</ul>` : listaVacia('Sin traslados este mes.');
+            break;
+        }
+        case 'combustibleHoy': case 'gastoCombustibleHoy': {
+            const hoy = hoyDDMMAAAA();
+            const items = TANQUEOS.filter(t=>t.FECHA===hoy);
+            subtitulo = `${items.length} tanqueo(s) hoy (${hoy})`;
+            filas = items.length ? `<ul>${items.map(t => filaKpi(t.PLACA||'—', `${t.GALONES||0} gal · ${fmtCOP(t.VALOR_TOTAL)}`, t.ESTACION_SERVICIO||'')).join('')}</ul>` : listaVacia('Sin tanqueos registrados hoy.');
+            break;
+        }
+        case 'combustibleMes': case 'gastoCombustibleMes': {
+            const ref = new Date();
+            const items = [...TANQUEOS].filter(t=>esMismoMes(t.FECHA, ref)).sort((a,b)=>(parseDDMMAAAA(b.FECHA)||0)-(parseDDMMAAAA(a.FECHA)||0));
+            subtitulo = `${items.length} tanqueo(s) este mes`;
+            filas = items.length ? `<ul>${items.map(t => filaKpi(t.PLACA||'—', `${t.GALONES||0} gal · ${fmtCOP(t.VALOR_TOTAL)}`, t.FECHA||'')).join('')}</ul>` : listaVacia('Sin tanqueos este mes.');
+            break;
+        }
+        case 'kmTotal': case 'kmPromedio': {
+            const items = [...FLOTA].sort((a,b)=>(parseFloat(b.kilometraje_actual)||0)-(parseFloat(a.kilometraje_actual)||0));
+            subtitulo = `Ranking de kilometraje por carroza`;
+            filas = items.length ? `<ul>${items.map(c => filaKpi(c.placa||'—', c.regional||'Sin regional', fmtNum(c.kilometraje_actual)+' km')).join('')}</ul>` : listaVacia('Sin datos de kilometraje.');
+            break;
+        }
+        case 'rendimientoProm': {
+            const items = [...TANQUEOS].filter(t=>parseFloat(t.RENDIMIENTO_KM_GALON)>0).sort((a,b)=>(parseDDMMAAAA(b.FECHA)||0)-(parseDDMMAAAA(a.FECHA)||0)).slice(0,60);
+            subtitulo = `Últimos tanqueos con rendimiento registrado`;
+            filas = items.length ? `<ul>${items.map(t => filaKpi(t.PLACA||'—', t.FECHA||'', Number(t.RENDIMIENTO_KM_GALON).toFixed(1)+' km/gal')).join('')}</ul>` : listaVacia('Sin datos de rendimiento.');
+            break;
+        }
+        case 'aceite': {
+            const items = FLOTA.map((c,i)=>({c, est: ESTADOS_VEHICULO[i]||{}})).filter(({est}) => est.ok && est.estado_aceite && (est.estado_aceite.emoji==='🔴' || est.estado_aceite.emoji==='🟡'));
+            subtitulo = `${items.length} carroza(s) con aceite vencido o próximo`;
+            filas = items.length ? `<ul>${items.map(({c,est}) => filaKpi(c.placa||'—', est.estado_aceite.texto||'', est.estado_aceite.emoji)).join('')}</ul>` : listaVacia('Todas las carrozas están al día con el cambio de aceite.');
+            break;
+        }
+        case 'tanqueBajo': {
+            const items = FLOTA.map((c,i)=>({c, est: ESTADOS_VEHICULO[i]||{}})).filter(({est}) => est.ok && est.nivel_combustible==='🔴');
+            subtitulo = `${items.length} carroza(s) con nivel de combustible bajo`;
+            filas = items.length ? `<ul>${items.map(({c,est}) => filaKpi(c.placa||'—', c.regional||'Sin regional', (est.porcentaje_combustible!=null?est.porcentaje_combustible+'%':''))).join('')}</ul>` : listaVacia('Ningún tanque en nivel bajo.');
+            break;
+        }
+        default: {
+            filas = listaVacia('Sin detalle disponible para este indicador.');
+        }
+    }
+
+    document.getElementById('push-titulo-txt').textContent = label || 'Detalle del indicador';
+    document.getElementById('push-alertas-body').innerHTML = `<div style="font-size:11.5px;color:#64748b;margin-bottom:14px;">${subtitulo}</div><div class="push-alert-section">${filas}</div>`;
+    document.getElementById('push-overlay').classList.add('visible');
+    document.getElementById('push-notif').classList.add('visible');
+}
+function cerrarModalYAbrir(fn){ fn(); }
+
+/* ==========================================================================
+   PANEL INDIVIDUAL DE CADA CARROZA (bottom sheet)
+   ========================================================================== */
+async function abrirPanelCarroza(placa){
+    document.getElementById('veh-overlay').classList.add('visible');
+    document.getElementById('veh-sheet').classList.add('visible');
+    document.getElementById('vmPlaca').textContent = placa;
+    document.getElementById('vmBody').innerHTML = `<div style="text-align:center;padding:40px 0;color:var(--gris);">Cargando...</div>`;
+
+    const carroza = FLOTA.find(c => String(c.placa||'').toUpperCase() === placa.toUpperCase());
+    const estado  = await DB.obtenerEstadoCarroza(placa);
+
+    const trasladosVeh = TRASLADOS.filter(t => String(t.placa||'').toUpperCase() === placa.toUpperCase())
+        .sort((a,b)=> (parseDDMMAAAA(b.fecha)||0) - (parseDDMMAAAA(a.fecha)||0)).slice(0,5);
+    const tanqueosVeh = TANQUEOS.filter(t => String(t.PLACA||'').toUpperCase() === placa.toUpperCase())
+        .sort((a,b)=> (parseDDMMAAAA(b.FECHA)||0) - (parseDDMMAAAA(a.FECHA)||0)).slice(0,8);
+    const averiasVeh = AVERIAS.filter(a => String(a.placa_vehiculo||'').toUpperCase() === placa.toUpperCase())
+        .sort((a,b)=> new Date(b.created_at||0) - new Date(a.created_at||0)).slice(0,6);
+    const mantVeh = MANTENIMIENTOS.filter(m => String(m.placa||'').toUpperCase() === placa.toUpperCase())
+        .sort((a,b)=> String(b.fecha||'').localeCompare(String(a.fecha||''))).slice(0,6);
+    const checklistVeh = checklistsConNovedad()
+        .filter(x => String(x.registro.PLACA||'').toUpperCase() === placa.toUpperCase())
+        .slice(0,5);
+
+    const averiaParque = carroza ? averiaActivaDeCarroza(carroza) : null;
+    const docUrgente = carroza ? documentoMasUrgente(carroza) : null;
+
+    document.getElementById('vmSub').textContent = carroza ? `${carroza.regional || 'Regional no registrada'} · ${estadoInfo(carroza.estado).label}` : '—';
+
+    const placaSegura = placa.replace(/'/g,"");
+    const body = document.getElementById('vmBody');
+    body.innerHTML = `
+        <div class="vm-grid">
+            <div class="vm-stat"><div class="lbl">Kilometraje</div><div class="val">${fmtNum(estado.kilometraje_actual)} km</div></div>
+            <div class="vm-stat"><div class="lbl">Combustible</div><div class="val">${estado.ok ? estado.nivel_combustible+' '+estado.porcentaje_combustible+'%' : '—'}</div></div>
+            <div class="vm-stat"><div class="lbl">Rendimiento</div><div class="val">${estado.ok && estado.rendimiento_ultimo_km_gal ? estado.rendimiento_ultimo_km_gal.toFixed(1)+' km/gal' : 'Sin datos'}</div></div>
+            <div class="vm-stat"><div class="lbl">Aceite</div><div class="val" style="font-size:12.5px;">${estado.ok ? estado.estado_aceite.emoji+' '+estado.estado_aceite.texto : '—'}</div></div>
+        </div>
+
+        <div class="vm-section">
+            <h4>Parque Automotor</h4>
+            ${carroza ? `<ul class="vm-list">
+                <li><span>Estado</span><span>${carroza.estado_parque_automotor || 'Sin registro'} · ${carroza.sede_parque_automotor || 'Sin sede'}</span></li>
+                ${carroza.dias_en_taller_parque ? `<li><span>Días en taller</span><span>${carroza.dias_en_taller_parque}</span></li>` : ''}
+                ${averiaParque ? `<li><span>${averiaParque.clasificacion}</span><span>${averiaParque.pendiente ? '⚠️ Pendiente' : (averiaParque.estadoHallazgo||'')}</span></li>` : ''}
+                ${averiaParque ? `<li><span colspan="2" style="max-width:100%;">${averiaParque.detalle}</span></li>` : ''}
+                ${docUrgente ? `<li><span>${docUrgente.tipo}</span><span>${pillVencimiento(docUrgente.dias)}</span></li>` : ''}
+            </ul>` : '<div class="vm-empty">Sin datos de parque automotor para esta placa.</div>'}
+        </div>
+
+        <div class="vm-chart-card"><h4>Km recorridos</h4><div class="chart-box"><canvas id="vmChartKm"></canvas></div></div>
+        <div class="vm-chart-card"><h4>Rendimiento Km/Galón</h4><div class="chart-box"><canvas id="vmChartRend"></canvas></div></div>
+
+        <div class="vm-section">
+            <h4>Novedades en checklist de entrega</h4>
+            ${checklistVeh.length ? `<ul class="vm-list">${checklistVeh.map(({registro, novedades})=>`<li><span>${registro.FECHA||'—'} · ${novedades.map(n=>n.campo+': '+n.valor).join(', ')}</span><span>⏳ ${registro.CONDUCTOR||'—'}</span></li>`).join('')}</ul>` : '<div class="vm-empty">Sin novedades en checklists de entrega.</div>'}
+            <button class="push-btn-resolver" style="margin-top:10px;background:var(--celeste);color:var(--azul);" onclick="mostrarHistorialChecklistCarroza('${placaSegura}')">📁 Ver historial completo (con firma)</button>
+        </div>
+        <div class="vm-section">
+            <h4>Últimos traslados</h4>
+            ${trasladosVeh.length ? `<ul class="vm-list">${trasladosVeh.map(t=>`<li class="clickable" onclick="mostrarFichaTrasladoUnico('${placaSegura}','${String(t.id_salida||'').replace(/'/g,"")}','${String(t.fecha||'').replace(/'/g,"")}','${String(t.hora_de_salida||'').replace(/'/g,"")}')"><span>${t.fecha}${t.hora_de_salida ? ' · '+fmtHoraCorta(t.hora_de_salida) : ''} · ${t.origen||'—'} → ${t.destino||'—'}</span><span>${t.conductor||'—'} ›</span></li>`).join('')}</ul>` : '<div class="vm-empty">Sin traslados registrados.</div>'}
+            <button class="push-btn-resolver" style="margin-top:10px;background:var(--celeste);color:var(--azul);" onclick="mostrarHistorialTrasladosCarroza('${placaSegura}')">📁 Ver historial completo (con foto y firma)</button>
+        </div>
+        <div class="vm-section">
+            <h4>Últimos tanqueos</h4>
+            ${tanqueosVeh.length ? `<ul class="vm-list">${tanqueosVeh.map(t=>`<li><span>${t.FECHA} · ${t.GALONES||0} gal · ${t.ESTACION_SERVICIO||'—'}</span><span>${fmtCOP(t.VALOR_TOTAL)}</span></li>`).join('')}</ul>` : '<div class="vm-empty">Sin tanqueos registrados.</div>'}
+        </div>
+        <div class="vm-section">
+            <h4>Últimas averías (formulario conductores)</h4>
+            ${averiasVeh.length ? `<ul class="vm-list">${averiasVeh.map(a=>`<li><span>${a.tipo_falla||'—'} · ${a.descripcion_sintomas||''}</span><span>${a.reportado_por||'—'}</span></li>`).join('')}</ul>` : '<div class="vm-empty">Sin averías registradas.</div>'}
+        </div>
+        <div class="vm-section">
+            <h4>Últimos mantenimientos</h4>
+            ${mantVeh.length ? `<ul class="vm-list">${mantVeh.map(m=>`<li><span>${m.fecha} · ${m.tipo_servicio||'—'} · ${m.taller||'—'}</span><span>${fmtCOP(m.costo)}</span></li>`).join('')}</ul>` : '<div class="vm-empty">Sin mantenimientos registrados.</div>'}
+        </div>
+    `;
+
+    const tanqueosCron = [...tanqueosVeh].reverse();
+    if(vmCharts.km) vmCharts.km.destroy();
+    if(vmCharts.rend) vmCharts.rend.destroy();
+
+    vmCharts.km = new Chart(document.getElementById('vmChartKm'), {
+        type:'line',
+        data:{ labels: tanqueosCron.map(t=>t.FECHA), datasets:[{data: tanqueosCron.map(t=>parseFloat(t.KM_RECORRIDOS)||0), borderColor:'#001a70', backgroundColor:'rgba(0,26,112,.12)', fill:true, tension:.3}]},
+        options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{grid:{display:false}, ticks:{font:{size:8}}}, y:{grid:{color:'rgba(0,26,112,.06)'}, ticks:{font:{size:9}}}} }
+    });
+    vmCharts.rend = new Chart(document.getElementById('vmChartRend'), {
+        type:'line',
+        data:{ labels: tanqueosCron.map(t=>t.FECHA), datasets:[{data: tanqueosCron.map(t=>parseFloat(t.RENDIMIENTO_KM_GALON)||0), borderColor:'#10b981', backgroundColor:'rgba(16,185,129,.12)', fill:true, tension:.3}]},
+        options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{grid:{display:false}, ticks:{font:{size:8}}}, y:{grid:{color:'rgba(0,26,112,.06)'}, ticks:{font:{size:9}}}} }
+    });
+}
+function cerrarPanelCarroza(){
+    document.getElementById('veh-overlay').classList.remove('visible');
+    document.getElementById('veh-sheet').classList.remove('visible');
+}
+
+function irASeccion(id){
+    const el = document.getElementById(id);
+    if(el) el.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+function abrirModalLista(titulo, subtitulo, filasHtml){
+    document.getElementById('push-titulo-txt').textContent = titulo;
+    let html = '';
+    if(subtitulo) html += `<div style="font-size:11.5px;color:#64748b;margin-bottom:14px;">${subtitulo}</div>`;
+    html += filasHtml;
+    document.getElementById('push-alertas-body').innerHTML = html;
+    document.getElementById('push-overlay').classList.add('visible');
+    document.getElementById('push-notif').classList.add('visible');
+}
+
+function mostrarTraslados(){
+    const total = TRASLADOS.length;
+    const cap = 150;
+    const lista = [...TRASLADOS].sort((a,b)=> (parseDDMMAAAA(b.fecha)||0) - (parseDDMMAAAA(a.fecha)||0)).slice(0, cap);
+
+    const filas = !lista.length
+        ? '<div class="push-empty-alert">Sin traslados registrados.</div>'
+        : `<div class="push-alert-section"><ul>${lista.map(t => `
+            <li>
+                <div style="display:flex;justify-content:space-between;gap:8px;">
+                    <b style="color:#f1f5f9;">${t.placa || '—'}</b>
+                    <span style="color:#94a3b8;font-size:11px;">${t.fecha || '—'}${t.hora_de_salida ? ' · '+fmtHoraCorta(t.hora_de_salida) : ''}</span>
+                </div>
+                <div style="margin-top:3px;">${t.origen || '—'} ➔ ${t.destino || '—'}</div>
+                <div style="margin-top:3px;color:#94a3b8;">${t.regional || 'Sin regional'}${t.conductor ? ' · '+t.conductor : ''}</div>
+            </li>`).join('')}</ul></div>`;
+
+    abrirModalLista('Traslados a Nivel Nacional', `${total} traslado(s) registrados${total > cap ? ` · mostrando los ${cap} más recientes` : ''}`, filas);
+}
+
+function mostrarTanqueos(){
+    const total = TANQUEOS.length;
+    const cap = 150;
+    const lista = [...TANQUEOS].sort((a,b)=> (parseDDMMAAAA(b.FECHA)||0) - (parseDDMMAAAA(a.FECHA)||0)).slice(0, cap);
+
+    const filas = !lista.length
+        ? '<div class="push-empty-alert">Sin tanqueos registrados.</div>'
+        : `<div class="push-alert-section"><ul>${lista.map(t => `
+            <li>
+                <div style="display:flex;justify-content:space-between;gap:8px;">
+                    <b style="color:#f1f5f9;">${t.PLACA || '—'}</b>
+                    <span style="color:#94a3b8;font-size:11px;">${t.FECHA || '—'}</span>
+                </div>
+                <div style="margin-top:3px;">${t.GALONES || 0} gal · ${fmtCOP(t.VALOR_TOTAL)}${t.RENDIMIENTO_KM_GALON ? ' · '+Number(t.RENDIMIENTO_KM_GALON).toFixed(1)+' km/gal' : ''}${t.FORMA_PAGO ? ' · '+t.FORMA_PAGO : ''}</div>
+                <div style="margin-top:3px;color:#94a3b8;">${t.ESTACION_SERVICIO || 'Sin estación'}${t.CIUDAD ? ' · '+t.CIUDAD : ''}</div>
+            </li>`).join('')}</ul></div>`;
+
+    abrirModalLista('Tanqueos Registrados', `${total} tanqueo(s) registrados${total > cap ? ` · mostrando los ${cap} más recientes` : ''}`, filas);
+}
+
+function mostrarMantenimientos(){
+    const total = MANTENIMIENTOS.length;
+    const cap = 150;
+    const lista = [...MANTENIMIENTOS].sort((a,b)=> String(b.fecha||'').localeCompare(String(a.fecha||''))).slice(0, cap);
+
+    const filas = !lista.length
+        ? '<div class="push-empty-alert">Sin órdenes de mantenimiento registradas.</div>'
+        : `<div class="push-alert-section"><ul>${lista.map(m => `
+            <li>
+                <div style="display:flex;justify-content:space-between;gap:8px;">
+                    <b style="color:#f1f5f9;">${m.placa || '—'}</b>
+                    <span style="color:${normEstado(m.estado_orden)==='pendiente' ? '#fca5a5' : '#94a3b8'};font-size:11px;font-weight:800;text-transform:uppercase;">${m.estado_orden || '—'}</span>
+                </div>
+                <div style="margin-top:3px;">${m.tipo_servicio || '—'} · ${m.taller || 'Sin taller'}</div>
+                <div style="margin-top:3px;color:#94a3b8;">${m.fecha || '—'}${m.costo ? ' · '+fmtCOP(m.costo) : ''}</div>
+            </li>`).join('')}</ul></div>`;
+
+    abrirModalLista('Órdenes de Mantenimiento', `${total} orden(es) registrada(s)${total > cap ? ` · mostrando las ${cap} más recientes` : ''}`, filas);
+}
+
+function mostrarDocumentacion(){
+    const docs = FLOTA.map(c => ({placa: c.placa, doc: documentoMasUrgente(c)}))
+        .filter(x => x.doc && x.doc.dias !== null)
+        .sort((a,b)=> a.doc.dias - b.doc.dias);
+
+    const filas = !docs.length
+        ? '<div class="push-empty-alert">Sin documentos con fecha de vencimiento registrada.</div>'
+        : `<div class="push-alert-section"><ul>${docs.map(x => `
+            <li>
+                <div style="display:flex;justify-content:space-between;gap:8px;">
+                    <b style="color:#f1f5f9;">${x.placa || '—'}</b>
+                    <span style="color:${x.doc.dias < 0 ? '#fca5a5' : (x.doc.dias <= 30 ? '#fcd34d' : '#94a3b8')};font-size:11px;font-weight:800;">${x.doc.dias < 0 ? 'VENCIDO ' + Math.abs(x.doc.dias) + 'd' : x.doc.dias + 'd restantes'}</span>
+                </div>
+                <div style="margin-top:3px;">${x.doc.tipo || 'Documento'} · vence ${x.doc.fecha || '—'}</div>
+                ${x.doc.obs ? `<div style="margin-top:3px;color:#94a3b8;">${x.doc.obs}</div>` : ''}
+            </li>`).join('')}</ul></div>`;
+
+    abrirModalLista('Documentación por Vencer', `${docs.length} documento(s) con fecha registrada`, filas);
+}
+
+function mostrarConductores(){
+    const conductores = USUARIOS
+        .filter(u => String(u.rol||'').trim().toLowerCase() === 'conductor')
+        .sort((a,b)=> String(a.nombre||'').localeCompare(String(b.nombre||'')));
+
+    const filas = !conductores.length
+        ? '<div class="push-empty-alert">Sin conductores registrados en la hoja de usuarios.</div>'
+        : `<div class="push-alert-section"><ul>${conductores.map(c => {
+            const placa = String(c.placa_asignada||'').trim();
+            const tienePlaca = placa && normEstado(placa) !== 'ninguna';
+            return `<li>
+                <div style="display:flex;justify-content:space-between;gap:8px;">
+                    <b style="color:#f1f5f9;">${c.nombre || '—'}</b>
+                    <span style="color:#94a3b8;font-size:11px;">${c.telefono || ''}</span>
+                </div>
+                <div style="margin-top:3px;">${c.regional || 'Sin regional'}${tienePlaca ? ' · '+placa : ' · Sin carroza asignada'}</div>
+            </li>`;
+        }).join('')}</ul></div>`;
+
+    abrirModalLista('Conductores', `${conductores.length} conductor(es) registrado(s)`, filas);
+}
+
+function mostrarAverias(){
+    const averiasParque = FLOTA.map(averiaActivaDeCarroza).filter(Boolean)
+        .sort((a,b)=> (diasHasta(b.fecha)||-9999) - (diasHasta(a.fecha)||-9999));
+
+    document.getElementById('push-titulo-txt').textContent = 'Averías de la Flota';
+    let html = `<div style="font-size:11.5px;color:#64748b;margin-bottom:14px;">${averiasParque.length} carroza(s) con novedad activa</div>`;
+
+    if(!averiasParque.length){
+        html += '<div class="push-empty-alert">No hay averías activas en este momento. ✅</div>';
+    } else {
+        html += `<div class="push-alert-section"><ul>${averiasParque.map(a => `
+            <li>
+                <div style="display:flex;justify-content:space-between;gap:8px;">
+                    <b style="color:#f1f5f9;">${a.placa}</b>
+                    <span style="color:${a.pendiente ? '#fca5a5' : '#94a3b8'};font-size:11px;font-weight:800;text-transform:uppercase;">${a.pendiente ? 'PENDIENTE' : (a.estadoHallazgo||'')}</span>
+                </div>
+                <div style="margin-top:3px;">${a.clasificacion || 'Novedad'}${a.taller ? ' · '+a.taller : ''}${a.fecha ? ' · '+a.fecha : ''}</div>
+                <div style="margin-top:3px;color:#94a3b8;">${a.detalle || ''}</div>
+            </li>`).join('')}</ul></div>`;
+    }
+
+    document.getElementById('push-alertas-body').innerHTML = html;
+    document.getElementById('push-overlay').classList.add('visible');
+    document.getElementById('push-notif').classList.add('visible');
+}
+
+function mostrarAlertas(){
+    document.getElementById('push-titulo-txt').textContent = 'Alertas Críticas';
+    const averiasParque = FLOTA.map(averiaActivaDeCarroza).filter(Boolean);
+    const docsVencidos = FLOTA.map(c => ({placa:c.placa, doc: documentoMasUrgente(c)}))
+        .filter(x => x.doc && x.doc.dias !== null && x.doc.dias < 0);
+    const docsProximos = FLOTA.map(c => ({placa:c.placa, doc: documentoMasUrgente(c)}))
+        .filter(x => x.doc && x.doc.dias !== null && x.doc.dias >= 0 && x.doc.dias <= 15);
+    const aceite = ESTADOS_VEHICULO.filter(e => e.ok && e.estado_aceite && e.estado_aceite.emoji==='🔴');
+    const tanqueBajo = ESTADOS_VEHICULO.filter(e => e.ok && e.nivel_combustible==='🔴');
+    const novedadesChecklist = checklistsConNovedadPendientes();
+
+    let html = '';
+    if(averiasParque.length){
+        html += `<div class="push-alert-section"><h4>Averías / novedades activas (${averiasParque.length})</h4><ul>${averiasParque.map(a=>`<li><b>${a.placa}</b> — ${a.clasificacion}</li>`).join('')}</ul></div>`;
+    }
+    if(novedadesChecklist.length){
+        html += `<div class="push-alert-section"><h4>Novedades en checklist de entrega (${novedadesChecklist.length})</h4><ul>${novedadesChecklist.map(({registro, novedades})=>`<li><b>${registro.PLACA||'—'}</b> — ${novedades.map(n=>n.campo+': '+n.valor).join(', ')}</li>`).join('')}</ul></div>`;
+    }
+    if(docsVencidos.length){
+        html += `<div class="push-alert-section"><h4>Documentos vencidos (${docsVencidos.length})</h4><ul>${docsVencidos.map(x=>`<li><b>${x.placa}</b> — ${x.doc.tipo} (venció hace ${Math.abs(x.doc.dias)}d)</li>`).join('')}</ul></div>`;
+    }
+    if(docsProximos.length){
+        html += `<div class="push-alert-section"><h4>Documentos próximos a vencer (${docsProximos.length})</h4><ul>${docsProximos.map(x=>`<li><b>${x.placa}</b> — ${x.doc.tipo} (${x.doc.dias}d)</li>`).join('')}</ul></div>`;
+    }
+    if(aceite.length){
+        html += `<div class="push-alert-section"><h4>Cambio de aceite vencido (${aceite.length})</h4><ul>${aceite.map(e=>`<li><b>${e.placa}</b></li>`).join('')}</ul></div>`;
+    }
+    if(tanqueBajo.length){
+        html += `<div class="push-alert-section"><h4>Tanque en nivel bajo (${tanqueBajo.length})</h4><ul>${tanqueBajo.map(e=>`<li><b>${e.placa}</b></li>`).join('')}</ul></div>`;
+    }
+    if(!averiasParque.length && !docsVencidos.length && !docsProximos.length && !aceite.length && !tanqueBajo.length && !novedadesChecklist.length){
+        html = '<div class="push-empty-alert">No hay alertas críticas en este momento. ✅</div>';
+    }
+
+    document.getElementById('push-alertas-body').innerHTML = html;
+    document.getElementById('push-overlay').classList.add('visible');
+    document.getElementById('push-notif').classList.add('visible');
+}
+function cerrarPush(){
+    document.getElementById('push-overlay').classList.remove('visible');
+    document.getElementById('push-notif').classList.remove('visible');
+}
+
+/* ==========================================================================
+   FILTROS DE EXPORTACIÓN
+   ========================================================================== */
+function poblarFiltrosExport(){
+    const selPlaca = document.getElementById('exportPlacaFiltro');
+    const selRegional = document.getElementById('exportRegionalFiltro');
+    const selConductor = document.getElementById('exportConductorFiltro');
+    const selFormaPago = document.getElementById('exportFormaPagoFiltro');
+    if(!selPlaca || !selRegional || !selConductor || !selFormaPago) return;
+
+    const valPlacaPrev = selPlaca.value, valRegionalPrev = selRegional.value, valConductorPrev = selConductor.value, valFormaPagoPrev = selFormaPago.value;
+
+    const placas = [...new Set(FLOTA.map(c => c.placa).filter(Boolean))].sort();
+    const regionales = [...new Set(FLOTA.map(c => c.regional).filter(Boolean))].sort();
+    const conductores = obtenerConductoresUnicos();
+    const formasPago = obtenerFormasPagoUnicas();
+
+    selPlaca.innerHTML = '<option value="">Todas las placas</option>' + placas.map(p => `<option value="${p}">${p}</option>`).join('');
+    selRegional.innerHTML = '<option value="">Todas las regionales</option>' + regionales.map(r => `<option value="${r}">${r}</option>`).join('');
+    selConductor.innerHTML = '<option value="">Todos los conductores</option>' + conductores.map(c => `<option value="${c}">${c}</option>`).join('');
+    selFormaPago.innerHTML = '<option value="">Todas las formas de pago</option>' + formasPago.map(f => `<option value="${f}">${f}</option>`).join('');
+
+    if(placas.includes(valPlacaPrev)) selPlaca.value = valPlacaPrev;
+    if(regionales.includes(valRegionalPrev)) selRegional.value = valRegionalPrev;
+    if(conductores.includes(valConductorPrev)) selConductor.value = valConductorPrev;
+    if(formasPago.includes(valFormaPagoPrev)) selFormaPago.value = valFormaPagoPrev;
+}
+
+function setupExportDateInputs(){
+    const desde = document.getElementById('exportFechaDesde');
+    const hasta = document.getElementById('exportFechaHasta');
+    if(!desde || !hasta) return;
+    desde.addEventListener('change', ()=>{ hasta.min = desde.value || ''; });
+    hasta.addEventListener('change', ()=>{ desde.max = hasta.value || ''; });
+}
+function limpiarFechasExport(){
+    const desde = document.getElementById('exportFechaDesde');
+    const hasta = document.getElementById('exportFechaHasta');
+    if(desde){ desde.value = ''; desde.max = ''; }
+    if(hasta){ hasta.value = ''; hasta.min = ''; }
+}
+
+function actualizarVisibilidadFormaPago(){
+    const dataset = document.getElementById('exportDataset').value;
+    const selFormaPago = document.getElementById('exportFormaPagoFiltro');
+    if(!selFormaPago) return;
+    if(dataset === 'tanqueos'){
+        selFormaPago.style.display = '';
+    } else {
+        selFormaPago.style.display = 'none';
+        selFormaPago.value = '';
+    }
+}
+function setupExportDatasetToggle(){
+    const selDataset = document.getElementById('exportDataset');
+    if(!selDataset) return;
+    selDataset.addEventListener('change', actualizarVisibilidadFormaPago);
+    actualizarVisibilidadFormaPago();
+}
+
+/* ==========================================================================
+   EXPORTAR REPORTES — CSV y Excel, respetando el filtro de la flota
+   ========================================================================== */
+function regionalDePlaca(placa){
+    const target = normPlaca(placa);
+    const c = FLOTA.find(c => normPlaca(c.placa) === target);
+    return c ? (c.regional || '') : '';
+}
+
+function leerFiltrosExport(){
+    return {
+        placa: document.getElementById('exportPlacaFiltro').value || '',
+        regional: document.getElementById('exportRegionalFiltro').value || '',
+        conductor: document.getElementById('exportConductorFiltro').value || '',
+        formaPago: document.getElementById('exportFormaPagoFiltro').value || '',
+        fechaDesde: document.getElementById('exportFechaDesde').value || '',
+        fechaHasta: document.getElementById('exportFechaHasta').value || '',
+    };
+}
+function pasaFiltrosExport({placa, regional, conductor, formaPago, fecha}, aplicables, f){
+    if(aplicables.placa && f.placa && normPlaca(placa) !== normPlaca(f.placa)) return false;
+    if(aplicables.regional && f.regional && !norm(regional).includes(norm(f.regional))) return false;
+    if(aplicables.conductor && f.conductor && !norm(conductor).includes(norm(f.conductor))) return false;
+    if(aplicables.formaPago && f.formaPago && norm(formaPago) !== norm(f.formaPago)) return false;
+    if(aplicables.fecha && !fechaDentroDeRango(fecha, f.fechaDesde, f.fechaHasta)) return false;
+    return true;
+}
+
+function datasetFlotaExport(){
+    const filtroLista = norm(document.getElementById('fleetSearch').value || '');
+    const f = leerFiltrosExport();
+    const aplicables = {placa:true, regional:true, conductor:false, formaPago:false, fecha:false};
+    return FLOTA.map((c, i) => ({ c, est: ESTADOS_VEHICULO[i] || {} }))
+        .filter(({c}) => !filtroLista || norm(c.placa).includes(filtroLista) || norm(c.regional).includes(filtroLista) || norm(c.estado).includes(filtroLista))
+        .filter(({c}) => pasaFiltrosExport({placa:c.placa, regional:c.regional, conductor:'', formaPago:'', fecha:''}, aplicables, f))
+        .map(({c, est}) => {
+            const doc = documentoMasUrgente(c);
+            const av = averiaActivaDeCarroza(c);
+            return {
+                Placa: c.placa || '',
+                Regional: c.regional || '',
+                Estado: c.estado || '',
+                Estado_Parque_Automotor: c.estado_parque_automotor || '',
+                Kilometraje_Km: c.kilometraje_actual || 0,
+                Combustible_Pct: est.ok ? est.porcentaje_combustible : '',
+                Rendimiento_Km_Gal: est.ok && est.rendimiento_ultimo_km_gal ? Number(est.rendimiento_ultimo_km_gal.toFixed(1)) : '',
+                Estado_Aceite: est.ok && est.estado_aceite ? est.estado_aceite.texto : '',
+                Averia_Activa: av ? av.clasificacion : '',
+                Documento_Mas_Urgente: doc ? doc.tipo : '',
+                Documento_Dias: doc ? doc.dias : '',
+            };
+        });
+}
+function datasetTraslados(){
+    const f = leerFiltrosExport();
+    const aplicables = {placa:true, regional:true, conductor:true, formaPago:false, fecha:true};
+    return TRASLADOS
+        .filter(t => pasaFiltrosExport({placa:t.placa, regional:t.regional, conductor:t.conductor, formaPago:'', fecha:t.fecha}, aplicables, f))
+        .map(t => ({
+            Placa: t.placa || '', Fecha: fmtFechaCorta(t.fecha), Hora_Salida: fmtHoraCorta(t.hora_de_salida), Hora_Ingreso: fmtHoraCorta(t.hora_de_ingreso), Regional: t.regional || '',
+            Origen: t.origen || '', Destino: t.destino || '', Conductor: t.conductor || '',
+            Motivo_Salida: t.motivo_de_salida || '', Nombre_Fallecido: t.nombre_del_fallecido || '',
+            Clinica_Hospital_RSD: t.clinica_hospital_o_rsd || '', Numero_Prestacion: t.numero_prestacion || '',
+            Telefono: t.num_telefono || t.numero_telefono || t.nnum_telefono || t.telefono || '',
+            Km_Salida: t.km__salida ?? t.km_salida ?? '', Km_Ingreso: t.km__ingreso ?? t.km_ingreso ?? '', Total_Km: t.total_km ?? '',
+            Coordinador_En_Turno: t.coordinador_en_turno || '', Observaciones: t.observaciones || '',
+            Kit_Carretera: t.kit_carretera || '',
+        }));
+}
+function datasetTanqueos(){
+    const f = leerFiltrosExport();
+    const aplicables = {placa:true, regional:true, conductor:false, formaPago:true, fecha:true};
+    return TANQUEOS
+        .filter(t => pasaFiltrosExport({placa:t.PLACA, regional: regionalDePlaca(t.PLACA), conductor:'', formaPago:t.FORMA_PAGO, fecha:t.FECHA}, aplicables, f))
+        .map(t => ({
+            Placa: t.PLACA || '', Fecha: fmtFechaCorta(t.FECHA), Galones: t.GALONES || 0,
+            Valor_Total: t.VALOR_TOTAL || 0, Forma_Pago: t.FORMA_PAGO || '', Estacion_Servicio: t.ESTACION_SERVICIO || '',
+            Km_Recorridos: t.KM_RECORRIDOS || '', Rendimiento_Km_Gal: t.RENDIMIENTO_KM_GALON || '',
+        }));
+}
+function datasetAverias(){
+    const f = leerFiltrosExport();
+    const aplicablesParque = {placa:true, regional:true, conductor:false, formaPago:false, fecha:true};
+    const aplicablesFormulario = {placa:true, regional:true, conductor:true, formaPago:false, fecha:true};
+    const deParque = FLOTA.map(averiaActivaDeCarroza).filter(Boolean)
+        .filter(a => pasaFiltrosExport({placa:a.placa, regional: regionalDePlaca(a.placa), conductor:'', formaPago:'', fecha:a.fecha}, aplicablesParque, f))
+        .map(a => ({
+            Placa: a.placa || '', Origen: 'Parque Automotor', Clasificacion: a.clasificacion || '',
+            Detalle: a.detalle || '', Estado: a.pendiente ? 'PENDIENTE' : (a.estadoHallazgo||''),
+            Fecha: fmtFechaCorta(a.fecha), Taller_Sede: a.taller || '',
+        }));
+    const deFormulario = AVERIAS
+        .filter(a => pasaFiltrosExport({placa:a.placa_vehiculo, regional: regionalDePlaca(a.placa_vehiculo), conductor:a.reportado_por, formaPago:'', fecha:a.created_at}, aplicablesFormulario, f))
+        .map(a => ({
+            Placa: a.placa_vehiculo || '', Origen: 'Formulario conductor', Clasificacion: a.tipo_falla || '',
+            Detalle: a.descripcion_sintomas || '', Estado: '', Fecha: a.created_at ? fmtFechaCorta(new Date(a.created_at)) : '',
+            Taller_Sede: a.reportado_por || '',
+        }));
+    return [...deParque, ...deFormulario];
+}
+function datasetMantenimientos(){
+    const f = leerFiltrosExport();
+    const aplicables = {placa:true, regional:true, conductor:false, formaPago:false, fecha:true};
+    const documentos = FLOTA.map(c => ({placa:c.placa, doc: documentoMasUrgente(c)}))
+        .filter(x => x.doc)
+        .filter(x => pasaFiltrosExport({placa:x.placa, regional: regionalDePlaca(x.placa), conductor:'', formaPago:'', fecha:x.doc.fecha}, aplicables, f))
+        .map(x => ({
+            Placa: x.placa, Tipo: x.doc.tipo, Fecha_Vence: fmtFechaCorta(x.doc.fecha),
+            Dias: x.doc.dias !== null ? x.doc.dias : '', Observaciones: x.doc.obs || '',
+        }));
+    const ordenes = MANTENIMIENTOS
+        .filter(m => pasaFiltrosExport({placa:m.placa, regional: regionalDePlaca(m.placa), conductor:'', formaPago:'', fecha:m.fecha}, aplicables, f))
+        .map(m => ({
+            Placa: m.placa || '', Tipo: m.tipo_servicio || '', Fecha_Vence: fmtFechaCorta(m.fecha),
+            Dias: '', Observaciones: `${m.estado_orden||''} · ${m.taller||''} · ${fmtCOP(m.costo)}`,
+        }));
+    return [...documentos, ...ordenes];
+}
+function obtenerDataset(key){
+    switch(key){
+        case 'flota': return datasetFlotaExport();
+        case 'traslados': return datasetTraslados();
+        case 'tanqueos': return datasetTanqueos();
+        case 'averias': return datasetAverias();
+        case 'mantenimientos': return datasetMantenimientos();
+        default: return [];
+    }
+}
+function toCSV(rows){
+    if(!rows.length) return '';
+    const headers = Object.keys(rows[0]);
+    const esc = v => { const s = (v===null||v===undefined) ? '' : String(v); return '"' + s.replace(/"/g,'""') + '"'; };
+    const lines = [headers.join(',')];
+    rows.forEach(r => lines.push(headers.map(h => esc(r[h])).join(',')));
+    return lines.join('\r\n');
+}
+function descargarBlob(content, filename, mime){
+    const blob = new Blob([content], {type: mime});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+function exportarDatos(formato){
+    const key = document.getElementById('exportDataset').value;
+    const rows = obtenerDataset(key);
+    if(!rows.length){
+        document.getElementById('push-alertas-body').innerHTML = '<div class="push-empty-alert">No hay datos para exportar con el filtro actual.</div>';
+        document.getElementById('push-overlay').classList.add('visible');
+        document.getElementById('push-notif').classList.add('visible');
+        return;
+    }
+    const fecha = hoyDDMMAAAA().replace(/\//g,'-');
+    const f = leerFiltrosExport();
+    const sufijoRango = (f.fechaDesde || f.fechaHasta) ? `_${f.fechaDesde || 'inicio'}_a_${f.fechaHasta || 'hoy'}` : '';
+    const nombreBase = `parque_automotor_${key}${sufijoRango}_${fecha}`;
+    if(formato === 'csv'){
+        descargarBlob('\uFEFF' + toCSV(rows), nombreBase + '.csv', 'text/csv;charset=utf-8;');
+    } else {
+        const ws = XLSX.utils.json_to_sheet(rows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, key.substring(0,31));
+        XLSX.writeFile(wb, nombreBase + '.xlsx');
+    }
+}
+
+/* ==========================================================================
+   INICIALIZACIÓN + AUTO-REFRESCO
+   ========================================================================== */
+async function refrescarTodo(){
+    await cargarDatos();
+    const kpis = calcularKPIs();
+    renderKPIs(kpis);
+    renderControlCenter(kpis);
+    actualizarGraficos();
+    renderListas();
+    renderFlota(document.getElementById('fleetSearch').value);
+    poblarFiltrosExport();
+}
+</script>
+</body>
+</html>

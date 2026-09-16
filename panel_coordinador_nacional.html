@@ -1,0 +1,1503 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>J.R. — Panel Coordinador Nacional</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+    /*
+      ══════════════════════════════════════════════════════════
+      PANEL COORDINADOR NACIONAL — v1.0
+      Reutiliza íntegramente el lenguaje visual de panel_automotor.html
+      (mismas variables de color, mismas tarjetas .monitor-mini, mismo
+      sistema de modal .push-notif y el mismo panel individual de
+      carroza .veh-sheet), pero con alcance NACIONAL: nada se filtra
+      por regional — el coordinador nacional ve todas las regionales
+      a la vez, tal como pidió Jose.
+
+      Secciones nuevas respecto a panel_automotor.html:
+        - Auxiliares en Servicio Ahora (traslados activos, con
+          conductor + placa + regional) — DB.obtenerPlacasConTrasladoActivo()
+        - Solicitudes de Apoyo — Todas las Regionales — lee la hoja
+          "solicitud_apoyo" completa (sin filtrar por regional, a
+          diferencia de DB.obtenerNotificaciones() que sí filtra).
+
+      ⚠️ IMPORTANTE — esquema de "solicitud_apoyo":
+      No conozco los nombres exactos de las columnas de esa hoja, así
+      que el renderizado de esa sección es TOLERANTE a variaciones de
+      nombre (busca "regional", "conductor"/"solicitante",
+      "motivo"/"descripcion", "placa", "fecha", "estado" sin importar
+      mayúsculas o guiones bajos exactos — ver función campoFlexible()).
+      Si algún dato no se ve bien, avisar los nombres reales de columna
+      para ajustar en segundos.
+      ══════════════════════════════════════════════════════════
+    */
+    :root {
+        --azul: #001a70;
+        --azul-2: #0d3fb8;
+        --celeste: #e3f2fd;
+        --blanco: #ffffff;
+        --rojo: #ef4444;
+        --verde: #10b981;
+        --naranja: #f59e0b;
+        --gris: #64748b;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+        background: var(--celeste);
+        font-family: 'DM Sans', sans-serif;
+        margin: 0;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    /* ── HEADER ── */
+    header {
+        width: 100%;
+        max-width: 600px;
+        background: var(--blanco);
+        padding: 20px;
+        border-radius: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+        box-sizing: border-box;
+    }
+
+    .logo-small { color: var(--azul); font-weight: bold; font-size: 18px; }
+    .header-actions { display: flex; align-items: center; gap: 10px; }
+    .btn-bell {
+        position: relative; width: 38px; height: 38px; border-radius: 12px;
+        background: var(--celeste); border: none; cursor: pointer; font-size: 17px;
+        display: flex; align-items: center; justify-content: center;
+    }
+    .btn-salir {
+        background: #fee2e2;
+        color: var(--rojo);
+        padding: 8px 15px;
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: bold;
+        border: none;
+        cursor: pointer;
+    }
+
+    /* ── BIENVENIDA ── */
+    .welcome-box { width: 100%; max-width: 600px; text-align: center; margin-bottom: 25px; }
+    .welcome-box h1 { color: var(--azul); font-size: 24px; margin: 0; line-height: 1.2; }
+    .welcome-box p { color: var(--gris); font-size: 14px; margin-top: 5px; }
+    .welcome-box .clock { color: var(--azul); font-weight: 700; font-size: 13px; margin-top: 6px; }
+
+    /* ── TARJETA PRINCIPAL ── */
+    .monitor-mini {
+        width: 100%;
+        max-width: 600px;
+        background: var(--blanco);
+        border-radius: 25px;
+        padding: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        box-sizing: border-box;
+        margin-bottom: 20px;
+    }
+
+    .monitor-mini h2 {
+        font-size: 15px;
+        color: var(--azul);
+        margin-top: 0;
+        margin-bottom: 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        text-transform: uppercase;
+        font-weight: 700;
+    }
+    .monitor-mini .sub-hint { font-size: 11px; color: var(--gris); margin: -10px 0 14px; font-weight: 600; text-transform: none; }
+
+    .btn-ver-todo {
+        background: var(--celeste);
+        color: var(--azul);
+        font-size: 10px;
+        padding: 5px 10px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: bold;
+        border: none;
+        cursor: pointer;
+    }
+
+    /* ── CENTRO DE CONTROL EN VIVO ── */
+    .cc-card {
+        background: linear-gradient(135deg, var(--azul) 0%, var(--azul-2) 100%);
+        color: #fff;
+    }
+    .cc-card h2 { color: #cfe0ff; }
+    .cc-pulse-row { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+    .cc-pulse { width: 9px; height: 9px; border-radius: 50%; background: #34D399; animation: ccPulse 1.8s infinite; }
+    @keyframes ccPulse {
+        0%,100% { box-shadow: 0 0 0 0 rgba(52,211,153,.55); }
+        70% { box-shadow: 0 0 0 9px rgba(52,211,153,0); }
+    }
+    .cc-pulse-row span.txt { font-size: 12px; color: #cfe0ff; font-weight: 600; }
+    .cc-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .cc-stat { background: rgba(255,255,255,.08); border-radius: 14px; padding: 10px 8px; text-align: center; }
+    .cc-stat .num { font-size: 20px; font-weight: 800; line-height: 1; }
+    .cc-stat .lbl { font-size: 9.5px; color: #b9cdf5; text-transform: uppercase; margin-top: 4px; font-weight: 700; letter-spacing: .2px; }
+    .cc-alert-btn {
+        margin-top: 14px; width: 100%; background: rgba(239,68,68,.18); border: 1.5px solid rgba(252,165,165,.4);
+        color: #fecaca; border-radius: 14px; padding: 11px; font-weight: 800; font-size: 12.5px; cursor: pointer;
+        display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+
+    /* ── ETIQUETAS DE GRUPO DE MENÚ ── */
+    .menu-group-label {
+        width: 100%; max-width: 600px; font-size: 11px; text-transform: uppercase;
+        letter-spacing: .6px; color: var(--gris); font-weight: 800; margin: 4px 4px 10px;
+    }
+
+    /* ── GRID DE MENÚ (accesos rápidos por sección) ── */
+    .menu-conductor {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        width: 100%;
+        max-width: 600px;
+        margin-bottom: 25px;
+    }
+
+    .card-condu {
+        background: var(--blanco);
+        padding: 22px 10px;
+        border-radius: 25px;
+        text-align: center;
+        text-decoration: none;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+        transition: 0.3s;
+        border: 1.5px solid transparent;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        color: inherit;
+    }
+    .card-condu:active { transform: scale(0.95); background: #f0f7ff; border-color: var(--azul); }
+    .card-condu i { font-size: 32px; display: block; margin-bottom: 8px; font-style: normal; }
+    .card-condu span { color: var(--azul); font-weight: bold; text-transform: uppercase; font-size: 11px; }
+
+    .badge-rojo {
+        display: none; position: absolute; top: -10px; right: -10px;
+        background: linear-gradient(135deg, #dc2626, #ef4444);
+        color: white; font-size: 14px; font-weight: 900;
+        min-width: 30px; height: 30px; border-radius: 15px;
+        align-items: center; justify-content: center;
+        border: 2.5px solid white; animation: badgePulse 1.5s ease infinite; z-index: 10;
+    }
+    @keyframes badgePulse {
+        0%,100% { transform: scale(1); box-shadow: 0 3px 10px rgba(220,38,38,0.5); }
+        50% { transform: scale(1.18); box-shadow: 0 4px 20px rgba(220,38,38,0.8); }
+    }
+
+    /* ── KPIs (mini chips) ── */
+    .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .kpi-chip { background: var(--celeste); border-radius: 16px; padding: 12px 12px 10px; cursor: pointer; transition: transform .15s, box-shadow .15s; }
+    .kpi-chip:active { transform: scale(0.96); }
+    .kpi-chip:hover { box-shadow: 0 4px 14px rgba(0,26,112,.10); }
+    .kpi-top-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+    .kpi-chip .ic { font-size: 18px; }
+    .kpi-chip .val { font-size: 17px; font-weight: 800; color: var(--azul); line-height: 1.1; }
+    .kpi-chip .lbl { font-size: 10.5px; color: var(--gris); font-weight: 600; margin-top: 2px; }
+
+    /* ── TABLAS Y PILLS ── */
+    table { width: 100%; border-collapse: collapse; }
+    td { padding: 12px 5px; font-size: 13px; border-bottom: 1px solid #f1f5f9; color: #334155; }
+    .status-pill { font-weight: bold; font-size: 10px; padding: 4px 8px; border-radius: 8px; text-transform: uppercase; }
+    .pill-disponible { color: #10b981; background: #ecfdf5; }
+    .pill-servicio, .pill-ruta { color: #3b82f6; background: #eff6ff; }
+    .pill-taller { color: var(--rojo); background: #fef2f2; }
+    .pill-otro { color: var(--gris); background: #f1f5f9; }
+    .pill-pendiente { color: #fff; background: var(--rojo); }
+    .pill-atendida { color: #10b981; background: #ecfdf5; }
+
+    .fuel-wrap { display: flex; align-items: center; gap: 6px; justify-content: flex-end; margin-top: 5px; }
+    .fuel-bar-mini { width: 60px; height: 6px; background: #e2e8f0; border-radius: 4px; overflow: hidden; }
+    .fuel-fill { height: 100%; border-radius: 4px; transition: width .3s; }
+    .fuel-pct { font-size: 10px; font-weight: 800; }
+
+    /* ── LISTA DE FLOTA (buscador + tarjetas) ── */
+    .fleet-search {
+        width: 100%; padding: 12px 14px; border-radius: 14px; border: none;
+        background: var(--celeste); color: var(--azul); font-family: 'DM Sans', sans-serif;
+        font-size: 13px; font-weight: 600; margin-bottom: 14px;
+    }
+    .fleet-search::placeholder { color: #6b8bd6; }
+    .fleet-row {
+        display: flex; align-items: center; justify-content: space-between; gap: 10px;
+        padding: 12px 4px; border-bottom: 1px solid #f1f5f9; cursor: pointer;
+    }
+    .fleet-row:last-child { border-bottom: none; }
+    .fleet-row:active { background: #f5f9ff; }
+    .fleet-left b { color: var(--azul); font-size: 14px; }
+    .fleet-left .sub { font-size: 11px; color: var(--gris); margin-top: 2px; }
+    .fleet-right { text-align: right; }
+    .fleet-empty { text-align: center; color: var(--gris); font-size: 13px; padding: 20px 0; }
+
+    /* ── NOTIFICACIÓN PUSH (OVERLAY / MODAL "VER TODO") ── */
+    /* ── SISTEMA DE NOTIFICACIÓN PUSH (OVERLAY) ── */
+    /* 🆕 z-index más alto que .veh-overlay/.veh-sheet: este modal se
+       abre desde dentro del panel de una carroza (historial completo),
+       así que debe quedar por ENCIMA de ese panel — antes empataban en
+       9998/9999 y, al empatar, ganaba .veh-sheet por orden en el HTML,
+       dejando el modal "pegado atrás". */
+    .push-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); backdrop-filter: blur(3px); z-index: 10998; }
+    .push-overlay.visible { display: block; }
+
+    @keyframes slideDown { from{opacity:0;transform:translateY(-30px) scale(0.95);} to{opacity:1;transform:none;} }
+    .push-notif {
+        display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        width: calc(100% - 32px); max-width: 460px; background: #0f172a; border-radius: 24px;
+        padding: 24px 20px 20px; z-index: 10999; box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+        border: 1.5px solid #1e3a5f; animation: slideDown 0.4s cubic-bezier(.22,1,.36,1);
+        max-height: 82vh; overflow-y: auto;
+    }
+    .push-notif.visible { display: block; }
+    .push-close-btn {
+        position: sticky; float: right; top: 0; margin-top: -6px; margin-right: -4px;
+        width: 34px; height: 34px; border-radius: 11px; border: none;
+        background: rgba(255,255,255,.08); color: #e2e8f0; font-size: 15px; cursor: pointer;
+        display: flex; align-items: center; justify-content: center; z-index: 5;
+    }
+    .push-close-btn:hover { background: rgba(255,255,255,.18); }
+    .push-close-btn:active { transform: scale(0.92); }
+    .push-barra-top { width: 40px; height: 4px; background: linear-gradient(90deg, #3b82f6, #8b5cf6, #10b981); border-radius: 4px; margin: 0 auto 18px; clear: both; }
+    .push-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .push-icono { width: 44px; height: 44px; border-radius: 14px; background: var(--azul); display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+    .push-app-name { font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; }
+    .push-titulo { font-size: 18px; font-weight: 800; color: #f1f5f9; margin-bottom: 8px; }
+    .push-body { font-size: 13.5px; color: #94a3b8; line-height: 1.7; margin-bottom: 20px; }
+    .push-btn-ver { width: 100%; padding: 15px; border: none; border-radius: 14px; background: var(--verde); color: white; font-weight: 800; font-size: 15px; cursor: pointer; }
+    .push-alert-section { margin-bottom: 14px; }
+    .push-alert-section h4 { font-size: 11px; text-transform: uppercase; letter-spacing: .3px; color: #fca5a5; margin: 0 0 6px; }
+    .push-alert-section ul { list-style: none; margin: 0; padding: 0; }
+    .push-alert-section li { font-size: 13px; color: #cbd5e1; padding: 6px 0; border-bottom: 1px solid #1e293b; }
+    .push-alert-section li:last-child { border-bottom: none; }
+    .push-empty-alert { text-align: center; color: #64748b; font-size: 13px; padding: 10px 0; }
+
+    @media (min-width: 700px){
+        .push-notif { max-width: 560px; max-height: 85vh; padding: 28px 26px 24px; }
+    }
+    @media (min-width: 1100px){
+        .push-notif { max-width: 680px; max-height: 88vh; }
+        .push-titulo { font-size: 20px; }
+    }
+
+    /* ── PANEL INDIVIDUAL DE CARROZA (mismo lenguaje push/monitor) ── */
+    .veh-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); backdrop-filter: blur(3px); z-index: 9998; }
+    .veh-overlay.visible { display: block; }
+    .veh-sheet {
+        display: none; position: fixed; left: 50%; bottom: 0; transform: translateX(-50%);
+        width: 100%; max-width: 600px; max-height: 90vh; overflow-y: auto;
+        background: var(--celeste); border-radius: 26px 26px 0 0; z-index: 9999;
+        box-shadow: 0 -10px 40px rgba(0,0,0,.3); padding-bottom: 24px;
+        animation: slideDown .35s cubic-bezier(.22,1,.36,1);
+    }
+    .veh-sheet.visible { display: block; }
+    .veh-sheet-head {
+        position: sticky; top: 0; background: var(--azul); color: #fff; z-index: 2;
+        padding: 20px 20px 16px; border-radius: 26px 26px 0 0;
+        display: flex; align-items: center; justify-content: space-between;
+    }
+    .veh-sheet-head h2 { margin: 0; font-size: 19px; font-weight: 800; }
+    .veh-sheet-head .sub { font-size: 12px; color: #b9cdf5; margin-top: 3px; }
+    .veh-sheet-head button {
+        width: 34px; height: 34px; border-radius: 10px; border: none; background: rgba(255,255,255,.15);
+        color: #fff; font-size: 15px; cursor: pointer; flex-shrink: 0;
+    }
+    .veh-sheet-head button:hover { background: rgba(255,255,255,.25); }
+    .veh-sheet-body { padding: 18px 20px 4px; }
+    .vm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+    .vm-stat { background: #fff; border-radius: 14px; padding: 12px 14px; }
+    .vm-stat .lbl { font-size: 10px; color: var(--gris); text-transform: uppercase; letter-spacing: .3px; margin-bottom: 4px; font-weight: 700; }
+    .vm-stat .val { font-weight: 800; font-size: 15px; color: var(--azul); }
+    .vm-section { background: #fff; border-radius: 16px; padding: 14px 16px; margin-bottom: 12px; }
+    .vm-section h4 { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .3px; color: var(--azul); margin: 0 0 8px; }
+    .vm-list { list-style: none; margin: 0; padding: 0; font-size: 12.5px; }
+    .vm-list li { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f1f5f9; color: #334155; }
+    .vm-list li.clickable { cursor: pointer; }
+    .vm-list li.clickable:hover, .vm-list li.clickable:active { background: #f8fafc; }
+    .vm-list li:last-child { border-bottom: none; }
+    .vm-list li span:last-child { text-align: right; color: var(--gris); flex-shrink: 0; }
+    .vm-empty { font-size: 12px; color: var(--gris); padding: 6px 0; }
+
+    @media (min-width: 700px){
+        .veh-sheet { max-width: 680px; max-height: 88vh; }
+        .vm-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+    @media (min-width: 1100px){
+        .veh-sheet { max-width: 820px; bottom: 4vh; max-height: 92vh; border-radius: 26px; box-shadow: 0 20px 60px rgba(0,0,0,.35); }
+        .veh-sheet-head { border-radius: 26px 26px 0 0; }
+    }
+
+    /* 🆕 FICHA DETALLADA DE TRASLADO (historial completo) — igual que panel_automotor.html */
+    .traslado-ficha {
+        background: #0b1626; border: 1px solid #1e293b; border-radius: 14px;
+        padding: 14px 14px 12px; margin-bottom: 10px;
+    }
+    .traslado-ficha .tf-row {
+        display: flex; justify-content: space-between; gap: 10px; padding: 3px 0;
+        font-size: 11.5px;
+    }
+    .traslado-ficha .tf-row .tf-lbl { color: #64748b; }
+    .traslado-ficha .tf-row .tf-val { color: #e2e8f0; font-weight: 600; text-align: right; }
+    .traslado-ficha .tf-block {
+        margin-top: 8px; padding-top: 8px; border-top: 1px solid #1e293b;
+    }
+    .traslado-ficha .tf-block-title {
+        font-size: 9.5px; color: #64748b; text-transform: uppercase; font-weight: 800;
+        letter-spacing: .3px; margin-bottom: 4px;
+    }
+</style>
+</head>
+<body>
+
+<!-- ── SISTEMA DE NOTIFICACIÓN PUSH: LISTAS "VER TODO" ── -->
+<div class="push-overlay" id="push-overlay" onclick="cerrarPush()"></div>
+<div class="push-notif" id="push-notif">
+    <button class="push-close-btn" onclick="cerrarPush()" title="Cerrar">✕</button>
+    <div class="push-barra-top"></div>
+    <div class="push-header">
+        <div class="push-icono">🌎</div>
+        <div class="push-app-info"><div class="push-app-name">J.R. Carrozas — Nacional</div></div>
+    </div>
+    <div class="push-titulo" id="push-titulo-txt">Detalle</div>
+    <div id="push-alertas-body"></div>
+    <button class="push-btn-ver" onclick="cerrarPush()">Entendido</button>
+</div>
+
+<!-- ── PANEL INDIVIDUAL DE CARROZA (bottom sheet) ── -->
+<div class="veh-overlay" id="veh-overlay" onclick="cerrarPanelCarroza()"></div>
+<div class="veh-sheet" id="veh-sheet">
+    <div class="veh-sheet-head">
+        <div>
+            <h2 id="vmPlaca">—</h2>
+            <div class="sub" id="vmSub">—</div>
+        </div>
+        <button onclick="cerrarPanelCarroza()" title="Cerrar">✕</button>
+    </div>
+    <div class="veh-sheet-body" id="vmBody">
+        <div style="text-align:center;padding:40px 0;color:var(--gris);">Cargando información de la carroza...</div>
+    </div>
+</div>
+
+<header>
+    <div class="logo-small">J.R. COORDINADOR NACIONAL</div>
+    <div class="header-actions">
+        <button class="btn-bell" onclick="mostrarAlertas()" title="Alertas">
+            🔔
+            <div id="badge-alertas" class="badge-rojo" style="top:-6px; right:-6px; min-width:20px; height:20px; font-size:10px;">0</div>
+        </button>
+        <button onclick="cerrarSesion()" class="btn-salir">SALIR</button>
+    </div>
+</header>
+
+<div class="welcome-box">
+    <h1 id="txt-nombre">Hola...</h1>
+    <p>Vista nacional 360° — todas las regionales, sincronizado con Google Sheets</p>
+    <div class="clock" id="clockTxt">—</div>
+</div>
+
+<!-- ── CENTRO DE CONTROL NACIONAL ── -->
+<div class="monitor-mini cc-card">
+    <div class="cc-pulse-row">
+        <span class="cc-pulse"></span>
+        <span class="txt">CENTRO DE CONTROL NACIONAL — TIEMPO REAL</span>
+    </div>
+    <div class="cc-grid">
+        <div class="cc-stat"><div class="num" id="ccDisponibles">—</div><div class="lbl">Disponibles</div></div>
+        <div class="cc-stat"><div class="num" id="ccServicio">—</div><div class="lbl">En servicio</div></div>
+        <div class="cc-stat"><div class="num" id="ccTaller">—</div><div class="lbl">En taller</div></div>
+        <div class="cc-stat"><div class="num" id="ccAuxiliares">—</div><div class="lbl">Auxiliares en ruta</div></div>
+        <div class="cc-stat"><div class="num" id="ccSolicitudes">—</div><div class="lbl">Apoyos pendientes</div></div>
+        <div class="cc-stat"><div class="num" id="ccAlertas">—</div><div class="lbl">Alertas activas</div></div>
+    </div>
+    <button class="cc-alert-btn" onclick="mostrarAlertas()">🚨 <span id="ccAlertTxt">0 alertas críticas</span></button>
+</div>
+
+<!-- ── ACCESOS RÁPIDOS A CADA SECCIÓN ── -->
+<div class="menu-group-label">Accesos rápidos</div>
+<div class="menu-conductor">
+    <a href="javascript:void(0)" onclick="irASeccion('auxiliaresSection')" class="card-condu"><i>🧑‍✈️</i><span>Auxiliares</span></a>
+    <a href="javascript:void(0)" onclick="irASeccion('solicitudesSection')" class="card-condu">
+        <div id="badge-solicitudes" class="badge-rojo">0</div>
+        <i>🆘</i><span>Apoyo</span>
+    </a>
+    <a href="javascript:void(0)" onclick="irASeccion('averiasSection')" class="card-condu">
+        <div id="badge-averias" class="badge-rojo">0</div>
+        <i>⚠️</i><span>Averías</span>
+    </a>
+    <a href="javascript:void(0)" onclick="irASeccion('checklistSection')" class="card-condu">
+        <div id="badge-checklist" class="badge-rojo">0</div>
+        <i>📝</i><span>Entregas</span>
+    </a>
+    <a href="javascript:void(0)" onclick="irASeccion('trasladosSection')" class="card-condu"><i>🏁</i><span>Traslados</span></a>
+    <a href="javascript:void(0)" onclick="irASeccion('flotaSection')" class="card-condu"><i>🚐</i><span>Flota</span></a>
+</div>
+
+<!-- ── KPIs ── -->
+<div class="monitor-mini">
+    <h2>Indicadores Nacionales</h2>
+    <div class="kpi-grid" id="kpiGrid"></div>
+</div>
+
+<!-- ── 1) AUXILIARES EN SERVICIO AHORA ── -->
+<div class="monitor-mini" id="auxiliaresSection">
+    <h2>Auxiliares en Servicio Ahora <button class="btn-ver-todo" onclick="mostrarAuxiliares()">VER TODO</button></h2>
+    <div class="sub-hint">Conductores/auxiliares con un traslado abierto en este momento, todas las regionales</div>
+    <table><tbody id="tabla-auxiliares"><tr><td style="text-align:center;">Cargando...</td></tr></tbody></table>
+</div>
+
+<!-- ── 2) SOLICITUDES DE APOYO — TODAS LAS REGIONALES ── -->
+<div class="monitor-mini" id="solicitudesSection">
+    <h2>Solicitudes de Apoyo <button class="btn-ver-todo" onclick="mostrarSolicitudes()">VER TODO</button></h2>
+    <div class="sub-hint">Todas las regionales — hoja "solicitud_apoyo"</div>
+    <table><tbody id="tabla-solicitudes"><tr><td style="text-align:center;">Cargando...</td></tr></tbody></table>
+</div>
+
+<!-- ── 3) AVERÍAS EN CURSO — TODAS LAS REGIONALES ── -->
+<div class="monitor-mini" id="averiasSection">
+    <h2>Averías en Curso <button class="btn-ver-todo" onclick="mostrarAverias()">VER TODO</button></h2>
+    <div class="sub-hint">Todas las regionales</div>
+    <table><tbody id="tabla-averias"><tr><td style="text-align:center;">Cargando...</td></tr></tbody></table>
+</div>
+
+<!-- ── 4) NOVEDADES EN ENTREGA DE VEHÍCULOS — TODAS LAS REGIONALES ── -->
+<div class="monitor-mini" id="checklistSection">
+    <h2>Novedades en Entrega de Vehículos <button class="btn-ver-todo" onclick="mostrarNovedadesChecklist()">VER TODO</button></h2>
+    <div class="sub-hint">Todas las regionales</div>
+    <table><tbody id="tabla-checklist"><tr><td style="text-align:center;">Cargando...</td></tr></tbody></table>
+</div>
+
+<!-- ── 5) TRASLADOS RECIENTES — TODAS LAS REGIONALES ── -->
+<div class="monitor-mini" id="trasladosSection">
+    <h2>Traslados Recientes <button class="btn-ver-todo" onclick="mostrarTraslados()">VER TODO</button></h2>
+    <div class="sub-hint">Todas las regionales</div>
+    <table><tbody id="tabla-traslados"><tr><td style="text-align:center;">Cargando...</td></tr></tbody></table>
+</div>
+
+<!-- ── 6) ESTADO DE FLOTA GENERAL — TODAS LAS REGIONALES ── -->
+<div class="monitor-mini" id="flotaSection">
+    <h2>Estado de Flota General</h2>
+    <div class="sub-hint">Todas las regionales — toca una carroza para ver su detalle completo</div>
+    <input type="text" class="fleet-search" id="fleetSearch" placeholder="Buscar placa, regional o estado...">
+    <div id="fleetList"><div class="fleet-empty">Cargando flota...</div></div>
+    <button class="btn-ver-todo" id="btnToggleFlota" style="width:100%; margin-top:10px; padding:10px; display:none;" onclick="toggleFlotaExpandida()">Ver todas las carrozas</button>
+</div>
+
+<!-- FOOTER -->
+<div class="monitor-mini" style="text-align:center; margin-bottom:30px;">
+    <div style="font-size:10px; color:#94a3b8; font-weight:600; text-transform:uppercase;">Diseñado & Desarrollado por</div>
+    <div style="font-size:15px; font-weight:800; color:#001a70; margin-top:4px;">Zaider J. Buitrago A.</div>
+    <div style="font-size:10px; color:#a5b4fc; font-weight:700; margin-top:7px;">J.R. CARROZAS © 2026</div>
+</div>
+
+<!-- Conector real de la app (mismo que usan panel_conductor / panel_coordinador / panel_automotor / dashboard) -->
+<script src="db.js"></script>
+<script>
+// Rol permitido para este panel. Solo el coordinador nacional puede
+// entrar aquí — el valor debe coincidir tal cual con el campo "rol"
+// de la hoja "usuarios" (comparación sin distinguir mayúsculas/tildes
+// ni espacios extra, para tolerar variaciones menores de captura).
+const ROL_PERMITIDO_PANEL = 'coordinador nacional';
+function normRolLocal(s){
+    return String(s || '').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+}
+
+(function verificarAccesoPanel(){
+    const sesionRaw = localStorage.getItem('usuario_sesion');
+    if (!sesionRaw) {
+        window.location.replace('index.html');
+        return;
+    }
+    let sesion;
+    try {
+        sesion = JSON.parse(sesionRaw);
+    } catch(e) {
+        localStorage.removeItem('usuario_sesion');
+        window.location.replace('index.html');
+        return;
+    }
+    // 🔒 Restricción de rol: solo coordinador nacional entra a este panel.
+    // Otros roles (conductor, coordinador regional, etc.) son redirigidos
+    // a index.html, igual que si no tuvieran sesión.
+    if (normRolLocal(sesion.rol) !== normRolLocal(ROL_PERMITIDO_PANEL)) {
+        window.location.replace('index.html');
+    }
+})();
+
+(function bloquearBotonAtras(){
+    history.pushState(null, '', location.href);
+    window.addEventListener('popstate', function(){
+        history.pushState(null, '', location.href);
+    });
+})();
+</script>
+<script>
+const norm = str => String(str || '').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+const normPlaca = p => String(p||'').replace(/[^A-Z0-9]/gi,'').toUpperCase();
+const fmtNum = n => new Intl.NumberFormat('es-CO').format(Math.round(n || 0));
+const fmtCOP = n => new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(n || 0);
+
+// ── HELPER CLAVE: busca un valor en un objeto probando varios nombres
+// de columna posibles, sin importar mayúsculas/guiones bajos. Se usa
+// para leer "solicitud_apoyo" de forma segura sin conocer su esquema
+// exacto de antemano.
+function normClaveLocal(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]/g,''); }
+function campoFlexible(row, candidatos){
+    if(!row) return '';
+    const claves = Object.keys(row);
+    for(const cand of candidatos){
+        const key = claves.find(k => normClaveLocal(k) === normClaveLocal(cand));
+        if(key !== undefined && row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== ''){
+            return row[key];
+        }
+    }
+    return '';
+}
+
+let userSesion = {};
+let FLOTA = [], TRASLADOS = [], AVERIAS = [], MANTENIMIENTOS = [], TANQUEOS = [], CHECKLISTS = [], SOLICITUDES = [], AUXILIARES = [];
+let ESTADOS_VEHICULO = [];
+let vmCharts = {};
+let fleetExpanded = false;
+
+window.onload = async () => {
+    const sesionRaw = localStorage.getItem('usuario_sesion');
+    if (sesionRaw) {
+        userSesion = JSON.parse(sesionRaw);
+        document.getElementById('txt-nombre').innerText = "Hola, " + (userSesion.nombre || "Coordinador Nacional");
+    } else {
+        window.location.replace('index.html');
+        return;
+    }
+
+    tickClock(); setInterval(tickClock, 1000);
+    setupFleetSearch();
+    setupModalEscKey();
+
+    try {
+        await refrescarTodo();
+    } catch (err) {
+        console.error('Error cargando datos nacionales:', err);
+        document.getElementById('fleetList').innerHTML = '<div class="fleet-empty">No se pudo conectar con la hoja. Verifica que db.js esté en la misma carpeta.</div>';
+    }
+
+    setInterval(refrescarTodo, 60000);
+};
+
+function tickClock(){
+    const d = new Date();
+    document.getElementById('clockTxt').textContent = d.toLocaleDateString('es-CO',{weekday:'long', day:'2-digit', month:'long'}) + ' · ' + d.toLocaleTimeString('es-CO');
+}
+
+function cerrarSesion(){ localStorage.clear(); window.location.href = "index.html"; }
+
+function setupModalEscKey(){
+    window.addEventListener('keydown', (e)=>{
+        if(e.key !== 'Escape') return;
+        if(document.getElementById('push-notif').classList.contains('visible')) cerrarPush();
+        if(document.getElementById('veh-sheet').classList.contains('visible')) cerrarPanelCarroza();
+    });
+}
+
+function hoyDDMMAAAA(){
+    const h = new Date();
+    return h.getDate().toString().padStart(2,'0') + '/' + (h.getMonth()+1).toString().padStart(2,'0') + '/' + h.getFullYear();
+}
+function parseDDMMAAAA(str){
+    if(!str) return null;
+    const p = String(str).trim().split('/');
+    if(p.length !== 3) return null;
+    const dd = parseInt(p[0],10), mm = parseInt(p[1],10), aaaa = parseInt(p[2].length===4?p[2]:('20'+p[2]).slice(-4),10);
+    if(!dd || !mm || !aaaa) return null;
+    return new Date(aaaa, mm-1, dd);
+}
+function sumaCampo(lista, campo){
+    return lista.reduce((acc,r)=> acc + (parseFloat(r[campo]) || 0), 0);
+}
+function normEstado(e){ return String(e||'').trim().toLowerCase(); }
+
+function fmtFechaCorta(valor){
+    if(valor === null || valor === undefined || valor === '') return '';
+    if(valor instanceof Date){
+        if(isNaN(valor.getTime())) return '';
+        return valor.getDate().toString().padStart(2,'0') + '/' + (valor.getMonth()+1).toString().padStart(2,'0') + '/' + valor.getFullYear();
+    }
+    const str = String(valor).trim();
+    if(/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(str)) return str;
+    const d = new Date(str);
+    if(!isNaN(d.getTime())){
+        return d.getDate().toString().padStart(2,'0') + '/' + (d.getMonth()+1).toString().padStart(2,'0') + '/' + d.getFullYear();
+    }
+    return str;
+}
+function fmtHoraCorta(valor){
+    if(valor === null || valor === undefined || valor === '') return '';
+    if(valor instanceof Date){
+        if(isNaN(valor.getTime())) return '';
+        return valor.getHours().toString().padStart(2,'0') + ':' + valor.getMinutes().toString().padStart(2,'0');
+    }
+    const str = String(valor).trim();
+    const soloHora = str.match(/^(\d{1,2}):(\d{2})(:\d{2})?$/);
+    if(soloHora) return soloHora[1].padStart(2,'0') + ':' + soloHora[2];
+    const conHora = str.match(/(\d{1,2}):(\d{2}):(\d{2})/);
+    if(conHora) return conHora[1].padStart(2,'0') + ':' + conHora[2];
+    const d = new Date(str);
+    if(!isNaN(d.getTime())){
+        return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
+    }
+    return str;
+}
+function normalizarFechas(lista, campos){
+    (lista||[]).forEach(item=>{
+        campos.forEach(campo=>{
+            if(item && item[campo] !== undefined && item[campo] !== null && item[campo] !== ''){
+                item[campo] = fmtFechaCorta(item[campo]);
+            }
+        });
+    });
+    return lista;
+}
+function normalizarHoras(lista, campos){
+    (lista||[]).forEach(item=>{
+        campos.forEach(campo=>{
+            if(item && item[campo] !== undefined && item[campo] !== null && item[campo] !== ''){
+                item[campo] = fmtHoraCorta(item[campo]);
+            }
+        });
+    });
+    return lista;
+}
+
+const ESTADO_INFO = {
+    'disponible': {label:'Disponible', pill:'pill-disponible'},
+    'en servicio': {label:'En servicio', pill:'pill-servicio'},
+    'en taller': {label:'En taller', pill:'pill-taller'},
+};
+function estadoInfo(estado){
+    return ESTADO_INFO[normEstado(estado)] || {label: estado || 'Sin estado', pill:'pill-otro'};
+}
+function estadoPill(estado){
+    const info = estadoInfo(estado);
+    return `<span class="status-pill ${info.pill}">${info.label}</span>`;
+}
+
+/* ==========================================================================
+   NOVEDADES EN CHECKLIST DE ENTREGA (hoja "Checklist_Salida") — misma
+   lógica que panel_automotor.html, para no perder ese análisis.
+   ========================================================================== */
+const CHECKLIST_CAMPOS_OK = {
+    SISTEMA_DE_LUCES: ['bueno'],
+    SISTEMA_DE_FRENOS: ['bueno'],
+    LLANTA_DE_REPUESTO: ['si','sí'],
+    NIVEL_AGUA: ['bueno'],
+    NIVEL_ACEITE: ['bueno'],
+    SOAT: ['si','sí'],
+    TECNOMECANICA: ['si','sí'],
+    BOTIQUIN: ['si','sí'],
+    EXTINTOR: ['si','sí'],
+    CINTURON_DE_SEGURIDAD: ['si','sí'],
+    GATO: ['si','sí'],
+    LLAVE_DE_RUEDAS: ['si','sí'],
+    TRIANGULOS: ['si','sí'],
+    ESTADO_VEHICULO: ['bueno'],
+};
+const CHECKLIST_CAMPOS_LABEL = {
+    SISTEMA_DE_LUCES: 'Sistema de luces',
+    SISTEMA_DE_FRENOS: 'Sistema de frenos',
+    LLANTA_DE_REPUESTO: 'Llanta de repuesto',
+    NIVEL_AGUA: 'Nivel de agua',
+    NIVEL_ACEITE: 'Nivel de aceite',
+    SOAT: 'SOAT',
+    TECNOMECANICA: 'Tecnomecánica',
+    BOTIQUIN: 'Botiquín',
+    EXTINTOR: 'Extintor',
+    CINTURON_DE_SEGURIDAD: 'Cinturón de seguridad',
+    GATO: 'Gato',
+    LLAVE_DE_RUEDAS: 'Llave de ruedas',
+    TRIANGULOS: 'Triángulos',
+    ESTADO_VEHICULO: 'Estado general',
+};
+function novedadesDeChecklist(registro){
+    const norm2 = v => String(v||'').toLowerCase().trim();
+    const novedades = [];
+    Object.keys(CHECKLIST_CAMPOS_OK).forEach(campo => {
+        const valor = registro[campo];
+        if(valor === undefined || valor === null || String(valor).trim()==='') return;
+        const ok = CHECKLIST_CAMPOS_OK[campo].includes(norm2(valor));
+        if(!ok){
+            novedades.push({ campoKey: campo, campo: CHECKLIST_CAMPOS_LABEL[campo] || campo, valor: String(valor).trim() });
+        }
+    });
+    return novedades;
+}
+function checklistsConNovedad(){
+    return CHECKLISTS
+        .map(r => ({ registro: r, novedades: novedadesDeChecklist(r) }))
+        .filter(x => x.novedades.length > 0)
+        .sort((a,b)=> (parseDDMMAAAA(b.registro.FECHA)||0) - (parseDDMMAAAA(a.registro.FECHA)||0));
+}
+
+/* ==========================================================================
+   AVERÍAS ACTIVAS (desde "carrozas") — misma lógica que panel_automotor.html
+   ========================================================================== */
+function averiaActivaDeCarroza(carroza){
+    const estadoHallazgo = normEstado(carroza.ultimo_hallazgo_estado);
+    const tieneHallazgoAbierto = !!(carroza.ultimo_hallazgo_clasificacion || carroza.ultimo_hallazgo_detalle) && estadoHallazgo !== 'ejecutado';
+    const estadoParque = normEstado(carroza.estado_parque_automotor);
+    const enTallerOTaller = ['taller','pintura','novedad'].includes(estadoParque);
+
+    if(!tieneHallazgoAbierto && !enTallerOTaller) return null;
+
+    return {
+        placa: carroza.placa,
+        regional: carroza.regional || carroza.sede_parque_automotor || '',
+        clasificacion: carroza.ultimo_hallazgo_clasificacion || (enTallerOTaller ? (carroza.estado_parque_automotor || 'Novedad') : 'Novedad'),
+        detalle: carroza.historial_novedad_completa || carroza.ultimo_hallazgo_detalle || carroza.observaciones || 'Sin detalle registrado',
+        fecha: carroza.ultimo_hallazgo_fecha || carroza.historial_fecha || '',
+        taller: carroza.historial_taller_nombre || carroza.sede_parque_automotor || '',
+        estadoHallazgo: carroza.ultimo_hallazgo_estado || carroza.estado_parque_automotor || '',
+        diasEnTaller: carroza.dias_en_taller_parque || '',
+        pendiente: tieneHallazgoAbierto,
+    };
+}
+
+/* ==========================================================================
+   SOLICITUDES DE APOYO — esquema tolerante (ver campoFlexible arriba)
+   ========================================================================== */
+function solicitudCampos(s){
+    return {
+        regional:  campoFlexible(s, ['regional']),
+        conductor: campoFlexible(s, ['conductor','solicitante','remitente','nombre']),
+        placa:     campoFlexible(s, ['placa']),
+        motivo:    campoFlexible(s, ['motivo','tipo_apoyo','tipoapoyo','descripcion','detalle','observaciones','cuerpo','titulo']),
+        fecha:     campoFlexible(s, ['fecha','fecha_solicitud','created_at']),
+        hora:      campoFlexible(s, ['hora','hora_solicitud','hora_salida']),
+        estadoRaw: campoFlexible(s, ['estado','status','atendida','atendido','resuelta','resuelto']),
+    };
+}
+function solicitudPendiente(s){
+    const { estadoRaw } = solicitudCampos(s);
+    if(!estadoRaw) return true; // sin dato de estado -> se asume pendiente por seguridad
+    const v = norm(estadoRaw);
+    const resueltos = ['si','sí','true','atendida','atendido','resuelta','resuelto','cerrada','cerrado','completada','completado','1','ok'];
+    return !resueltos.includes(v);
+}
+function solicitudesOrdenadas(){
+    return [...SOLICITUDES].sort((a,b)=>{
+        const fa = solicitudCampos(a).fecha, fb = solicitudCampos(b).fecha;
+        return String(fb||'').localeCompare(String(fa||''));
+    });
+}
+
+/* ==========================================================================
+   CARGA DE DATOS
+   ========================================================================== */
+async function cargarDatos(){
+    await DB.prefetch('carrozas','Traslado','Averias','mantenimientos','Tanqueo','Checklist_Salida','solicitud_apoyo');
+
+    const [flotaRes, trasladosRes, averiasRes, mantRes, tanqueosRes, checklistRes, solicitudesRes, auxiliaresRes] = await Promise.all([
+        DB.obtenerFlota(),
+        DB.obtenerTrasladosRecientes(1000),
+        DB.obtenerTodasAverias(500),
+        DB.obtenerMantenimientos(1000),
+        DB.obtenerTanqueos(1000),
+        DB.supabase.from('Checklist_Salida').select(),
+        DB.supabase.from('solicitud_apoyo').select(),
+        DB.obtenerPlacasConTrasladoActivo(),
+    ]);
+
+    FLOTA          = normalizarFechas(flotaRes.data || [], ['doc_fecha_proximo_vencer','ultimo_hallazgo_fecha','historial_fecha']);
+    TRASLADOS      = normalizarHoras(normalizarFechas(trasladosRes.data || [], ['fecha']), ['hora_de_salida']);
+    AVERIAS        = averiasRes.data || [];
+    MANTENIMIENTOS = normalizarFechas(mantRes.data || [], ['fecha']);
+    TANQUEOS       = normalizarFechas(tanqueosRes.data || [], ['FECHA']);
+    CHECKLISTS     = normalizarHoras(normalizarFechas((checklistRes && checklistRes.data) || [], ['FECHA']), ['HORA_SALIDA','HORA_ENTRADA']);
+    SOLICITUDES    = (solicitudesRes && solicitudesRes.data) || [];
+    AUXILIARES     = (auxiliaresRes && auxiliaresRes.ok) ? (auxiliaresRes.data || []) : [];
+
+    ESTADOS_VEHICULO = await Promise.all(
+        FLOTA.map(c => DB.obtenerEstadoCarroza(c.placa).catch(()=>({ok:false})))
+    );
+}
+
+/* ==========================================================================
+   KPIs NACIONALES
+   ========================================================================== */
+function calcularKPIs(){
+    const hoy = hoyDDMMAAAA();
+
+    const total       = FLOTA.length;
+    const disponibles = FLOTA.filter(c => normEstado(c.estado)==='disponible').length;
+    const enServicio  = FLOTA.filter(c => normEstado(c.estado)==='en servicio').length;
+    const enTaller    = FLOTA.filter(c => normEstado(c.estado)==='en taller').length;
+
+    const averiasActivasFlota = FLOTA.map(averiaActivaDeCarroza).filter(Boolean);
+    const trasladosHoy = TRASLADOS.filter(t => t.fecha === hoy).length;
+    const novedadesChecklist = checklistsConNovedad().length;
+    const solicitudesPendientes = SOLICITUDES.filter(solicitudPendiente).length;
+
+    const regionalesActivas = new Set(FLOTA.map(c => c.regional).filter(Boolean)).size;
+
+    return {
+        total, disponibles, enServicio, enTaller,
+        averiasActivas: averiasActivasFlota.length,
+        trasladosHoy, novedadesChecklist,
+        solicitudesPendientes, solicitudesTotal: SOLICITUDES.length,
+        auxiliaresEnRuta: AUXILIARES.length,
+        regionalesActivas,
+        alertasCriticas: averiasActivasFlota.length + novedadesChecklist + solicitudesPendientes,
+    };
+}
+
+const KPI_DEFS = (k)=> [
+    {label:'Regionales con carrozas activas', value:k.regionalesActivas, icon:'🌎'},
+    {label:'Total de carrozas', value:k.total, icon:'🚐'},
+    {label:'Disponibles', value:k.disponibles, icon:'✅'},
+    {label:'En servicio', value:k.enServicio, icon:'🛣️'},
+    {label:'En taller', value:k.enTaller, icon:'🔧'},
+    {label:'Auxiliares en ruta', value:k.auxiliaresEnRuta, icon:'🧑‍✈️'},
+    {label:'Solicitudes de apoyo pendientes', value:k.solicitudesPendientes, icon:'🆘'},
+    {label:'Averías activas', value:k.averiasActivas, icon:'⚠️'},
+    {label:'Novedades en checklist', value:k.novedadesChecklist, icon:'📝'},
+    {label:'Traslados hoy', value:k.trasladosHoy, icon:'🏁'},
+];
+
+function renderKPIs(kpis){
+    const grid = document.getElementById('kpiGrid');
+    grid.innerHTML = '';
+    KPI_DEFS(kpis).forEach(k=>{
+        const chip = document.createElement('div');
+        chip.className = 'kpi-chip';
+        chip.innerHTML = `
+            <div class="kpi-top-row"><span class="ic">${k.icon}</span></div>
+            <div class="val">${fmtNum(k.value)}</div>
+            <div class="lbl">${k.label}</div>`;
+        grid.appendChild(chip);
+    });
+}
+
+function renderControlCenter(kpis){
+    document.getElementById('ccDisponibles').textContent = kpis.disponibles;
+    document.getElementById('ccServicio').textContent = kpis.enServicio;
+    document.getElementById('ccTaller').textContent = kpis.enTaller;
+    document.getElementById('ccAuxiliares').textContent = kpis.auxiliaresEnRuta;
+    document.getElementById('ccSolicitudes').textContent = kpis.solicitudesPendientes;
+    document.getElementById('ccAlertas').textContent = kpis.alertasCriticas;
+    document.getElementById('ccAlertTxt').textContent = `${kpis.alertasCriticas} alertas críticas`;
+
+    const badgeAlertas = document.getElementById('badge-alertas');
+    if (kpis.alertasCriticas > 0) { badgeAlertas.style.display='flex'; badgeAlertas.innerText = kpis.alertasCriticas; }
+    else { badgeAlertas.style.display='none'; }
+
+    const badgeAverias = document.getElementById('badge-averias');
+    if (kpis.averiasActivas > 0) { badgeAverias.style.display='flex'; badgeAverias.innerText = kpis.averiasActivas; }
+    else { badgeAverias.style.display='none'; }
+
+    const badgeSolicitudes = document.getElementById('badge-solicitudes');
+    if (kpis.solicitudesPendientes > 0) { badgeSolicitudes.style.display='flex'; badgeSolicitudes.innerText = kpis.solicitudesPendientes; }
+    else { badgeSolicitudes.style.display='none'; }
+
+    const badgeChecklist = document.getElementById('badge-checklist');
+    if (kpis.novedadesChecklist > 0) { badgeChecklist.style.display='flex'; badgeChecklist.innerText = kpis.novedadesChecklist; }
+    else { badgeChecklist.style.display='none'; }
+}
+
+/* ==========================================================================
+   LISTAS DE MONITOREO (resumen en tarjetas + modal "VER TODO")
+   ========================================================================== */
+function renderListas(){
+    // 1) Auxiliares en servicio
+    const tAux = document.getElementById('tabla-auxiliares');
+    const auxOrdenados = [...AUXILIARES].sort((a,b)=> String(b.fecha||'').localeCompare(String(a.fecha||'')));
+    tAux.innerHTML = auxOrdenados.length ? auxOrdenados.slice(0,6).map(a => `
+        <tr><td><b>${a.conductor||'—'}</b><br><small>${a.placa||'—'} · ${a.regional||'Sin regional'}</small></td>
+        <td style="text-align:right; font-size:11px;">${a.origen||'—'} ➔ ${a.destino||'—'}<br><small style="color:var(--gris);">${fmtHoraCorta(a.hora_de_salida)||''}</small></td></tr>`).join('')
+        : '<tr><td style="text-align:center;">Sin auxiliares con traslado activo en este momento.</td></tr>';
+
+    // 2) Solicitudes de apoyo
+    const tSol = document.getElementById('tabla-solicitudes');
+    const solOrdenadas = solicitudesOrdenadas();
+    tSol.innerHTML = solOrdenadas.length ? solOrdenadas.slice(0,6).map(s => {
+        const c = solicitudCampos(s);
+        const pendiente = solicitudPendiente(s);
+        return `<tr><td><b>${c.conductor||c.placa||'Solicitud'}</b><br><small>${c.motivo||'Sin detalle'}</small></td>
+        <td style="text-align:right;">
+            <span class="status-pill ${pendiente ? 'pill-pendiente' : 'pill-atendida'}">${pendiente ? 'PENDIENTE' : 'ATENDIDA'}</span>
+            <br><small style="color:var(--gris);">${c.regional||'Sin regional'}${c.fecha ? ' · '+c.fecha : ''}</small>
+        </td></tr>`;
+    }).join('') : '<tr><td style="text-align:center;">Sin solicitudes de apoyo registradas.</td></tr>';
+
+    // 3) Averías en curso
+    const averiasActivas = FLOTA.map(averiaActivaDeCarroza).filter(Boolean).slice(0,6);
+    const tAv = document.getElementById('tabla-averias');
+    tAv.innerHTML = averiasActivas.length ? averiasActivas.map(av => `
+        <tr><td><b>${av.placa||'—'}</b><br><small>${av.clasificacion||'—'}${av.regional ? ' · '+av.regional : ''}</small></td>
+        <td style="text-align:right; font-size:11px;">${av.fecha || '—'}<br><small style="color:var(--gris);">${av.pendiente ? 'Pendiente' : (av.estadoHallazgo||'')}</small></td></tr>`).join('')
+        : '<tr><td style="text-align:center;">Sin averías reportadas en ninguna regional.</td></tr>';
+
+    // 4) Novedades en checklist
+    const tCk = document.getElementById('tabla-checklist');
+    const checklistsNov = checklistsConNovedad().slice(0,6);
+    tCk.innerHTML = checklistsNov.length ? checklistsNov.map(({registro, novedades}) => `
+        <tr><td><b>${registro.PLACA||'—'}</b><br><small>${novedades.map(n=>n.campo+': '+n.valor).join(', ')}</small></td>
+        <td style="text-align:right; font-size:11px;">${registro.FECHA || '—'}<br><small style="color:var(--gris);">${registro.CONDUCTOR||''}</small></td></tr>`).join('')
+        : '<tr><td style="text-align:center;">Sin novedades pendientes en checklists recientes.</td></tr>';
+
+    // 5) Traslados recientes
+    const trasladosRec = [...TRASLADOS].sort((a,b)=>(parseDDMMAAAA(b.fecha)||0)-(parseDDMMAAAA(a.fecha)||0)).slice(0,6);
+    const tTr = document.getElementById('tabla-traslados');
+    tTr.innerHTML = trasladosRec.length ? trasladosRec.map(tr => `
+        <tr><td><b>${tr.placa||'—'}</b><br><small>${tr.regional||'Sin regional'}</small></td>
+        <td style="text-align:right; font-size:11px;">${tr.origen||'—'} ➔ ${tr.destino||'—'}<br><small style="color:var(--gris);">${tr.conductor||''}</small></td></tr>`).join('')
+        : '<tr><td style="text-align:center;">Sin traslados recientes.</td></tr>';
+}
+
+/* ==========================================================================
+   FLOTA — lista con combustible + búsqueda (todas las regionales)
+   ========================================================================== */
+function fuelPillFromEstado(est){
+    if(!est || !est.ok || est.porcentaje_combustible == null){
+        return `<small style="color:#94a3b8;">⛽ sin registro</small>`;
+    }
+    const pct = est.porcentaje_combustible;
+    const color = pct <= 25 ? '#ef4444' : (pct <= 50 ? '#f59e0b' : '#10b981');
+    return `<div class="fuel-wrap">
+        <span class="fuel-pct" style="color:${color};">⛽ ${pct}%</span>
+        <div class="fuel-bar-mini"><div class="fuel-fill" style="width:${pct}%; background:${color};"></div></div>
+    </div>`;
+}
+
+function contarMovimientos(placa){
+    const pSel = String(placa||'').toUpperCase();
+    return TRASLADOS.filter(t => String(t.placa||'').toUpperCase() === pSel).length;
+}
+
+function renderFlota(filtro){
+    filtro = norm(filtro || '');
+    const list = document.getElementById('fleetList');
+    const btnToggle = document.getElementById('btnToggleFlota');
+
+    let filas = FLOTA.map((c, i) => ({ c, est: ESTADOS_VEHICULO[i] || {} }))
+        .filter(({c}) => !filtro || norm(c.placa).includes(filtro) || norm(c.regional).includes(filtro) || norm(c.estado).includes(filtro));
+
+    filas = filas
+        .map(f => ({...f, movimientos: contarMovimientos(f.c.placa)}))
+        .sort((a,b)=> b.movimientos - a.movimientos);
+
+    if(!filas.length){
+        list.innerHTML = '<div class="fleet-empty">No se encontraron carrozas.</div>';
+        btnToggle.style.display = 'none';
+        return;
+    }
+
+    const haySearch = !!filtro;
+    const mostrarTodas = fleetExpanded || haySearch;
+    const filasAMostrar = mostrarTodas ? filas : filas.slice(0, 10);
+
+    list.innerHTML = filasAMostrar.map(({c, est}) => `
+        <div class="fleet-row" onclick="abrirPanelCarroza('${(c.placa||'').replace(/'/g,"")}')">
+            <div class="fleet-left">
+                <b>${c.placa || '—'}</b>
+                <div class="sub">${c.regional || 'Sin regional'} · ${fmtNum(c.kilometraje_actual)} km</div>
+            </div>
+            <div class="fleet-right">
+                ${estadoPill(c.estado)}
+                ${fuelPillFromEstado(est)}
+            </div>
+        </div>`).join('');
+
+    if(haySearch || filas.length <= 10){
+        btnToggle.style.display = 'none';
+    } else {
+        btnToggle.style.display = 'block';
+        btnToggle.textContent = fleetExpanded ? '▲ Ver solo las 10 más movidas' : `▼ Ver todas las carrozas (${filas.length})`;
+    }
+}
+
+function toggleFlotaExpandida(){
+    fleetExpanded = !fleetExpanded;
+    renderFlota(document.getElementById('fleetSearch').value);
+}
+
+function setupFleetSearch(){
+    document.getElementById('fleetSearch').addEventListener('input', (e)=> renderFlota(e.target.value));
+}
+
+/* ==========================================================================
+   MODALES "VER TODO"
+   ========================================================================== */
+function abrirModalLista(titulo, subtitulo, filasHtml){
+    document.getElementById('push-titulo-txt').textContent = titulo;
+    let html = '';
+    if(subtitulo) html += `<div style="font-size:11.5px;color:#64748b;margin-bottom:14px;">${subtitulo}</div>`;
+    html += filasHtml;
+    document.getElementById('push-alertas-body').innerHTML = html;
+    document.getElementById('push-overlay').classList.add('visible');
+    document.getElementById('push-notif').classList.add('visible');
+}
+
+function mostrarAuxiliares(){
+    const lista = [...AUXILIARES].sort((a,b)=> String(b.fecha||'').localeCompare(String(a.fecha||'')));
+    const filas = !lista.length
+        ? '<div class="push-empty-alert">No hay auxiliares con traslado activo en este momento. ✅</div>'
+        : `<div class="push-alert-section"><ul>${lista.map(a => `
+            <li>
+                <div style="display:flex;justify-content:space-between;gap:8px;">
+                    <b style="color:#f1f5f9;">${a.conductor || 'Sin conductor asignado'}</b>
+                    <span style="color:#94a3b8;font-size:11px;">${a.regional || 'Sin regional'}</span>
+                </div>
+                <div style="margin-top:3px;">${a.placa || '—'} · ${a.origen||'—'} ➔ ${a.destino||'—'}</div>
+                <div style="margin-top:3px;color:#94a3b8;">${a.fecha||''} ${fmtHoraCorta(a.hora_de_salida)||''}${a.motivo_de_salida ? ' · '+a.motivo_de_salida : ''}</div>
+            </li>`).join('')}</ul></div>`;
+    abrirModalLista('Auxiliares en Servicio Ahora', `${lista.length} traslado(s) activo(s) — todas las regionales`, filas);
+}
+
+function mostrarSolicitudes(){
+    const lista = solicitudesOrdenadas();
+    const filas = !lista.length
+        ? '<div class="push-empty-alert">No hay solicitudes de apoyo registradas.</div>'
+        : `<div class="push-alert-section"><ul>${lista.map(s => {
+            const c = solicitudCampos(s);
+            const pendiente = solicitudPendiente(s);
+            return `<li>
+                <div style="display:flex;justify-content:space-between;gap:8px;">
+                    <b style="color:#f1f5f9;">${c.conductor || c.placa || 'Solicitud'}</b>
+                    <span style="color:${pendiente ? '#fca5a5' : '#86efac'};font-size:11px;font-weight:800;text-transform:uppercase;">${pendiente ? 'PENDIENTE' : 'ATENDIDA'}</span>
+                </div>
+                <div style="margin-top:3px;">${c.regional || 'Sin regional'}${c.placa ? ' · '+c.placa : ''}${c.fecha ? ' · '+c.fecha : ''}${c.hora ? ' '+c.hora : ''}</div>
+                <div style="margin-top:3px;color:#94a3b8;">${c.motivo || 'Sin detalle registrado'}</div>
+            </li>`;
+        }).join('')}</ul></div>`;
+    abrirModalLista('Solicitudes de Apoyo — Todas las Regionales', `${lista.length} solicitud(es) registradas`, filas);
+}
+
+function mostrarAverias(){
+    const averiasParque = FLOTA.map(averiaActivaDeCarroza).filter(Boolean);
+    const filas = !averiasParque.length
+        ? '<div class="push-empty-alert">No hay averías activas en ninguna regional en este momento. ✅</div>'
+        : `<div class="push-alert-section"><ul>${averiasParque.map(a => `
+            <li>
+                <div style="display:flex;justify-content:space-between;gap:8px;">
+                    <b style="color:#f1f5f9;">${a.placa}</b>
+                    <span style="color:${a.pendiente ? '#fca5a5' : '#94a3b8'};font-size:11px;font-weight:800;text-transform:uppercase;">${a.pendiente ? 'PENDIENTE' : (a.estadoHallazgo||'')}</span>
+                </div>
+                <div style="margin-top:3px;">${a.clasificacion || 'Novedad'}${a.regional ? ' · '+a.regional : ''}${a.fecha ? ' · '+a.fecha : ''}</div>
+                <div style="margin-top:3px;color:#94a3b8;">${a.detalle || ''}</div>
+            </li>`).join('')}</ul></div>`;
+    abrirModalLista('Averías en Curso — Todas las Regionales', `${averiasParque.length} carroza(s) con novedad activa`, filas);
+}
+
+function mostrarNovedadesChecklist(){
+    const pendientes = checklistsConNovedad();
+    const filas = !pendientes.length
+        ? '<div class="push-empty-alert">No hay novedades en checklists de entrega en ninguna regional. ✅</div>'
+        : `<div class="push-alert-section"><ul>${pendientes.map(({registro, novedades}) => `
+            <li>
+                <div style="display:flex;justify-content:space-between;gap:8px;">
+                    <b style="color:#f1f5f9;">${registro.PLACA || '—'}</b>
+                    <span style="color:#94a3b8;font-size:11px;">${registro.FECHA || '—'}${registro.HORA_SALIDA ? ' · '+registro.HORA_SALIDA : ''}</span>
+                </div>
+                <div style="margin-top:3px;">${novedades.map(n => `${n.campo}: <b style="color:#fcd34d;">${n.valor}</b>`).join(' · ')}</div>
+                <div style="margin-top:3px;color:#94a3b8;">${registro.CONDUCTOR ? 'Conductor: '+registro.CONDUCTOR : ''}</div>
+            </li>`).join('')}</ul></div>`;
+    abrirModalLista('Novedades en Entrega de Vehículos — Todas las Regionales', `${pendientes.length} pendiente(s) por resolver`, filas);
+}
+
+function mostrarTraslados(){
+    const total = TRASLADOS.length;
+    const cap = 150;
+    const lista = [...TRASLADOS].sort((a,b)=> (parseDDMMAAAA(b.fecha)||0) - (parseDDMMAAAA(a.fecha)||0)).slice(0, cap);
+
+    const filas = !lista.length
+        ? '<div class="push-empty-alert">Sin traslados registrados.</div>'
+        : `<div class="push-alert-section"><ul>${lista.map(t => `
+            <li>
+                <div style="display:flex;justify-content:space-between;gap:8px;">
+                    <b style="color:#f1f5f9;">${t.placa || '—'}</b>
+                    <span style="color:#94a3b8;font-size:11px;">${t.fecha || '—'}${t.hora_de_salida ? ' · '+fmtHoraCorta(t.hora_de_salida) : ''}</span>
+                </div>
+                <div style="margin-top:3px;">${t.origen || '—'} ➔ ${t.destino || '—'}</div>
+                <div style="margin-top:3px;color:#94a3b8;">${t.regional || 'Sin regional'}${t.conductor ? ' · '+t.conductor : ''}</div>
+            </li>`).join('')}</ul></div>`;
+
+    abrirModalLista('Traslados Recientes — Todas las Regionales', `${total} traslado(s) registrados${total > cap ? ` · mostrando los ${cap} más recientes` : ''}`, filas);
+}
+
+function mostrarAlertas(){
+    document.getElementById('push-titulo-txt').textContent = 'Alertas Críticas';
+    const averiasParque = FLOTA.map(averiaActivaDeCarroza).filter(Boolean);
+    const novedadesChecklist = checklistsConNovedad();
+    const solicitudesPend = SOLICITUDES.filter(solicitudPendiente);
+
+    let html = '';
+    if(averiasParque.length){
+        html += `<div class="push-alert-section"><h4>Averías / novedades activas (${averiasParque.length})</h4><ul>${averiasParque.map(a=>`<li><b>${a.placa}</b> — ${a.clasificacion}${a.regional ? ' · '+a.regional : ''}</li>`).join('')}</ul></div>`;
+    }
+    if(solicitudesPend.length){
+        html += `<div class="push-alert-section"><h4>Solicitudes de apoyo pendientes (${solicitudesPend.length})</h4><ul>${solicitudesPend.map(s=>{ const c = solicitudCampos(s); return `<li><b>${c.conductor||c.placa||'Solicitud'}</b> — ${c.regional||'Sin regional'}</li>`; }).join('')}</ul></div>`;
+    }
+    if(novedadesChecklist.length){
+        html += `<div class="push-alert-section"><h4>Novedades en checklist de entrega (${novedadesChecklist.length})</h4><ul>${novedadesChecklist.map(({registro, novedades})=>`<li><b>${registro.PLACA||'—'}</b> — ${novedades.map(n=>n.campo+': '+n.valor).join(', ')}</li>`).join('')}</ul></div>`;
+    }
+    if(!averiasParque.length && !solicitudesPend.length && !novedadesChecklist.length){
+        html = '<div class="push-empty-alert">No hay alertas críticas en ninguna regional en este momento. ✅</div>';
+    }
+
+    document.getElementById('push-alertas-body').innerHTML = html;
+    document.getElementById('push-overlay').classList.add('visible');
+    document.getElementById('push-notif').classList.add('visible');
+}
+function cerrarPush(){
+    document.getElementById('push-overlay').classList.remove('visible');
+    document.getElementById('push-notif').classList.remove('visible');
+}
+
+/* ==========================================================================
+   PANEL INDIVIDUAL DE CADA CARROZA (bottom sheet) — igual a panel_automotor.html
+   ========================================================================== */
+function documentoMasUrgente(carroza){
+    // Versión simplificada (sin cruce con Inspeccion_Vehiculo, que este
+    // panel no carga) — usa solo los campos que ya vienen en "carrozas".
+    if(!carroza.doc_fecha_proximo_vencer) return null;
+    const dias = parseFloat(carroza.doc_dias_para_vencer);
+    return {
+        tipo: carroza.doc_tipo_proximo_vencer || 'Documento',
+        fecha: carroza.doc_fecha_proximo_vencer,
+        dias: isNaN(dias) ? null : dias,
+    };
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   🆕 HISTORIAL COMPLETO POR CARROZA (traslados y checklists) — con foto y
+   firma. Copiado de panel_automotor.html para que el panel nacional tenga
+   la misma vista de detalle que el de parque automotor: estas funciones
+   NO tocan las secciones/badges existentes, solo agregan la vista de
+   historial completo agrupado por mes, con imágenes y firma tal como
+   vienen guardadas en la hoja de cálculo (columnas imagen1..imagen4 y
+   firma en "Traslado"; FIRMA_CONDUCTOR en "Checklist_Salida").
+   ══════════════════════════════════════════════════════════════════════ */
+function agruparPorMes(lista, campoFecha){
+    const grupos = {};
+    lista.forEach(item=>{
+        const d = parseDDMMAAAA(item[campoFecha]);
+        if(!d) return;
+        const key = d.toLocaleDateString('es-CO',{month:'long', year:'numeric'});
+        if(!grupos[key]) grupos[key] = [];
+        grupos[key].push(item);
+    });
+    return grupos;
+}
+function capitalizar(str){
+    str = String(str||'');
+    return str.charAt(0).toUpperCase() + str.slice(1);
+}
+// 🆕 Google Drive últimamente devuelve 403 Forbidden en varias fotos
+// cuando se usan como <img src="https://drive.google.com/uc?id=...">.
+// Se prueban automáticamente otros 2 formatos de URL de Drive, y si
+// ninguno carga, se muestra un enlace "Ver en Drive" en vez de dejar
+// el espacio en blanco (ver comentario completo en panel_automotor.html).
+function extraerIdDrive(url){
+    if (!url) return null;
+    const patrones = [/[?&]id=([a-zA-Z0-9_-]{15,})/, /\/file\/d\/([a-zA-Z0-9_-]{15,})/, /\/d\/([a-zA-Z0-9_-]{15,})/];
+    for (const p of patrones) {
+        const m = String(url).match(p);
+        if (m) return m[1];
+    }
+    return null;
+}
+function probarFormatoAlternoImagen(img){
+    const id = img.dataset.driveId;
+    if (!id) { reemplazarPorEnlaceDrive(img); return; }
+    const intento = parseInt(img.dataset.intento || '0', 10) + 1;
+    img.dataset.intento = intento;
+    const formatos = [
+        `https://drive.google.com/thumbnail?id=${id}&sz=w1000`,
+        `https://drive.google.com/uc?export=view&id=${id}`,
+    ];
+    if (intento <= formatos.length) {
+        img.src = formatos[intento - 1];
+    } else {
+        reemplazarPorEnlaceDrive(img);
+    }
+}
+function reemplazarPorEnlaceDrive(img){
+    const enlace = img.dataset.enlace;
+    const w = img.style.width || '54px', h = img.style.height || '54px';
+    const a = document.createElement('a');
+    a.href = enlace; a.target = '_blank'; a.rel = 'noopener';
+    a.style.cssText = `display:flex;align-items:center;justify-content:center;width:${w};height:${h};border:1px dashed #475569;border-radius:8px;color:#93c5fd;font-size:9px;text-align:center;text-decoration:none;padding:2px;`;
+    a.textContent = '📂 Ver en Drive';
+    if (img.parentNode) img.parentNode.replaceChild(a, img);
+}
+function imagenAdjunta(src, alto){
+    if(!src) return '';
+    const h = alto || 54;
+    const id = extraerIdDrive(src);
+    const primerIntento = id ? `https://lh3.googleusercontent.com/d/${id}=w1000` : src;
+    const enlaceDrive = id ? `https://drive.google.com/file/d/${id}/view` : src;
+    return `<img src="${primerIntento}" data-drive-id="${id||''}" data-enlace="${enlaceDrive}" data-intento="0" loading="lazy" style="width:${h}px;height:${h}px;object-fit:cover;border-radius:8px;border:1px solid #1e293b;cursor:pointer;" onclick="window.open(this.dataset.enlace,'_blank')" onerror="probarFormatoAlternoImagen(this)">`;
+}
+function firmaAdjunta(src){
+    if(!src) return '';
+    const id = extraerIdDrive(src);
+    const primerIntento = id ? `https://lh3.googleusercontent.com/d/${id}=w1000` : src;
+    const enlaceDrive = id ? `https://drive.google.com/file/d/${id}/view` : src;
+    return `<div style="margin-top:6px;"><span style="font-size:10px;color:#64748b;text-transform:uppercase;font-weight:700;">Firma</span><br>
+        <img src="${primerIntento}" data-drive-id="${id||''}" data-enlace="${enlaceDrive}" data-intento="0" loading="lazy" style="max-width:130px;max-height:52px;border-radius:6px;border:1px solid #1e293b;background:#fff;cursor:pointer;margin-top:3px;" onclick="window.open(this.dataset.enlace,'_blank')" onerror="probarFormatoAlternoImagen(this)"></div>`;
+}
+function filaDato(label, valor){
+    if(valor === null || valor === undefined || String(valor).trim() === '') return '';
+    return `<div class="tf-row"><span class="tf-lbl">${label}</span><span class="tf-val">${valor}</span></div>`;
+}
+function pillSiNo(valor){
+    const esSi = ['si','sí','true','1','x'].includes(norm(valor));
+    const esNo = ['no','false','0'].includes(norm(valor));
+    if(!esSi && !esNo) return '<span style="color:#64748b;font-size:11px;">Sin registro</span>';
+    return `<span style="font-weight:800;font-size:11px;color:${esSi ? '#34d399' : '#fca5a5'};">${esSi ? '✅ Sí' : '❌ No'}</span>`;
+}
+function imagenesTraslado(t){
+    const campos = ['imagen1','imagen2','imagen3','imagen4'];
+    const imgs = campos.map(c=>t[c]).filter(Boolean);
+    let html = '';
+    if(imgs.length){
+        html += `<div class="tf-block"><div class="tf-block-title">Fotos (${imgs.length})</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">${imgs.map(src=>imagenAdjunta(src, 64)).join('')}</div></div>`;
+    }
+    if(t.firma){
+        html += `<div class="tf-block">${firmaAdjunta(t.firma)}</div>`;
+    }
+    return html;
+}
+// 🆕 Muestra el detalle COMPLETO (con fotos y firma) de UN solo traslado,
+// bajo demanda al hacer click — evita cargar de una vez las fotos de
+// varios traslados cuando se abre el panel de la carroza.
+function mostrarFichaTrasladoUnico(placa, idSalida, fecha, hora){
+    let t = null;
+    if (idSalida) {
+        t = TRASLADOS.find(x => String(x.placa||'').toUpperCase() === placa.toUpperCase() && String(x.id_salida||'') === String(idSalida));
+    }
+    if (!t) {
+        t = TRASLADOS.find(x => String(x.placa||'').toUpperCase() === placa.toUpperCase() && x.fecha === fecha && x.hora_de_salida === hora);
+    }
+    document.getElementById('push-titulo-txt').textContent = `Traslado — ${placa}${fecha ? ' · '+fecha : ''}`;
+    document.getElementById('push-alertas-body').innerHTML = t
+        ? fichaTraslado(t)
+        : '<div class="push-empty-alert">No se encontró el detalle de este traslado.</div>';
+    document.getElementById('push-overlay').classList.add('visible');
+    document.getElementById('push-notif').classList.add('visible');
+}
+function fichaTraslado(t){
+    const numTel = t.num_telefono || t.numero_telefono || t.nnum_telefono || t.telefono || '';
+    const kmSalida  = (t.km__salida ?? t.km_salida ?? '') !== '' ? (t.km__salida ?? t.km_salida) : '';
+    const kmIngreso = (t.km__ingreso ?? t.km_ingreso ?? '') !== '' ? (t.km__ingreso ?? t.km_ingreso) : '';
+    const totalKm   = t.total_km ?? '';
+
+    return `<div class="traslado-ficha">
+        <div style="display:flex;justify-content:space-between;gap:8px;">
+            <b style="color:#f1f5f9;font-size:13.5px;">${t.fecha || '—'}${t.hora_de_salida ? ' · Salida '+fmtHoraCorta(t.hora_de_salida) : ''}</b>
+            <span style="color:#94a3b8;font-size:11px;">${t.hora_de_ingreso ? 'Ingreso '+fmtHoraCorta(t.hora_de_ingreso) : ''}</span>
+        </div>
+
+        <div style="margin-top:5px;font-size:13px;color:#e2e8f0;font-weight:700;">${t.origen || '—'} ➔ ${t.destino || '—'}</div>
+        ${t.motivo_de_salida ? `<div style="margin-top:2px;color:#94a3b8;font-size:12px;">${t.motivo_de_salida}</div>` : ''}
+
+        ${(t.nombre_del_fallecido || t.clinica_hospital_o_rsd || t.numero_prestacion) ? `
+        <div class="tf-block">
+            <div class="tf-block-title">Servicio funerario</div>
+            ${filaDato('Fallecido(a)', t.nombre_del_fallecido)}
+            ${filaDato('Clínica / Hospital / RSD', t.clinica_hospital_o_rsd)}
+            ${filaDato('N.° de prestación', t.numero_prestacion)}
+        </div>` : ''}
+
+        <div class="tf-block">
+            <div class="tf-block-title">Personal</div>
+            ${filaDato('Conductor', t.conductor)}
+            ${filaDato('Teléfono', numTel)}
+            ${filaDato('Regional', t.regional)}
+            ${filaDato('Coordinador en turno', t.coordinador_en_turno)}
+        </div>
+
+        <div class="tf-block">
+            <div class="tf-block-title">Kilometraje</div>
+            ${filaDato('Km salida', kmSalida !== '' ? fmtNum(kmSalida)+' km' : '')}
+            ${filaDato('Km ingreso', kmIngreso !== '' ? fmtNum(kmIngreso)+' km' : '')}
+            ${filaDato('Total recorrido', totalKm !== '' ? fmtNum(totalKm)+' km' : '')}
+            <div class="tf-row"><span class="tf-lbl">Kit de carretera</span><span class="tf-val">${pillSiNo(t.kit_carretera)}</span></div>
+        </div>
+
+        ${t.observaciones ? `<div class="tf-block">
+            <div class="tf-block-title">Observaciones</div>
+            <div style="color:#cbd5e1;font-size:12px;">${t.observaciones}</div>
+        </div>` : ''}
+
+        ${imagenesTraslado(t)}
+    </div>`;
+}
+function mostrarHistorialTrasladosCarroza(placa){
+    const lista = TRASLADOS.filter(t => String(t.placa||'').toUpperCase() === placa.toUpperCase())
+        .sort((a,b)=> (parseDDMMAAAA(b.fecha)||0) - (parseDDMMAAAA(a.fecha)||0));
+    const grupos = agruparPorMes(lista, 'fecha');
+    const meses = Object.keys(grupos);
+
+    let html;
+    if(!lista.length){
+        html = '<div class="push-empty-alert">Sin traslados registrados para esta carroza.</div>';
+    } else {
+        html = meses.map(mes => `
+            <div class="push-alert-section">
+                <h4 style="color:#93c5fd;">${capitalizar(mes)} (${grupos[mes].length})</h4>
+                ${grupos[mes].map(t => fichaTraslado(t)).join('')}
+            </div>`).join('');
+    }
+
+    document.getElementById('push-titulo-txt').textContent = `Historial de Traslados — ${placa}`;
+    document.getElementById('push-alertas-body').innerHTML = `<div style="font-size:11.5px;color:#64748b;margin-bottom:14px;">${lista.length} traslado(s) en total</div>${html}`;
+    document.getElementById('push-overlay').classList.add('visible');
+    document.getElementById('push-notif').classList.add('visible');
+}
+function mostrarHistorialChecklistCarroza(placa){
+    const lista = CHECKLISTS.filter(c => String(c.PLACA||'').toUpperCase() === placa.toUpperCase())
+        .sort((a,b)=> (parseDDMMAAAA(b.FECHA)||0) - (parseDDMMAAAA(a.FECHA)||0));
+    const grupos = agruparPorMes(lista, 'FECHA');
+    const meses = Object.keys(grupos);
+
+    let html;
+    if(!lista.length){
+        html = '<div class="push-empty-alert">Sin checklists de entrega registrados para esta carroza.</div>';
+    } else {
+        html = meses.map(mes => `
+            <div class="push-alert-section">
+                <h4 style="color:#93c5fd;">${capitalizar(mes)} (${grupos[mes].length})</h4>
+                <ul>${grupos[mes].map(c => {
+                    const nov = novedadesDeChecklist(c);
+                    return `<li>
+                        <div style="display:flex;justify-content:space-between;gap:8px;">
+                            <b style="color:#f1f5f9;">${c.FECHA || '—'}${c.HORA_SALIDA ? ' · '+c.HORA_SALIDA : ''}</b>
+                            <span style="color:#94a3b8;font-size:11px;">${c.CONDUCTOR||'—'}</span>
+                        </div>
+                        <div style="margin-top:3px;">${c.TIPO_DE_SERVICIO||'—'}${nov.length ? ' · <span style=\"color:#fcd34d;\">⚠️ '+nov.map(n=>n.campo+': '+n.valor).join(', ')+'</span>' : ''}</div>
+                        ${c.OBSERVACIONES ? `<div style="margin-top:3px;color:#94a3b8;">${c.OBSERVACIONES}</div>` : ''}
+                        ${firmaAdjunta(c.FIRMA_CONDUCTOR)}
+                    </li>`;
+                }).join('')}</ul>
+            </div>`).join('');
+    }
+
+    document.getElementById('push-titulo-txt').textContent = `Historial de Checklists — ${placa}`;
+    document.getElementById('push-alertas-body').innerHTML = `<div style="font-size:11.5px;color:#64748b;margin-bottom:14px;">${lista.length} checklist(s) en total</div>${html}`;
+    document.getElementById('push-overlay').classList.add('visible');
+    document.getElementById('push-notif').classList.add('visible');
+}
+
+async function abrirPanelCarroza(placa){
+    document.getElementById('veh-overlay').classList.add('visible');
+    document.getElementById('veh-sheet').classList.add('visible');
+    document.getElementById('vmPlaca').textContent = placa;
+    document.getElementById('vmBody').innerHTML = `<div style="text-align:center;padding:40px 0;color:var(--gris);">Cargando...</div>`;
+
+    const carroza = FLOTA.find(c => String(c.placa||'').toUpperCase() === placa.toUpperCase());
+    const estado  = await DB.obtenerEstadoCarroza(placa);
+
+    const trasladosVeh = TRASLADOS.filter(t => String(t.placa||'').toUpperCase() === placa.toUpperCase())
+        .sort((a,b)=> (parseDDMMAAAA(b.fecha)||0) - (parseDDMMAAAA(a.fecha)||0)).slice(0,5);
+    const tanqueosVeh = TANQUEOS.filter(t => String(t.PLACA||'').toUpperCase() === placa.toUpperCase())
+        .sort((a,b)=> (parseDDMMAAAA(b.FECHA)||0) - (parseDDMMAAAA(a.FECHA)||0)).slice(0,6);
+    const averiasVeh = AVERIAS.filter(a => String(a.placa_vehiculo||'').toUpperCase() === placa.toUpperCase())
+        .sort((a,b)=> new Date(b.created_at||0) - new Date(a.created_at||0)).slice(0,5);
+    const mantVeh = MANTENIMIENTOS.filter(m => String(m.placa||'').toUpperCase() === placa.toUpperCase())
+        .sort((a,b)=> String(b.fecha||'').localeCompare(String(a.fecha||''))).slice(0,5);
+    const checklistVeh = checklistsConNovedad()
+        .filter(x => String(x.registro.PLACA||'').toUpperCase() === placa.toUpperCase())
+        .slice(0,5);
+
+    const averiaParque = carroza ? averiaActivaDeCarroza(carroza) : null;
+    const docUrgente = carroza ? documentoMasUrgente(carroza) : null;
+
+    document.getElementById('vmSub').textContent = carroza ? `${carroza.regional || 'Regional no registrada'} · ${estadoInfo(carroza.estado).label}` : '—';
+
+    const body = document.getElementById('vmBody');
+    body.innerHTML = `
+        <div class="vm-grid">
+            <div class="vm-stat"><div class="lbl">Kilometraje</div><div class="val">${fmtNum(estado.kilometraje_actual)} km</div></div>
+            <div class="vm-stat"><div class="lbl">Combustible</div><div class="val">${estado.ok ? estado.nivel_combustible+' '+estado.porcentaje_combustible+'%' : '—'}</div></div>
+            <div class="vm-stat"><div class="lbl">Rendimiento</div><div class="val">${estado.ok && estado.rendimiento_ultimo_km_gal ? estado.rendimiento_ultimo_km_gal.toFixed(1)+' km/gal' : 'Sin datos'}</div></div>
+            <div class="vm-stat"><div class="lbl">Aceite</div><div class="val" style="font-size:12.5px;">${estado.ok ? estado.estado_aceite.emoji+' '+estado.estado_aceite.texto : '—'}</div></div>
+        </div>
+
+        <div class="vm-section">
+            <h4>Parque Automotor</h4>
+            ${carroza ? `<ul class="vm-list">
+                <li><span>Estado</span><span>${carroza.estado_parque_automotor || 'Sin registro'} · ${carroza.sede_parque_automotor || 'Sin sede'}</span></li>
+                ${carroza.dias_en_taller_parque ? `<li><span>Días en taller</span><span>${carroza.dias_en_taller_parque}</span></li>` : ''}
+                ${averiaParque ? `<li><span>${averiaParque.clasificacion}</span><span>${averiaParque.pendiente ? '⚠️ Pendiente' : (averiaParque.estadoHallazgo||'')}</span></li>` : ''}
+                ${averiaParque ? `<li><span>${averiaParque.detalle}</span><span></span></li>` : ''}
+                ${docUrgente ? `<li><span>${docUrgente.tipo}</span><span>${docUrgente.dias !== null ? docUrgente.dias+'d' : docUrgente.fecha}</span></li>` : ''}
+            </ul>` : '<div class="vm-empty">Sin datos de parque automotor para esta placa.</div>'}
+        </div>
+
+        <div class="vm-section">
+            <h4>Novedades en checklist de entrega</h4>
+            ${checklistVeh.length ? `<ul class="vm-list">${checklistVeh.map(({registro, novedades})=>`<li><span>${registro.FECHA||'—'} · ${novedades.map(n=>n.campo+': '+n.valor).join(', ')}</span><span>${registro.CONDUCTOR||'—'}</span></li>`).join('')}</ul>` : '<div class="vm-empty">Sin novedades en checklists de entrega.</div>'}
+            <button class="push-btn-resolver" style="margin-top:10px;background:var(--celeste);color:var(--azul);" onclick="mostrarHistorialChecklistCarroza('${placa.replace(/'/g,"")}')">📁 Ver historial completo (con firma)</button>
+        </div>
+        <div class="vm-section">
+            <h4>Últimos traslados</h4>
+            ${trasladosVeh.length ? `<ul class="vm-list">${trasladosVeh.map(t=>`<li class="clickable" onclick="mostrarFichaTrasladoUnico('${placa.replace(/'/g,"")}','${String(t.id_salida||'').replace(/'/g,"")}','${String(t.fecha||'').replace(/'/g,"")}','${String(t.hora_de_salida||'').replace(/'/g,"")}')"><span>${t.fecha}${t.hora_de_salida ? ' · '+fmtHoraCorta(t.hora_de_salida) : ''} · ${t.origen||'—'} → ${t.destino||'—'}</span><span>${t.conductor||'—'} ›</span></li>`).join('')}</ul>` : '<div class="vm-empty">Sin traslados registrados.</div>'}
+            <button class="push-btn-resolver" style="margin-top:10px;background:var(--celeste);color:var(--azul);" onclick="mostrarHistorialTrasladosCarroza('${placa.replace(/'/g,"")}')">📁 Ver historial completo (con foto y firma)</button>
+        </div>
+        <div class="vm-section">
+            <h4>Últimos tanqueos</h4>
+            ${tanqueosVeh.length ? `<ul class="vm-list">${tanqueosVeh.map(t=>`<li><span>${t.FECHA} · ${t.GALONES||0} gal · ${t.ESTACION_SERVICIO||'—'}</span><span>${fmtCOP(t.VALOR_TOTAL)}</span></li>`).join('')}</ul>` : '<div class="vm-empty">Sin tanqueos registrados.</div>'}
+        </div>
+        <div class="vm-section">
+            <h4>Últimas averías (formulario conductores)</h4>
+            ${averiasVeh.length ? `<ul class="vm-list">${averiasVeh.map(a=>`<li><span>${a.tipo_falla||'—'} · ${a.descripcion_sintomas||''}</span><span>${a.reportado_por||'—'}</span></li>`).join('')}</ul>` : '<div class="vm-empty">Sin averías registradas.</div>'}
+        </div>
+        <div class="vm-section">
+            <h4>Últimos mantenimientos</h4>
+            ${mantVeh.length ? `<ul class="vm-list">${mantVeh.map(m=>`<li><span>${m.fecha} · ${m.tipo_servicio||'—'} · ${m.taller||'—'}</span><span>${fmtCOP(m.costo)}</span></li>`).join('')}</ul>` : '<div class="vm-empty">Sin mantenimientos registrados.</div>'}
+        </div>
+    `;
+}
+function cerrarPanelCarroza(){
+    document.getElementById('veh-overlay').classList.remove('visible');
+    document.getElementById('veh-sheet').classList.remove('visible');
+}
+
+function irASeccion(id){
+    const el = document.getElementById(id);
+    if(el) el.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+/* ==========================================================================
+   INICIALIZACIÓN + AUTO-REFRESCO
+   ========================================================================== */
+async function refrescarTodo(){
+    await cargarDatos();
+    const kpis = calcularKPIs();
+    renderKPIs(kpis);
+    renderControlCenter(kpis);
+    renderListas();
+    renderFlota(document.getElementById('fleetSearch').value);
+}
+</script>
+</body>
+</html>

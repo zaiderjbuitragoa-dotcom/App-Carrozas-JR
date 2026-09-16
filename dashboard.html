@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J.R. — Panel de Control</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root { 
+            --azul: #001a70; --celeste: #e3f2fd; --blanco: #ffffff; 
+            --rojo: #ef4444; --verde-wa: #25D366; --gris-texto: #64748b;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background-color: var(--celeste); font-family: 'DM Sans', sans-serif; padding: 15px; color: #1e293b; }
+
+        header { display: flex; justify-content: space-between; align-items: center; background: var(--blanco); padding: 15px 20px; border-radius: 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+        .logo-text { color: var(--azul); font-size: 18px; font-weight: 700; }
+        .header-derecha { display: flex; align-items: center; gap: 12px; }
+        .user-info { text-align: right; }
+        .user-info span { font-weight: 700; color: var(--azul); font-size: 14px; }
+        .user-info small { display: block; font-size: 10px; color: var(--gris-texto); }
+        .btn-salir { border: none; background: #fee2e2; color: var(--rojo); cursor: pointer; font-size: 11px; font-weight: bold; padding: 5px 10px; border-radius: 8px; margin-top: 4px; font-family: inherit; }
+
+        /* ── CAMPANA DE NOTIFICACIONES — VISTA NACIONAL (ADMIN)
+           A diferencia del panel de coordinador (que solo ve su
+           regional), aquí se pide DB.obtenerNotificaciones(null,
+           { todas:true, ... }) para traer las de TODAS las
+           regionales del país, sin excepción. */
+        .campana-wrap { position: relative; }
+        .btn-campana {
+            position: relative;
+            background: #f1f5f9;
+            border: none;
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-campana:active { transform: scale(0.92); }
+        .btn-campana span.icono { font-size: 19px; }
+
+        @keyframes campanaBadgePulse {
+            0%,100% { transform: scale(1); }
+            50%      { transform: scale(1.15); }
+        }
+        .badge-campana {
+            display: none;
+            position: absolute;
+            top: -3px;
+            right: -3px;
+            background: linear-gradient(135deg, #dc2626, #ef4444);
+            color: white;
+            font-size: 10.5px;
+            font-weight: 900;
+            min-width: 19px;
+            height: 19px;
+            padding: 0 4px;
+            border-radius: 10px;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid white;
+            animation: campanaBadgePulse 1.6s ease infinite;
+            box-shadow: 0 2px 6px rgba(220,38,38,0.5);
+        }
+
+        .campana-dropdown {
+            display: none;
+            position: absolute;
+            top: 52px;
+            right: 0;
+            width: 320px;
+            max-width: calc(100vw - 40px);
+            max-height: 380px;
+            overflow-y: auto;
+            background: var(--blanco);
+            border-radius: 16px;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.16);
+            z-index: 60;
+            border: 1px solid #e2e8f0;
+        }
+        .campana-dropdown.visible { display: block; }
+        .campana-dropdown-header {
+            padding: 14px 16px;
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--azul);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #f1f5f9;
+            position: sticky;
+            top: 0;
+            background: var(--blanco);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .campana-dropdown-header .marcar-todas {
+            text-transform: none;
+            font-size: 10.5px;
+            color: #2563eb;
+            font-weight: 700;
+            cursor: pointer;
+            letter-spacing: normal;
+        }
+        .campana-item {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f8fafc;
+            cursor: pointer;
+            transition: 0.15s;
+            position: relative;
+        }
+        .campana-item:last-child { border-bottom: none; }
+        .campana-item:hover { background: #fef2f2; }
+        .campana-item.leida { opacity: 0.55; }
+        .campana-item .ci-placa {
+            font-weight: 800;
+            color: #991b1b;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .campana-item .ci-regional-tag {
+            font-size: 9px;
+            font-weight: 800;
+            color: var(--azul);
+            background: var(--celeste);
+            padding: 2px 6px;
+            border-radius: 6px;
+            text-transform: uppercase;
+        }
+        .campana-item .ci-detalle {
+            font-size: 11px;
+            color: #64748b;
+            margin-top: 3px;
+            line-height: 1.4;
+        }
+        .campana-item .ci-cta {
+            font-size: 10px;
+            color: #2563eb;
+            font-weight: 700;
+            margin-top: 4px;
+        }
+        .campana-vacio {
+            padding: 26px 16px;
+            text-align: center;
+            color: #94a3b8;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .grid-menu { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+        .card { background: var(--blanco); padding: 18px 8px; border-radius: 20px; text-align: center; text-decoration: none; transition: 0.2s; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 1.5px solid transparent; }
+        .card:hover, .card:active { transform: translateY(-3px); border-color: var(--azul); }
+        .card i { font-size: 26px; display: block; margin-bottom: 8px; font-style: normal; }
+        .card h3 { font-size: 11px; margin: 0; color: var(--azul); text-transform: uppercase; font-weight: 700; }
+
+        .dashboard-grid { display: grid; grid-template-columns: 1fr 320px; gap: 15px; }
+
+        .monitor { background: var(--blanco); border-radius: 20px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.04); margin-bottom: 15px; }
+        .monitor:last-child { margin-bottom: 0; }
+        .monitor h2 { font-size: 15px; color: var(--azul); margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        /* ── BUSCADOR ── */
+        .buscador-wrap {
+            display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;
+        }
+        .buscador-input {
+            flex: 1; min-width: 180px;
+            padding: 9px 14px 9px 36px;
+            border: 1.5px solid #e2e8f0; border-radius: 10px;
+            font-family: inherit; font-size: 13px; color: #1e293b;
+            background: #f8faff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.099zm-5.242 1.156a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11z'/%3E%3C/svg%3E") no-repeat 11px center;
+            transition: 0.15s;
+        }
+        .buscador-input:focus { outline: none; border-color: var(--azul); background-color: white; }
+
+        .filtro-select {
+            padding: 9px 12px; border: 1.5px solid #e2e8f0; border-radius: 10px;
+            font-family: inherit; font-size: 13px; color: #1e293b;
+            background: #f8faff; cursor: pointer; transition: 0.15s;
+        }
+        .filtro-select:focus { outline: none; border-color: var(--azul); }
+
+        .btn-limpiar {
+            padding: 9px 14px; border: 1.5px solid #e2e8f0; border-radius: 10px;
+            font-family: inherit; font-size: 12px; font-weight: 700;
+            color: var(--gris-texto); background: var(--blanco); cursor: pointer;
+            transition: 0.15s; white-space: nowrap;
+        }
+        .btn-limpiar:hover { border-color: var(--rojo); color: var(--rojo); }
+
+        .resultados-info {
+            font-size: 11px; color: var(--gris-texto); margin-bottom: 8px;
+            font-weight: 600;
+        }
+        .highlight { background: #fef9c3; border-radius: 3px; padding: 0 2px; }
+
+        .tabla-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; min-width: 320px; }
+        th { text-align: left; color: var(--gris-texto); font-size: 10px; padding: 10px 8px; border-bottom: 2px solid var(--celeste); text-transform: uppercase; white-space: nowrap; }
+        td { padding: 10px 8px; font-size: 13px; border-bottom: 1px solid #f1f5f9; color: #334155; }
+        tr:last-child td { border-bottom: none; }
+        tr.fila-oculta { display: none; }
+
+        .status-pill { font-weight: bold; font-size: 10px; padding: 4px 9px; border-radius: 8px; text-transform: uppercase; white-space: nowrap; }
+        .disp { background: #ecfdf5; color: #10b981; }
+        .serv { background: #fff7ed; color: #f97316; }
+        .tall { background: #fef2f2; color: #ef4444; }
+
+        .btn-wa { background: var(--verde-wa); color: white; border: none; padding: 7px 10px; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 10px; text-transform: uppercase; white-space: nowrap; font-family: inherit; }
+
+        .averia-item { border-left: 4px solid var(--rojo); background: #fffafa; padding: 12px; border-radius: 10px; margin-bottom: 10px; border: 1px solid #fee2e2; border-left-width: 4px; }
+        .averia-item b { color: var(--azul); font-size: 14px; }
+        .averia-item small { color: #475569; font-size: 12px; display: block; margin-top: 3px; }
+        .averia-item span { font-size: 10px; color: var(--gris-texto); }
+
+        @media (max-width: 700px) {
+            body { padding: 10px; }
+            .grid-menu { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+            .dashboard-grid { grid-template-columns: 1fr; }
+            th, td { font-size: 11px; padding: 8px 6px; }
+            .monitor { padding: 15px; }
+            .monitor h2 { font-size: 13px; }
+            .col-modelo { display: none; }
+        }
+        @media (min-width: 701px) and (max-width: 1024px) {
+            .dashboard-grid { grid-template-columns: 1fr 280px; }
+            .grid-menu { grid-template-columns: repeat(4, 1fr); }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo-text">J.R. CARROZAS</div>
+    <div class="header-derecha">
+        <!-- CAMPANA: notificaciones de TODAS las regionales (vista nacional) -->
+        <div class="campana-wrap" id="campana-wrap">
+            <button class="btn-campana" id="btn-campana" onclick="toggleCampana()" title="Notificaciones — todas las regionales">
+                <span class="icono">🔔</span>
+                <span class="badge-campana" id="badge-campana">0</span>
+            </button>
+            <div class="campana-dropdown" id="campana-dropdown">
+                <div class="campana-dropdown-header">
+                    <span>⚠️ Notificaciones — Nacional</span>
+                    <span class="marcar-todas" onclick="marcarTodasLeidas(event)">Marcar todas ✓</span>
+                </div>
+                <div id="campana-lista">
+                    <div class="campana-vacio">Cargando...</div>
+                </div>
+            </div>
+        </div>
+        <div class="user-info">
+            <span id="user-name">Cargando...</span>
+            <small>PANEL ADMINISTRATIVO</small>
+            <button onclick="cerrarSesion()" class="btn-salir">Cerrar Sesión</button>
+        </div>
+    </div>
+</header>
+
+<div class="grid-menu">
+    <a href="registro_salida.html" class="card"><i>🚚</i><h3>Salidas</h3></a>
+    <a href="registro_llegada.html" class="card"><i>🏁</i><h3>Llegadas</h3></a>
+    <a href="taller.html" class="card"><i>🔧</i><h3>Taller</h3></a>
+    <a href="tanqueo.html" class="card"><i>⛽</i><h3>Tanqueo</h3></a>
+    <a href="flota.html" class="card"><i>🚗</i><h3>Flota</h3></a>
+    <a href="configuracion.html" class="card"><i>⚙️</i><h3>Config</h3></a>
+    <a href="solicitud_apoyo.html" class="card"><i>🤝</i><h3>Ver Apoyos</h3></a>
+    <a href="crear_apoyo.html" class="card"><i>📤</i><h3>Crear Apoyo</h3></a>
+    <a href="migracion_inspeccion_tanqueo.html" class="card" style="border-color:#f59e0b;"><i>🔄</i><h3>Migración Inicial</h3></a>
+</div>
+
+<div class="dashboard-grid">
+    <div>
+        <div class="monitor">
+            <h2>🚗 Monitor de Flota</h2>
+            <div class="tabla-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Placa</th>
+                            <th class="col-modelo">Modelo</th>
+                            <th>Kilometraje</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-flota">
+                        <tr><td colspan="4" style="text-align:center; color:#94a3b8;">Cargando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="monitor">
+            <h2>📋 Últimas Salidas</h2>
+
+            <!-- ── BUSCADOR ── -->
+            <div class="buscador-wrap">
+                <input
+                    type="text"
+                    class="buscador-input"
+                    id="buscador"
+                    placeholder="Buscar por placa, conductor, ruta..."
+                    oninput="filtrarTabla()"
+                >
+                <select class="filtro-select" id="filtro-regional" onchange="filtrarTabla()">
+                    <option value="">Todas las regionales</option>
+                    <option value="Quindio">Quindío</option>
+                    <option value="Risaralda">Risaralda</option>
+                    <option value="Antioquia">Antioquia</option>
+                    <option value="Caldas">Caldas</option>
+                    <option value="Valle Norte">Valle Norte</option>
+                    <option value="Valle Centro">Valle Centro</option>
+                    <option value="Valle Sur">Valle Sur</option>
+                    <option value="C/ Marca">Cundinamarca</option>
+                    <option value="Tolima Norte">Tolima Norte</option>
+                    <option value="Palmira">Palmira</option>
+                    <option value="Pereira">Pereira</option>
+                    <option value="Armenia">Armenia</option>
+                </select>
+                <button class="btn-limpiar" onclick="limpiarBusqueda()">✕ Limpiar</button>
+            </div>
+            <div class="resultados-info" id="resultados-info" style="display:none;"></div>
+
+            <div class="tabla-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Placa</th>
+                            <th class="col-modelo">Fallecido</th>
+                            <th>Ruta</th>
+                            <th>WA</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lista-traslados">
+                        <tr><td colspan="5" style="text-align:center; color:#94a3b8;">Cargando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div>
+        <div class="monitor" style="border: 2px solid #fee2e2;">
+            <h2 style="color: var(--rojo);">⚠️ Averías Recientes</h2>
+            <div id="lista-averias">
+                <p style="text-align:center; font-size:12px; color:#94a3b8;">Buscando...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="db.js"></script>
+<script>
+    const norm = s => String(s || '').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+
+    // ── FORMATEO DE FECHAS ──────────────────────────────
+    // Convierte cualquier valor de fecha (Date, ISO string, "dd/mm/yyyy", etc.)
+    // a un formato legible "dd/mm/yyyy" sin la hora ni el timezone.
+    function formatearFecha(valor) {
+        if (!valor) return '---';
+
+        // Si ya viene como texto tipo "dd/mm/yyyy" lo dejamos tal cual
+        if (typeof valor === 'string' && /^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(valor.trim())) {
+            return valor.trim();
+        }
+
+        let fecha = (valor instanceof Date) ? valor : new Date(valor);
+
+        if (isNaN(fecha.getTime())) {
+            // No se pudo interpretar como fecha real: devolvemos el texto original
+            return String(valor);
+        }
+
+        // Usamos los componentes UTC para evitar que el desfase de zona horaria
+        // (guardado como medianoche UTC) recorra la fecha al día anterior/siguiente.
+        const dia   = String(fecha.getUTCDate()).padStart(2, '0');
+        const mes   = String(fecha.getUTCMonth() + 1).padStart(2, '0');
+        const anio  = fecha.getUTCFullYear();
+
+        return dia + '/' + mes + '/' + anio;
+    }
+
+    // Notificaciones vigentes para la campana nacional (ya filtradas
+    // por DB.obtenerNotificaciones(null, {todas:true}), que es la
+    // única fuente de verdad — aquí no se vuelve a filtrar por
+    // regional porque el admin debe ver las de TODO el país).
+    let notisNacional = [];
+    let intervaloCampana = null;
+
+    window.onload = async () => {
+        const sesion = JSON.parse(localStorage.getItem('usuario_sesion') || 'null');
+        if (!sesion) { window.location.href = "index.html"; return; }
+
+        const rol = norm(sesion.rol);
+        const usr = norm(sesion.usuario);
+        const esAdmin = rol === 'admin' || rol === 'administracion' || usr === 'admin' || usr === 'administracion';
+        const esCoord = rol === 'coordinador';
+
+        if (!esAdmin) {
+            window.location.href = esCoord ? 'panel_coordinador.html' : 'panel_conductor.html';
+            return;
+        }
+
+        document.getElementById('user-name').innerText = sesion.nombre || "Admin J.R.";
+        await Promise.all([cargarFlota(), cargarTraslados(), cargarAverias(), cargarNotificacionesNacional()]);
+
+        // Polling igual que en el panel de coordinador: cada 17s se
+        // refresca la campana (backend GAS+Sheets sin websockets).
+        intervaloCampana = setInterval(cargarNotificacionesNacional, 17000);
+    };
+
+    // ══════════════════════════════════════════════
+    // CAMPANA — NOTIFICACIONES DE TODAS LAS REGIONALES
+    // ══════════════════════════════════════════════
+    // Usa DB.obtenerNotificaciones(null, {todas:true, ...}) — vista
+    // nacional sin filtro de regional, pensada solo para admin.
+    async function cargarNotificacionesNacional() {
+        try {
+            const [resNotis, resAbiertos] = await Promise.all([
+                DB.obtenerNotificaciones(null, { todas: true, soloNoLeidas: true }),
+                DB.obtenerPlacasConTrasladoActivo()
+            ]);
+
+            if (!resNotis.ok) {
+                console.warn('No se pudieron cargar las notificaciones nacionales:', resNotis.error);
+                return;
+            }
+
+            const idsAbiertos = new Set(
+                (resAbiertos && resAbiertos.ok ? resAbiertos.data : [])
+                    .map(t => String(t.id_salida || '').trim())
+                    .filter(Boolean)
+            );
+
+            // Igual que en panel_coordinador: las de "cierre_pendiente"
+            // solo se muestran si ese servicio sigue realmente abierto,
+            // así la campana se limpia sola al registrar la Llegada.
+            const relevantes = resNotis.data.filter(n => {
+                if (normTexto_(n.tipo) !== 'cierre_pendiente') return true;
+                const idSalida = String(n.id_salida_ref || '').trim();
+                return idSalida ? idsAbiertos.has(idSalida) : true;
+            });
+
+            notisNacional = relevantes;
+            renderCampana();
+        } catch (e) {
+            console.warn('No se pudieron cargar las notificaciones nacionales:', e.message);
+        }
+    }
+
+    function normTexto_(s) {
+        return (s || '').toString().toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    }
+
+    const ICONOS_POR_TIPO = {
+        cierre_pendiente:  '🚨',
+        averia_reportada:  '⚠️',
+        apoyo_aceptado:    '🤝',
+        apoyo_solicitado:  '📤',
+    };
+
+    function renderCampana() {
+        const badge = document.getElementById('badge-campana');
+        const lista = document.getElementById('campana-lista');
+
+        if (notisNacional.length > 0) {
+            badge.style.display = 'flex';
+            badge.innerText = notisNacional.length > 9 ? '9+' : notisNacional.length;
+        } else {
+            badge.style.display = 'none';
+        }
+
+        if (notisNacional.length === 0) {
+            lista.innerHTML = '<div class="campana-vacio">✅ Sin notificaciones pendientes en ninguna regional.</div>';
+            return;
+        }
+
+        lista.innerHTML = notisNacional.map(n => {
+            const icono = ICONOS_POR_TIPO[n.tipo] || '🔔';
+            const titulo = n.titulo || (n.placa ? icono + ' ' + n.placa : icono + ' Notificación');
+            const detalle = n.cuerpo || [
+                n.conductor ? 'Conductor: ' + n.conductor : '',
+                n.hora_salida ? 'Salió a las ' + n.hora_salida : ''
+            ].filter(Boolean).join(' · ');
+
+            const idSeguro = String(n.id || '').replace(/'/g, '');
+            const placaSegura = String(n.placa || '').replace(/'/g, '');
+            const esCierre = normTexto_(n.tipo) === 'cierre_pendiente';
+            const accion = esCierre && placaSegura
+                ? `irARegistrarLlegada('${placaSegura}', '${idSeguro}')`
+                : `marcarNotificacionLeida('${idSeguro}')`;
+            const cta = esCierre && placaSegura ? 'Tocar para registrar la llegada →' : 'Tocar para marcar como leída ✓';
+            const regionalTag = n.regional ? `<span class="ci-regional-tag">${n.regional}</span>` : '';
+
+            return `
+                <div class="campana-item" onclick="${accion}">
+                    <div class="ci-placa">${icono} ${titulo} ${regionalTag}</div>
+                    <div class="ci-detalle">${detalle || 'Sin más detalles'}</div>
+                    <div class="ci-cta">${cta}</div>
+                </div>`;
+        }).join('');
+    }
+
+    function toggleCampana() {
+        document.getElementById('campana-dropdown').classList.toggle('visible');
+    }
+
+    // Cierra el dropdown al tocar fuera de él
+    document.addEventListener('click', function(e) {
+        const wrap = document.getElementById('campana-wrap');
+        const dropdown = document.getElementById('campana-dropdown');
+        if (wrap && dropdown && !wrap.contains(e.target)) {
+            dropdown.classList.remove('visible');
+        }
+    });
+
+    // Al tocar una notificación de "servicio sin cerrar", el admin va
+    // directo a registro_llegada.html con la placa preseleccionada
+    // (sin importar de qué regional sea), y se marca como leída.
+    function irARegistrarLlegada(placa, idNotificacion) {
+        if (idNotificacion) marcarNotificacionLeida(idNotificacion, true);
+        window.location.href = 'registro_llegada.html?placa=' + encodeURIComponent(placa);
+    }
+
+    async function marcarNotificacionLeida(id, silencioso) {
+        if (!id) return;
+        try {
+            await DB.marcarNotificacionLeida(id);
+            notisNacional = notisNacional.filter(n => String(n.id) !== String(id));
+            renderCampana();
+        } catch (e) {
+            if (!silencioso) console.warn('No se pudo marcar la notificación como leída:', e.message);
+        }
+    }
+
+    async function marcarTodasLeidas(e) {
+        if (e) e.stopPropagation();
+        const pendientes = notisNacional.slice();
+        if (!pendientes.length) return;
+        notisNacional = [];
+        renderCampana();
+        for (const n of pendientes) {
+            try { await DB.marcarNotificacionLeida(n.id); } catch (err) { /* se reintentará en el próximo polling */ }
+        }
+    }
+
+    async function cargarFlota() {
+        const { data } = await DB.obtenerFlota();
+        const tbody = document.getElementById('tabla-flota');
+        if (data && data.length > 0) {
+            tbody.innerHTML = data.map(c => {
+                const est = (c.estado || "").trim();
+                let clase = 'serv';
+                if (est === 'Disponible') clase = 'disp';
+                if (est.includes('Taller')) clase = 'tall';
+                return '<tr>' +
+                    '<td><b>' + c.placa + '</b></td>' +
+                    '<td class="col-modelo">' + (c.modelo || '---') + '</td>' +
+                    '<td>' + Number(c.kilometraje_actual || 0).toLocaleString() + ' KM</td>' +
+                    '<td><span class="status-pill ' + clase + '">● ' + (c.estado || 'S/E') + '</span></td>' +
+                    '</tr>';
+            }).join('');
+        } else {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Sin vehículos</td></tr>';
+        }
+    }
+
+    async function cargarTraslados() {
+        const { data } = await DB.obtenerTrasladosRecientes();
+        const tbody = document.getElementById('lista-traslados');
+        if (data && data.length > 0) {
+            tbody.innerHTML = data.map(t => {
+                const safeJson = JSON.stringify(t).replace(/"/g, '&quot;');
+                const fechaFormateada = formatearFecha(t.fecha);
+                // Guardar datos de búsqueda en atributos data-*
+                return '<tr' +
+                    ' data-placa="' + norm(t.placa) + '"' +
+                    ' data-conductor="' + norm(t.conductor) + '"' +
+                    ' data-fallecido="' + norm(t.nombre_del_fallecido) + '"' +
+                    ' data-origen="' + norm(t.origen) + '"' +
+                    ' data-destino="' + norm(t.destino) + '"' +
+                    ' data-regional="' + norm(t.regional) + '"' +
+                    ' data-fecha="' + norm(fechaFormateada) + '"' +
+                    '>' +
+                    '<td>' + fechaFormateada + '</td>' +
+                    '<td><b>' + (t.placa || '---') + '</b></td>' +
+                    '<td class="col-modelo">' + (t.nombre_del_fallecido || '---') + '</td>' +
+                    '<td style="font-size:11px;">' + (t.origen || '---') + ' ➔ ' + (t.destino || '---') + '</td>' +
+                    '<td><button class="btn-wa" data-json="' + safeJson + '" onclick="reenviarWhatsApp(this)">WA</button></td>' +
+                    '</tr>';
+            }).join('');
+        } else {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Sin salidas recientes</td></tr>';
+        }
+    }
+
+    // ── FILTRAR TABLA ──────────────────────────────────
+    function filtrarTabla() {
+        const texto     = norm(document.getElementById('buscador').value);
+        const regional  = norm(document.getElementById('filtro-regional').value);
+        const filas     = document.querySelectorAll('#lista-traslados tr');
+        let visibles    = 0;
+
+        filas.forEach(fila => {
+            if (!fila.dataset.placa) return; // fila de "Sin salidas"
+
+            const coincideTexto = !texto || (
+                fila.dataset.placa.includes(texto) ||
+                fila.dataset.conductor.includes(texto) ||
+                fila.dataset.fallecido.includes(texto) ||
+                fila.dataset.origen.includes(texto) ||
+                fila.dataset.destino.includes(texto) ||
+                fila.dataset.fecha.includes(texto)
+            );
+
+            const coincideRegional = !regional || fila.dataset.regional.includes(regional);
+
+            if (coincideTexto && coincideRegional) {
+                fila.classList.remove('fila-oculta');
+                visibles++;
+            } else {
+                fila.classList.add('fila-oculta');
+            }
+        });
+
+        // Mostrar contador
+        const infoEl = document.getElementById('resultados-info');
+        if (texto || regional) {
+            infoEl.style.display = 'block';
+            infoEl.textContent   = visibles + ' resultado' + (visibles !== 1 ? 's' : '') + ' encontrado' + (visibles !== 1 ? 's' : '');
+            infoEl.style.color   = visibles === 0 ? '#ef4444' : '#64748b';
+        } else {
+            infoEl.style.display = 'none';
+        }
+    }
+
+    function limpiarBusqueda() {
+        document.getElementById('buscador').value         = '';
+        document.getElementById('filtro-regional').value  = '';
+        filtrarTabla();
+    }
+
+    async function cargarAverias() {
+        // Fuente: hoja "carrozas" (columna estado_parque_automotor) +
+        // detalle de la novedad en "historial_novedad_completa".
+        const { data, error } = await DB.obtenerAveriasDesdeFlota();
+        const div = document.getElementById('lista-averias');
+        if (error) console.warn('cargarAverias:', error);
+
+        if (data && data.length > 0) {
+            div.innerHTML = data.map(av => {
+                const fechaAv  = av.fecha ? formatearFecha(av.fecha) : '';
+                const detalle  = av.observaciones ? (' — ' + av.observaciones) : '';
+                const dias     = (av.dias_en_taller && Number(av.dias_en_taller) > 0) ? (av.dias_en_taller + ' días en taller') : '';
+                const metaInfo = [fechaAv, av.regional, av.reportado_por, dias].filter(Boolean).join(' · ');
+                return '<div class="averia-item">' +
+                        '<b>' + (av.placa_vehiculo || '---') + '</b>' +
+                        '<small>' + (av.tipo_falla || '---') + detalle + '</small>' +
+                        (metaInfo ? '<span>' + metaInfo + '</span>' : '') +
+                    '</div>';
+            }).join('');
+        } else {
+            div.innerHTML = "<p style='text-align:center; font-size:13px;'>Sin novedades 👍</p>";
+        }
+    }
+
+    function reenviarWhatsApp(btn) {
+        const d = JSON.parse(btn.getAttribute('data-json'));
+        const hora = new Date().getHours();
+        const saludo = hora < 12 ? "Buenos días ☀️" : hora < 18 ? "Buenas tardes 🌤️" : "Buenas noches 🌙";
+        const mensaje = saludo + "\n\n" +
+            "📢 *Reporte de Salida De Carroza*\n\n" +
+            "📍 *Regional:* "      + (d.regional              || '---') + "\n" +
+            "📅 *Fecha:* "         + formatearFecha(d.fecha) + "\n" +
+            "👤 *Coordinador:* "   + (d.coordinador_en_turno  || '---') + "\n" +
+            "🕒 *Hora De Salida:* "+ (d.hora_de_salida        || '---') + "\n" +
+            "🚗 *Placa:* "         + (d.placa                 || '---') + "\n" +
+            "❓ *Motivo:* "        + (d.motivo_de_salida      || '---') + "\n" +
+            "⚱️ *Fallecido:* "     + (d.nombre_del_fallecido  || '---') + "\n" +
+            "🏥 *Recogida:* "      + (d.clinica_hospital_o_rsd|| '---') + "\n" +
+            "🚩 *Origen:* "        + (d.origen                || '---') + "\n" +
+            "🏁 *Destino:* "       + (d.destino               || '---') + "\n" +
+            "📊 *KM Salida:* "     + (d.km__salida            || '---') + "\n" +
+            "📊 *KM Ingreso:* "    + (d.km__ingreso           || '---') + "\n" +
+            "👨🏻‍✈️ *Conductor:* "    + (d.conductor             || '---') + "\n" +
+            "📞 *Teléfono:* "      + (d.nnum_telefono         || '---') + "\n" +
+            "📝 *Observaciones:* " + (d.observaciones         || 'Sin novedades') + "\n\n" +
+            "✅ *La Carroza se Encuentra:* Todo En Orden 👍🏻";
+        window.open("https://wa.me/?text=" + encodeURIComponent(mensaje), '_blank');
+    }
+
+    function cerrarSesion() {
+        localStorage.clear();
+        window.location.href = "index.html";
+    }
+</script>
+<script src="config-aplicar.js"></script>
+</body>
+</html>

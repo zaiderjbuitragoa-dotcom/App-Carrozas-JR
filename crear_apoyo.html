@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J.R. — Crear Solicitud de Apoyo</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root { 
+            --azul: #001a70; 
+            --celeste: #e8f0fe; 
+            --blanco: #ffffff; 
+            --verde: #10b981; 
+            --naranja: #f59e0b; 
+            --rojo: #dc2626; 
+            --gris: #64748b; 
+            --fondo: #f0f4ff; 
+            --shadow: 0 4px 20px rgba(0,26,112,0.08);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            background: var(--fondo); 
+            font-family: 'DM Sans', sans-serif; 
+            padding-bottom: 30px; 
+            color: #1e293b;
+            line-height: 1.5;
+        }
+
+        .header { 
+            background: var(--azul); 
+            color: white; 
+            padding: 18px 22px; 
+            display: flex; 
+            align-items: center; 
+            gap: 14px; 
+            position: sticky; 
+            top:0; 
+            z-index:100; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        }
+        .header h1 { font-size: 17px; font-weight: 800; letter-spacing: -0.2px; }
+        .header p { font-size: 11px; opacity: 0.75; margin-top: 2px; font-weight: 500; }
+        .btn-back { 
+            background: rgba(255,255,255,0.18); 
+            border: none; 
+            color: white; 
+            padding: 10px 14px; 
+            border-radius: 12px; 
+            font-weight: 700; 
+            font-size: 14px; 
+            cursor: pointer; 
+            flex-shrink:0; 
+            font-family:inherit; 
+            transition: 0.2s;
+        }
+        .btn-back:hover { background: rgba(255,255,255,0.3); }
+
+        .content { padding: 18px; max-width: 620px; margin: 0 auto; }
+        
+        .card { 
+            background: var(--blanco); 
+            border-radius: 20px; 
+            padding: 22px; 
+            margin-bottom: 16px; 
+            border: 1.5px solid #e8efff; 
+            box-shadow: var(--shadow);
+            animation: fadeIn 0.4s ease-out;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .card-title { 
+            font-size: 12px; 
+            font-weight: 800; 
+            color: var(--azul); 
+            text-transform: uppercase; 
+            letter-spacing: 1px; 
+            margin-bottom: 18px; 
+            padding-bottom: 12px; 
+            border-bottom: 2px solid var(--fondo); 
+            display: flex; 
+            align-items: center; 
+            gap: 10px;
+        }
+
+        label { 
+            display: block; 
+            font-size: 11px; 
+            font-weight: 700; 
+            color: var(--gris); 
+            margin-bottom: 6px; 
+            text-transform: uppercase; 
+            padding-left: 2px;
+        }
+        input, select, textarea { 
+            width: 100%; 
+            padding: 13px 16px; 
+            border: 1.8px solid #e2e8f0; 
+            border-radius: 14px; 
+            font-family: inherit; 
+            font-size: 14.5px; 
+            color: #1e293b; 
+            background: #f8faff; 
+            transition: all 0.2s ease; 
+        }
+        input:focus, select:focus, textarea:focus { 
+            outline: none; 
+            border-color: var(--azul); 
+            background: white; 
+            box-shadow: 0 0 0 4px rgba(0,26,112,0.06);
+        }
+        .form-group { margin-bottom: 15px; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+        .pills { display: flex; gap: 10px; }
+        .pill { 
+            flex:1; 
+            padding: 14px 8px; 
+            border-radius: 14px; 
+            border: 2px solid #e2e8f0; 
+            background: #f8faff; 
+            font-weight: 800; 
+            font-size: 13px; 
+            cursor: pointer; 
+            text-align: center; 
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); 
+            font-family:inherit; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .pill.sel-normal  { border-color: var(--verde);   background: #ecfdf5; color: #065f46; transform: scale(1.02); }
+        .pill.sel-urgente { border-color: var(--naranja); background: #fffbeb; color: #92400e; transform: scale(1.02); }
+        .pill.sel-critica { border-color: var(--rojo);    background: #fef2f2; color: #991b1b; transform: scale(1.02); }
+
+        .alcance-pills { display: flex; gap: 10px; margin-bottom: 15px; }
+        .a-pill { 
+            flex:1; 
+            padding: 16px 8px; 
+            border-radius: 16px; 
+            border: 2px solid #e2e8f0; 
+            background: #f8faff; 
+            font-weight: 800; 
+            font-size: 12.5px; 
+            cursor: pointer; 
+            text-align: center; 
+            transition: 0.2s; 
+            font-family:inherit; 
+        }
+        .a-pill.sel-regional   { border-color: #3b82f6; background: #eff6ff; color: #1d4ed8; }
+        .a-pill.sel-especifica { border-color: #8b5cf6; background: #f5f3ff; color: #6d28d9; }
+        .a-pill.sel-nacional   { border-color: var(--azul); background: var(--celeste); color: var(--azul); }
+
+        .regional-selector { display: none; margin-top: 15px; padding-top: 15px; border-top: 1.5px dashed #e2e8f0; }
+        .regional-selector.visible { display: block; animation: slideDown 0.3s ease; }
+        @keyframes slideDown { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:none; } }
+
+        .regionales-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 12px; }
+        .reg-btn { 
+            padding: 14px 10px; 
+            border-radius: 14px; 
+            border: 1.8px solid #e2e8f0; 
+            background: #f8faff; 
+            font-weight: 700; 
+            font-size: 13px; 
+            cursor: pointer; 
+            text-align: center; 
+            transition: 0.2s; 
+            color: #1e293b; 
+            font-family:inherit; 
+        }
+        .reg-btn.sel { border-color: #8b5cf6; background: #f5f3ff; color: #6d28d9; box-shadow: 0 4px 10px rgba(139,92,246,0.15); }
+
+        .conductores-badge { 
+            display: none; align-items: center; gap: 12px; border-radius: 14px; padding: 15px; font-size: 13px; font-weight: 700; margin-top: 12px; border: 1.8px solid transparent;
+        }
+        .conductores-badge.ok { background: #ecfdf5; border-color: #6ee7b7; color: #065f46; }
+        .conductores-badge.loading { background: #f8faff; border-color: #e2e8f0; color: #64748b; }
+        .c-num { font-size: 28px; font-weight: 900; line-height: 1; }
+
+        .push-preview { 
+            background: #1e293b; border-radius: 18px; padding: 16px; margin-top: 12px; position: relative; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        .push-preview::before { 
+            content: ''; position: absolute; top:0; left:0; right:0; height: 4px; background: linear-gradient(90deg, #3b82f6, #8b5cf6, #10b981); 
+        }
+        .push-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .push-app-icon { width: 32px; height: 32px; border-radius: 10px; background: var(--azul); display: flex; align-items: center; justify-content: center; font-size: 16px; }
+        .push-app-name { font-size: 12px; font-weight: 800; color: #cbd5e1; text-transform: uppercase; letter-spacing: 0.5px; }
+        .push-titulo { font-size: 15px; font-weight: 800; color: #f8fafc; margin-bottom: 5px; }
+        .push-body { font-size: 13px; color: #94a3b8; line-height: 1.5; }
+        .push-destinatarios { margin-top: 12px; padding-top: 12px; border-top: 1px solid #334155; font-size: 11.5px; color: #64748b; display: flex; align-items: center; gap: 8px; }
+
+        .btn-enviar { 
+            width: 100%; padding: 18px; border: none; border-radius: 18px; background: var(--azul); color: white; font-weight: 800; font-size: 16.5px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 12px; box-shadow: 0 8px 25px rgba(0,26,112,0.25); transition: all 0.3s ease; font-family:inherit; margin-top: 10px;
+        }
+        .btn-enviar:hover { transform: translateY(-3px); box-shadow: 0 12px 30px rgba(0,26,112,0.35); }
+        .btn-enviar:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+        .modal-wa-bg { 
+            display: none; position: fixed; inset: 0; background: rgba(0,12,50,0.65); backdrop-filter: blur(8px); z-index: 500; align-items: flex-end; justify-content: center; 
+        }
+        .modal-wa-bg.open { display: flex; }
+        .modal-wa-sheet { 
+            background: white; border-radius: 28px 24px 0 0; padding: 0; width: 100%; max-width: 580px; max-height: 92vh; display: flex; flex-direction: column; animation: slideUp 0.4s cubic-bezier(0.22, 1, 0.36, 1); 
+        }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        
+        .modal-wa-header { background: #25D366; border-radius: 28px 24px 0 0; padding: 24px 24px 20px; flex-shrink: 0; color: white; }
+        .modal-wa-header h3 { font-size: 20px; font-weight: 800; margin-bottom: 6px; }
+        .modal-wa-msg-box { 
+            background: rgba(0,0,0,0.12); border-radius: 14px; padding: 14px 16px; margin-top: 15px; font-size: 12.5px; line-height: 1.6; color: white; font-weight: 600; white-space: pre-wrap; border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .modal-wa-body { padding: 20px 24px; overflow-y: auto; flex: 1; }
+
+        /* ═══════════════════════════════════════════════════════════
+           🔧 AJUSTE RESPONSIVE — lista de conductores WhatsApp
+           Antes: el nombre largo + el botón "Enviar" competían por
+           espacio y el teléfono quedaba oculto/cortado en pantallas
+           angostas. Ahora: avatar y botón nunca se encogen, el nombre
+           se recorta con "..." si es muy largo, y en pantallas muy
+           pequeñas el botón baja a su propia línea.
+           ═══════════════════════════════════════════════════════════ */
+        .wa-conductor-item { 
+            display: flex; 
+            align-items: center; 
+            gap: 12px; 
+            background: #f8faff; 
+            border-radius: 18px; 
+            padding: 14px 16px; 
+            border: 1.5px solid #eef2ff; 
+            margin-bottom: 12px; 
+            flex-wrap: wrap;
+        }
+        .wa-conductor-avatar { 
+            width: 40px; 
+            height: 40px; 
+            border-radius: 50%; 
+            background: var(--azul); 
+            color: white; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            font-size: 16px; 
+            font-weight: 800; 
+            flex-shrink: 0;
+        }
+        .wa-conductor-info { 
+            flex: 1 1 140px; 
+            min-width: 0; 
+            overflow: hidden;
+        }
+        .wa-conductor-nombre { 
+            font-size: 14px; 
+            font-weight: 800; 
+            color: #1e293b; 
+            white-space: nowrap; 
+            overflow: hidden; 
+            text-overflow: ellipsis;
+        }
+        .wa-conductor-tel { 
+            font-size: 12px; 
+            color: var(--gris); 
+            margin-top: 2px; 
+            white-space: nowrap;
+        }
+        
+        .btn-wa-enviar { 
+            background: #25D366; 
+            border: none; 
+            border-radius: 12px; 
+            color: white; 
+            font-weight: 800; 
+            font-size: 13.5px; 
+            padding: 11px 16px; 
+            cursor: pointer; 
+            text-decoration: none; 
+            display: flex; 
+            align-items: center; 
+            gap: 6px; 
+            transition: 0.2s; 
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+        .btn-wa-enviado { background: #94a3b8 !important; cursor: default !important; }
+
+        /* Pantallas muy angostas (móviles pequeños) */
+        @media (max-width: 380px) {
+            .wa-conductor-item { flex-direction: column; align-items: flex-start; }
+            .wa-conductor-info { width: 100%; }
+            .btn-wa-enviar { width: 100%; justify-content: center; margin-top: 8px; }
+        }
+        
+        .modal-wa-footer { padding: 16px 24px 30px; border-top: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 10px; }
+        .btn-wa-cerrar { width: 100%; padding: 14px; border: 1.8px solid #e2e8f0; border-radius: 16px; background: white; color: var(--gris); font-weight: 700; cursor: pointer; }
+
+        .toast { 
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px); background: #1e293b; color: white; padding: 15px 28px; border-radius: 16px; font-size: 14px; font-weight: 700; z-index: 1000; opacity: 0; transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .wa-spinner { width: 24px; height: 24px; border: 3px solid #e2e8f0; border-top-color: #25D366; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        .spinner-sm { width: 18px; height: 18px; border: 2.5px solid rgba(0,0,0,0.1); border-top-color: #001a70; border-radius: 50%; animation: spin 0.7s linear infinite; }
+
+        .manual-phone-box { margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1.5px dashed #e2e8f0; }
+        .manual-input-row { display: flex; gap: 8px; margin-top: 8px; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <button class="btn-back" onclick="window.location.href='panel_coordinador.html'">←</button>
+    <div>
+        <h1>📤 Nueva Solicitud de Apoyo</h1>
+        <p id="sub-info">Cargando...</p>
+    </div>
+</div>
+
+<div class="content">
+
+    <div class="card">
+        <div class="card-title"><span>👤</span> Responsable</div>
+        <div class="grid-2">
+            <div class="form-group">
+                <label>Coordinador</label>
+                <input type="text" id="c-coordinador" readonly style="background:#eef5ff; font-weight:800;">
+            </div>
+            <div class="form-group">
+                <label>Regional</label>
+                <input type="text" id="c-regional" readonly style="background:#eef5ff; font-weight:800;">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Tipo de Servicio</label>
+            <select id="c-tipo">
+                <option value="Servicio Funerario">Servicio Funerario</option>
+                <option value="Sepelio">Sepelio</option>
+                <option value="Traslado Nacional">Traslado Nacional</option>
+                <option value="Recogida Clínica">Recogida Clínica</option>
+                <option value="Traslado de Emergencia">Traslado de Emergencia</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title"><span>⚱️</span> Datos del Servicio</div>
+        <div class="form-group"><label>Nombre del Fallecido</label><input type="text" id="c-fallecido" placeholder="Nombre completo"></div>
+        <div class="form-group"><label>Lugar de Recogida</label><input type="text" id="c-clinica" placeholder="Clínica / Hospital"></div>
+        <div class="grid-2">
+            <div><label>Origen *</label><input type="text" id="c-origen" placeholder="Ciudad"></div>
+            <div><label>Destino *</label><input type="text" id="c-destino" placeholder="Ciudad"></div>
+        </div>
+        <div class="grid-2">
+            <div><label>Fecha</label><input type="date" id="c-fecha"></div>
+            <div><label>Hora Requerida</label><input type="time" id="c-hora"></div>
+        </div>
+        <div class="form-group"><label>Observaciones</label><textarea id="c-obs" rows="2" placeholder="Detalles..."></textarea></div>
+    </div>
+
+    <div class="card">
+        <div class="card-title"><span>🚨</span> Urgencia</div>
+        <div class="pills">
+            <button class="pill sel-normal" id="u-normal" onclick="setUrgencia('normal')">✅ Normal</button>
+            <button class="pill" id="u-urgente" onclick="setUrgencia('urgente')">⚡ Urgente</button>
+            <button class="pill" id="u-critica" onclick="setUrgencia('critica')">🚨 Crítica</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title"><span>🌎</span> Alcance de Notificación</div>
+        <div class="alcance-pills">
+            <button class="a-pill sel-regional" id="a-regional" onclick="setAlcance('regional')">📍 Mi Regional</button>
+            <button class="a-pill" id="a-especifica" onclick="setAlcance('especifica')">🎯 Otra Regional</button>
+            <button class="a-pill" id="a-nacional" onclick="setAlcance('nacional')">🌎 Nacional</button>
+        </div>
+        <div class="regional-selector" id="regional-selector">
+            <div class="regionales-grid" id="regionales-grid"></div>
+            <div class="conductores-badge" id="conductores-badge"></div>
+        </div>
+        <div class="alcance-desc" id="alcance-desc">📍 Se notificará a conductores de tu regional.</div>
+    </div>
+
+    <div class="card">
+        <div class="card-title"><span>🔔</span> Vista Previa Notificación</div>
+        <div class="push-preview">
+            <div class="push-header"><div class="push-app-icon">🚗</div><div class="push-app-name">J.R. Carrozas</div></div>
+            <div class="push-titulo" id="push-titulo">🤝 Apoyo Normal</div>
+            <div class="push-body" id="push-body">🚩 ? → 🏁 ?</div>
+            <div class="push-destinatarios">📲 Destino: <b id="push-dest-txt">Mi Regional</b></div>
+        </div>
+    </div>
+
+    <button class="btn-enviar" id="btn-crear" onclick="crearSolicitud()"><span>📤</span> ENVIAR Y NOTIFICAR</button>
+</div>
+
+<div class="modal-wa-bg" id="modal-wa-bg">
+    <div class="modal-wa-sheet">
+        <div class="modal-wa-header">
+            <h3>📲 Notificar por WhatsApp</h3>
+            <p>Registro guardado en sistema ✅. Selecciona un destinatario para enviar el reporte:</p>
+            <div class="modal-wa-msg-box" id="wa-msg-preview"></div>
+        </div>
+        <div class="modal-wa-body">
+            <div class="manual-phone-box">
+                <label>¿Enviar a un número que no está en la lista?</label>
+                <div class="manual-input-row">
+                    <input type="tel" id="wa-manual-tel" placeholder="Número (ej: 3001234567)" style="flex:1;">
+                    <button class="btn-wa-enviar" onclick="enviarManual()">📲 Enviar</button>
+                </div>
+            </div>
+            <div id="wa-loading" class="wa-loading"><div class="wa-spinner"></div> Cargando conductores...</div>
+            <div class="wa-conductor-list" id="wa-list"></div>
+        </div>
+        <div class="modal-wa-footer">
+            <button class="btn-wa-cerrar" onclick="cerrarModalWA()">Listo — Volver al panel</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+    // v12.23 — ya no se usa APPS_SCRIPT_URL directo: todas las
+    // peticiones pasan por DB (db.js) con caché persistente de 6h,
+    // limitador de concurrencia y fallback ante saturación de GAS.
+
+    let sesion = {}, urgencia = 'normal', alcance = 'regional', regionalEspecifica = '', conductoresWA = [], mensajeWA = '', enviados = new Set();
+    const REGIONALES = ['Pereira','Risaralda','Quindío','Caldas','Antioquia','Valle Centro','Valle Norte','Valle Sur','C/ Marca','Tolima Norte','Palmira'];
+
+    window.onload = () => {
+        sesion = JSON.parse(localStorage.getItem('usuario_sesion') || '{}');
+        if (!sesion.nombre) { window.location.href = 'index.html'; return; }
+        
+        document.getElementById('c-coordinador').value = sesion.nombre;
+        document.getElementById('c-regional').value = sesion.regional;
+        document.getElementById('sub-info').textContent = sesion.nombre + ' · ' + sesion.regional;
+        document.getElementById('c-fecha').valueAsDate = new Date();
+
+        construirGridRegionales(sesion.regional);
+        actualizarPreview();
+        ['c-origen','c-destino','c-tipo','c-obs','c-fallecido','c-clinica','c-fecha','c-hora'].forEach(id => {
+            document.getElementById(id).addEventListener('input', actualizarPreview);
+        });
+    };
+
+    function construirGridRegionales(miReg) {
+        document.getElementById('regionales-grid').innerHTML = REGIONALES.filter(r => r !== miReg).map(r => 
+            `<button class="reg-btn" id="rbtn-${r}" onclick="selRegional('${r}')">${r}</button>`
+        ).join('');
+    }
+
+    function selRegional(r) {
+        regionalEspecifica = r;
+        document.querySelectorAll('.reg-btn').forEach(b => b.classList.remove('sel'));
+        document.getElementById('rbtn-'+r).classList.add('sel');
+        contarConductores(r);
+        actualizarPreview();
+    }
+
+    async function contarConductores(r) {
+        const badge = document.getElementById('conductores-badge');
+        badge.style.display = 'flex'; badge.className = 'conductores-badge loading';
+        badge.innerHTML = `<div class="spinner-sm"></div> Verificando conductores en ${r}...`;
+        try {
+            // v12.23 — usa caché persistente de usuarios (ya calentado al abrir la app)
+            const resultado = await DB.obtenerHoja('usuarios');
+            const users = resultado.ok ? resultado.data : [];
+            const count = users.filter(u => u.regional === r && u.rol === 'conductor' && u.telefono).length;
+            badge.className = count > 0 ? 'conductores-badge ok' : 'conductores-badge cero';
+            badge.innerHTML = count > 0 ? `<span class="c-num">${count}</span> conductores listos` : `⚠️ Sin conductores registrados en ${r}`;
+        } catch(e) { badge.style.display = 'none'; }
+    }
+
+    function setAlcance(a) {
+        alcance = a;
+        ['regional','especifica','nacional'].forEach(x => document.getElementById('a-'+x).className = 'a-pill' + (x===a ? ' sel-'+x : ''));
+        document.getElementById('regional-selector').className = 'regional-selector' + (a === 'especifica' ? ' visible' : '');
+        actualizarPreview();
+    }
+
+    function setUrgencia(u) {
+        urgencia = u;
+        ['normal','urgente','critica'].forEach(x => document.getElementById('u-'+x).className = 'pill' + (x===u ? ' sel-'+x : ''));
+        actualizarPreview();
+    }
+
+    function generarMensajePRO(datos) {
+        const emojiU = urgencia === 'critica' ? '🚨' : urgencia === 'urgente' ? '⚡' : '✅';
+        const labelU = urgencia.toUpperCase();
+        
+        let msg = `${emojiU} *SOLICITUD DE APOYO ${labelU}*\n`;
+        msg += `━━━━━━━━━━━━━━━━━━━━\n`;
+        msg += `🏢 *Regional:* ${datos.regional_solicitante}\n`;
+        msg += `👤 *Coordinador:* ${datos.coordinador}\n`;
+        msg += `🚗 *Servicio:* ${datos.tipo_servicio}\n`;
+        msg += `🚩 *Origen:* ${datos.origen}\n`;
+        msg += `🏁 *Destino:* ${datos.destino}\n`;
+        if(datos.nombre_fallecido) msg += `⚱️ *Fallecido:* ${datos.nombre_fallecido}\n`;
+        if(datos.clinica_hospital) msg += `🏥 *Lugar:* ${datos.clinica_hospital}\n`;
+        if(datos.fecha_servicio)   msg += `📅 *Fecha:* ${datos.fecha_servicio}\n`;
+        if(datos.hora_requerida)   msg += `🕒 *Hora:* ${datos.hora_requerida}\n`;
+        if(datos.observaciones)    msg += `📝 *Obs:* ${datos.observaciones}\n`;
+        msg += `━━━━━━━━━━━━━━━━━━━━\n`;
+        msg += `👉 Entra a la app J.R. para aceptar este servicio.`;
+        return msg;
+    }
+
+
+    function actualizarPreview() {
+        const o = document.getElementById('c-origen').value || '?';
+        const d = document.getElementById('c-destino').value || '?';
+        const emoji = urgencia==='critica' ? '🚨' : urgencia==='urgente' ? '⚡' : '🤝';
+        document.getElementById('push-titulo').textContent = `${emoji} Apoyo ${urgencia.toUpperCase()}`;
+        document.getElementById('push-body').textContent = `🚩 ${o} → 🏁 ${d}`;
+        let destTxt = alcance === 'regional' ? (sesion.regional || 'Mi Regional') : (alcance === 'especifica' ? (regionalEspecifica || 'Específica') : 'NACIONAL');
+        document.getElementById('push-dest-txt').textContent = destTxt;
+    }
+
+    async function crearSolicitud() {
+        const btn = document.getElementById('btn-crear');
+        const origen = document.getElementById('c-origen').value.trim();
+        const destino = document.getElementById('c-destino').value.trim();
+        if (!origen || !destino) { toast('⚠️ Origen y Destino obligatorios', '#f59e0b'); return; }
+
+        btn.disabled = true;
+        btn.innerHTML = '<span>⏳</span> CALCULANDO ID Y GUARDANDO...';
+
+        try {
+            // v12.23 — leer solicitudes existentes via DB (caché + concurrencia)
+            // Se invalida antes para que el ID siguiente sea correcto.
+            DB.invalidarCache('solicitud_apoyo');
+            const resLista = await DB.obtenerHoja('solicitud_apoyo');
+            const filas = resLista.ok ? resLista.data : [];
+            let n = 1;
+            if (Array.isArray(filas) && filas.length > 0) {
+                const nums = filas.map(f => {
+                    const idStr = String(f.id || '');
+                    return idStr.startsWith('S-') ? parseInt(idStr.replace('S-', '')) : parseInt(idStr);
+                }).filter(val => !isNaN(val));
+                n = nums.length > 0 ? Math.max(...nums) + 1 : filas.length + 1;
+            }
+            const nuevoId = 'S-' + n;
+
+            const now = new Date();
+            const created_at = now.getFullYear() + '-' +
+                String(now.getMonth() + 1).padStart(2, '0') + '-' +
+                String(now.getDate()).padStart(2, '0') + ' ' +
+                String(now.getHours()).padStart(2, '0') + ':' +
+                String(now.getMinutes()).padStart(2, '0');
+
+            const datos = {
+                id:                   nuevoId,
+                created_at:           created_at,
+                regional_solicitante: sesion.regional,
+                coordinador:          sesion.nombre,
+                tipo_servicio:        document.getElementById('c-tipo').value,
+                nombre_fallecido:     document.getElementById('c-fallecido').value.trim(),
+                clinica_hospital:     document.getElementById('c-clinica').value.trim(),
+                origen:               origen,
+                destino:              destino,
+                fecha_servicio:       document.getElementById('c-fecha').value,
+                hora_requerida:       document.getElementById('c-hora').value,
+                alcance: alcance === 'especifica' ? regionalEspecifica : alcance === 'regional' ? sesion.regional : 'nacional',
+                estado:               'pendiente',
+                'conductor_aceptó':   '',
+                placa_asignada:       '',
+                observaciones:        document.getElementById('c-obs').value.trim(),
+                urgencia:             urgencia
+            };
+
+            // v12.23 — guarda en Google Sheets via DB.guardar()
+            // (gasWrite con cola de concurrencia y reintento automático)
+            const resInsert = await DB.guardar('solicitud_apoyo', datos, 'insert');
+            if (!resInsert.ok) throw new Error(resInsert.error || 'Error al guardar en Google Sheets');
+
+            // Invalidar caché para que la lista se actualice en la próxima vista
+            DB.invalidarCache('solicitud_apoyo');
+
+            mensajeWA = generarMensajePRO(datos);
+            toast('✅ Solicitud ' + nuevoId + ' Creada', '#10b981');
+
+            const destReg = alcance === 'regional' ? sesion.regional : (alcance === 'especifica' ? regionalEspecifica : 'NACIONAL');
+            abrirModalWA(destReg);
+
+        } catch(e) {
+            toast('❌ Error: ' + e.message, '#dc2626');
+            btn.disabled = false;
+            btn.innerHTML = '<span>📤</span> REINTENTAR';
+        }
+    }
+
+    async function abrirModalWA(reg) {
+        document.getElementById('modal-wa-bg').classList.add('open');
+        document.getElementById('wa-msg-preview').textContent = mensajeWA;
+        const list = document.getElementById('wa-list');
+        list.innerHTML = '';
+        document.getElementById('wa-loading').style.display = 'flex';
+        
+        try {
+            // v12.23 — usa caché persistente (usuarios ya calentados)
+            const resultado = await DB.obtenerHoja('usuarios');
+            const users = resultado.ok ? resultado.data : [];
+            conductoresWA = users.filter(u =>
+                (reg === 'NACIONAL' || u.regional === reg) && u.rol === 'conductor' && u.telefono
+            );
+            document.getElementById('wa-loading').style.display = 'none';
+            
+            if (conductoresWA.length === 0) {
+                list.innerHTML = '<p style="text-align:center; padding:20px; color:#64748b;">No hay conductores en esta regional.</p>';
+                return;
+            }
+
+            list.innerHTML = conductoresWA.map((c, i) => `
+                <div class="wa-conductor-item">
+                    <div class="wa-conductor-avatar">${c.nombre[0]}</div>
+                    <div class="wa-conductor-info">
+                        <div class="wa-conductor-nombre" title="${c.nombre}">${c.nombre}</div>
+                        <div class="wa-conductor-tel">📱 ${c.telefono}</div>
+                    </div>
+                    <a class="btn-wa-enviar" id="wabtn-${i}" href="https://api.whatsapp.com/send?phone=57${c.telefono}&text=${encodeURIComponent(mensajeWA)}" target="_blank" onclick="marcar(${i})">📲 Enviar</a>
+                </div>`).join('');
+        } catch(e) {
+            list.innerHTML = '<p style="color:#dc2626; padding:20px;">Error al cargar lista: ' + e.message + '</p>';
+        }
+    }
+
+    function enviarManual() {
+        const tel = document.getElementById('wa-manual-tel').value.trim();
+        if (!tel) { alert('Ingresa un teléfono válido'); return; }
+        window.open(`https://api.whatsapp.com/send?phone=57${tel}&text=${encodeURIComponent(mensajeWA)}`, '_blank');
+    }
+
+    function marcar(i) {
+        const b = document.getElementById('wabtn-' + i);
+        b.textContent = '✅ Enviado';
+        b.classList.add('btn-wa-enviado');
+    }
+
+    function cerrarModalWA() { window.location.href = 'panel_coordinador.html'; }
+
+    function toast(m, c) {
+        const t = document.getElementById('toast');
+        t.textContent = m; t.style.background = c;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 3500);
+    }
+</script>
+</body>
+</html>

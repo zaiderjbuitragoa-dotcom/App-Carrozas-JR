@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J.R. — Panel Coordinador</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { 
+            --azul: #001a70; 
+            --celeste: #e3f2fd; 
+            --blanco: #ffffff; 
+            --rojo: #ef4444; 
+            --verde: #10b981; 
+            --naranja: #f59e0b; 
+            --gris: #64748b; 
+        }
+
+        body { 
+            background: var(--celeste); 
+            font-family: 'DM Sans', sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+        }
+
+        /* ── HEADER ── */
+        header { 
+            width: 100%; 
+            max-width: 600px; 
+            background: var(--blanco); 
+            padding: 20px; 
+            border-radius: 20px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 20px; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.03); 
+            box-sizing: border-box; 
+        }
+
+        .logo-small { color: var(--azul); font-weight: bold; font-size: 18px; }
+        .header-acciones { display: flex; align-items: center; gap: 10px; }
+        .btn-salir { 
+            background: #fee2e2; 
+            color: var(--rojo); 
+            padding: 8px 15px; 
+            border-radius: 10px; 
+            font-size: 12px; 
+            font-weight: bold; 
+            border: none; 
+            cursor: pointer; 
+        }
+
+        /* ── CAMPANA DE NOTIFICACIONES DE LA REGIONAL
+           (servicios sin cerrar + averías + apoyo aceptado, etc.)
+           Filtrado 100% por la regional del coordinador logueado,
+           usando DB.obtenerNotificaciones() como única fuente de
+           verdad — nunca se cruzan notificaciones entre regionales. */
+        .campana-wrap { position: relative; }
+        .btn-campana {
+            position: relative;
+            background: #f1f5f9;
+            border: none;
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-campana:active { transform: scale(0.92); }
+        .btn-campana span.icono { font-size: 19px; }
+
+        @keyframes campanaBadgePulse {
+            0%,100% { transform: scale(1); }
+            50%      { transform: scale(1.15); }
+        }
+        .badge-campana {
+            display: none;
+            position: absolute;
+            top: -3px;
+            right: -3px;
+            background: linear-gradient(135deg, #dc2626, #ef4444);
+            color: white;
+            font-size: 10.5px;
+            font-weight: 900;
+            min-width: 19px;
+            height: 19px;
+            padding: 0 4px;
+            border-radius: 10px;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid white;
+            animation: campanaBadgePulse 1.6s ease infinite;
+            box-shadow: 0 2px 6px rgba(220,38,38,0.5);
+        }
+
+        .campana-dropdown {
+            display: none;
+            position: absolute;
+            top: 52px;
+            right: 0;
+            width: 300px;
+            max-width: calc(100vw - 40px);
+            max-height: 380px;
+            overflow-y: auto;
+            background: var(--blanco);
+            border-radius: 16px;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.16);
+            z-index: 60;
+            border: 1px solid #e2e8f0;
+        }
+        .campana-dropdown.visible { display: block; }
+        .campana-dropdown-header {
+            padding: 14px 16px;
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--azul);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #f1f5f9;
+            position: sticky;
+            top: 0;
+            background: var(--blanco);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .campana-dropdown-header .marcar-todas {
+            text-transform: none;
+            font-size: 10.5px;
+            color: #2563eb;
+            font-weight: 700;
+            cursor: pointer;
+            letter-spacing: normal;
+        }
+        .campana-item {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f8fafc;
+            cursor: pointer;
+            transition: 0.15s;
+            position: relative;
+        }
+        .campana-item:last-child { border-bottom: none; }
+        .campana-item:hover { background: #fef2f2; }
+        .campana-item.leida { opacity: 0.55; }
+        .campana-item .ci-placa {
+            font-weight: 800;
+            color: #991b1b;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .campana-item .ci-detalle {
+            font-size: 11px;
+            color: #64748b;
+            margin-top: 3px;
+            line-height: 1.4;
+        }
+        .campana-item .ci-cta {
+            font-size: 10px;
+            color: #2563eb;
+            font-weight: 700;
+            margin-top: 4px;
+        }
+        .campana-vacio {
+            padding: 26px 16px;
+            text-align: center;
+            color: #94a3b8;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        /* ── BIENVENIDA ── */
+        .welcome-box { width: 100%; max-width: 600px; text-align: center; margin-bottom: 25px; }
+        .welcome-box h1 { color: var(--azul); font-size: 24px; margin: 0; line-height: 1.2; }
+        .welcome-box p { color: var(--gris); font-size: 14px; margin-top: 5px; }
+
+        /* ── TARJETA PRINCIPAL (ESPEJO MI CARROZA) ── */
+        .monitor-mini { 
+            width: 100%; 
+            max-width: 600px; 
+            background: var(--blanco); 
+            border-radius: 25px; 
+            padding: 20px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03); 
+            box-sizing: border-box; 
+            margin-bottom: 20px; 
+        }
+
+        .monitor-mini h2 { 
+            font-size: 15px; 
+            color: var(--azul); 
+            margin-top: 0; 
+            margin-bottom: 15px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            text-transform: uppercase; 
+            font-weight: 700;
+        }
+
+        .btn-ver-todo { 
+            background: var(--celeste); 
+            color: var(--azul); 
+            font-size: 10px; 
+            padding: 5px 10px; 
+            border-radius: 8px; 
+            text-decoration: none; 
+            font-weight: bold; 
+        }
+
+        /* ── GRID DE MENÚ ── */
+        .menu-conductor { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 15px; 
+            width: 100%; 
+            max-width: 600px; 
+            margin-bottom: 25px; 
+        }
+
+        .card-condu { 
+            background: var(--blanco); 
+            padding: 25px 10px; 
+            border-radius: 25px; 
+            text-align: center; 
+            text-decoration: none; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.04); 
+            transition: 0.3s; 
+            border: 1.5px solid transparent; 
+            cursor: pointer; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            position: relative;
+        }
+
+        .card-condu:active { transform: scale(0.95); background: #f0f7ff; border-color: var(--azul); }
+        .card-condu i { font-size: 35px; display: block; margin-bottom: 10px; font-style: normal; }
+        .card-condu span { color: var(--azul); font-weight: bold; text-transform: uppercase; font-size: 11px; }
+
+        /* ── BADGE ROJO PULSANTE ── */
+        @keyframes badgePulse {
+            0%,100% { transform: scale(1); box-shadow: 0 3px 10px rgba(220,38,38,0.5); }
+            50%      { transform: scale(1.18); box-shadow: 0 4px 20px rgba(220,38,38,0.8); }
+        }
+
+        .badge-rojo {
+            display: none; position: absolute; top: -10px; right: -10px;
+            background: linear-gradient(135deg, #dc2626, #ef4444);
+            color: white; font-size: 14px; font-weight: 900;
+            min-width: 30px; height: 30px; border-radius: 15px;
+            align-items: center; justify-content: center;
+            border: 2.5px solid white; animation: badgePulse 1.5s ease infinite; z-index: 10;
+        }
+
+        /* ── TABLAS Y PILLS ── */
+        table { width: 100%; border-collapse: collapse; }
+        td { padding: 12px 5px; font-size: 13px; border-bottom: 1px solid #f1f5f9; color: #334155; }
+        .status-pill { font-weight: bold; font-size: 10px; padding: 4px 8px; border-radius: 8px; text-transform: uppercase; }
+        .pill-disponible { color: #10b981; background: #ecfdf5; }
+        .pill-ruta { color: #3b82f6; background: #eff6ff; }
+        .pill-taller { color: var(--rojo); background: #fef2f2; }
+        .pill-pendiente { color: #f59e0b; background: #fff7ed; }
+
+        /* ── BARRA DE COMBUSTIBLE ESTIMADO ── */
+        .fuel-wrap { display: flex; align-items: center; gap: 6px; justify-content: flex-end; margin-top: 5px; }
+        .fuel-bar-mini { width: 60px; height: 6px; background: #e2e8f0; border-radius: 4px; overflow: hidden; }
+        .fuel-fill { height: 100%; border-radius: 4px; transition: width .3s; }
+        .fuel-pct { font-size: 10px; font-weight: 800; }
+
+        /* ── NOTIFICACIÓN PUSH (OVERLAY) ── */
+        .push-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); backdrop-filter: blur(3px); z-index: 9998; }
+        .push-overlay.visible { display: block; }
+
+        @keyframes slideDown { from{opacity:0;transform:translateY(-30px) scale(0.95);} to{opacity:1;transform:none;} }
+        .push-notif {
+            display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: calc(100% - 32px); max-width: 460px; background: #0f172a; border-radius: 24px;
+            padding: 24px 20px 20px; z-index: 9999; box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+            border: 1.5px solid #1e3a5f; animation: slideDown 0.4s cubic-bezier(.22,1,.36,1);
+        }
+        .push-notif.visible { display: block; }
+        .push-barra-top { width: 40px; height: 4px; background: linear-gradient(90deg, #3b82f6, #8b5cf6, #10b981); border-radius: 4px; margin: 0 auto 18px; }
+        .push-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+        .push-icono { width: 44px; height: 44px; border-radius: 14px; background: var(--azul); display: flex; align-items: center; justify-content: center; font-size: 22px; }
+        .push-app-name { font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; }
+        .push-titulo { font-size: 18px; font-weight: 800; color: #f1f5f9; margin-bottom: 8px; }
+        .push-body { font-size: 14px; color: #94a3b8; line-height: 1.6; margin-bottom: 20px; }
+        .push-btn-ver { width: 100%; padding: 15px; border: none; border-radius: 14px; background: var(--verde); color: white; font-weight: 800; font-size: 15px; cursor: pointer; }
+
+    </style>
+</head>
+<body>
+
+    <!-- ── SISTEMA DE NOTIFICACIÓN PUSH ── -->
+    <div class="push-overlay" id="push-overlay" onclick="cerrarPush()"></div>
+    <div class="push-notif" id="push-notif">
+        <div class="push-barra-top"></div>
+        <div class="push-header">
+            <div class="push-icono">🤝</div>
+            <div class="push-app-info"><div class="push-app-name">J.R. Carrozas</div></div>
+        </div>
+        <div class="push-titulo" id="push-titulo">Nueva Solicitud</div>
+        <div class="push-body" id="push-body">Se requiere apoyo en tu regional.</div>
+        <button class="push-btn-ver" onclick="window.location.href='solicitud_apoyo.html'">VER SOLICITUDES</button>
+        <button onclick="cerrarPush()" style="width:100%; margin-top:10px; background:transparent; border:none; color:#64748b; font-size:12px; cursor:pointer;">Cerrar</button>
+    </div>
+
+    <header>
+        <div class="logo-small">J.R. COORDINACIÓN</div>
+        <div class="header-acciones">
+            <!-- CAMPANA: notificaciones de la regional (cierre pendiente, averías, apoyo, tanqueos innecesarios) -->
+            <div class="campana-wrap" id="campana-wrap">
+                <button class="btn-campana" id="btn-campana" onclick="toggleCampana()" title="Notificaciones de tu regional">
+                    <span class="icono">🔔</span>
+                    <span class="badge-campana" id="badge-campana">0</span>
+                </button>
+                <div class="campana-dropdown" id="campana-dropdown">
+                    <div class="campana-dropdown-header">
+                        <span id="campana-titulo-regional">⚠️ Notificaciones</span>
+                        <span class="marcar-todas" onclick="marcarTodasLeidas(event)">Marcar todas ✓</span>
+                    </div>
+                    <div id="campana-lista">
+                        <div class="campana-vacio">Cargando...</div>
+                    </div>
+                </div>
+            </div>
+            <button onclick="cerrarSesion()" class="btn-salir">SALIR</button>
+        </div>
+    </header>
+
+    <div class="welcome-box">
+        <h1 id="txt-nombre">Hola...</h1>
+        <p>Panel de Servicios y Reportes Regionales</p>
+    </div>
+
+    <!-- ACCIÓN PRINCIPAL (ESPEJO MI CARROZA) -->
+    <div class="monitor-mini">
+        <h2>Gestión Regional</h2>
+        <div style="text-align:center; padding:10px 0;">
+            <div style="font-size:38px; margin-bottom:8px;">📤</div>
+            <div style="color:#64748b; font-size:13px; margin-bottom:15px;" id="txt-reg-desc">Cargando...</div>
+            <button onclick="window.location.href='crear_apoyo.html'" style="background:var(--azul); color:white; border:none; border-radius:12px; padding:12px 25px; font-weight:700; cursor:pointer;">+ Crear Solicitud de Apoyo</button>
+        </div>
+    </div>
+
+    <!-- GRID DE MENÚ -->
+    <div class="menu-conductor">
+        <a href="registro_salida.html" class="card-condu" style="border-color: var(--azul);"><i>🚚</i><span>Registrar Salida</span></a>
+        <a href="solicitud_apoyo.html" class="card-condu" style="border-color: var(--verde);">
+            <div id="badge-apoyo" class="badge-rojo">0</div>
+            <i>🤝</i><span>Ver Apoyos</span>
+        </a>
+        <a href="registro_llegada.html" class="card-condu"><i>🏁</i><span>Llegadas</span></a>
+        <a href="taller.html" class="card-condu"><i>🔧</i><span>Taller</span></a>
+        <a href="flota.html" class="card-condu"><i>🚗</i><span>Gestión Flota</span></a>
+        <a href="reporte_averia.html" class="card-condu"><i>⚠️</i><span>Reportar Avería</span></a>
+        <a href="tanqueo.html" class="card-condu" style="border-color: var(--naranja);">
+            <div id="badge-tanqueo" class="badge-rojo" onclick="event.preventDefault(); event.stopPropagation(); toggleCampana();" style="cursor:pointer;">0</div>
+            <i>⛽</i><span>Tanqueos</span>
+        </a>
+    </div>
+
+    <!-- LISTAS DE MONITOREO -->
+    <div class="monitor-mini">
+        <h2>Solicitudes de Apoyo <a href="solicitud_apoyo.html" class="btn-ver-todo">VER TODO</a></h2>
+        <table><tbody id="tabla-apoyos"><tr><td style="text-align:center;">Cargando...</td></tr></tbody></table>
+    </div>
+
+    <div class="monitor-mini">
+        <h2>Averías en Regional <a href="mis_averias.html" class="btn-ver-todo">VER TODO</a></h2>
+        <table><tbody id="tabla-averias"><tr><td style="text-align:center;">Cargando...</td></tr></tbody></table>
+    </div>
+
+    <div class="monitor-mini">
+        <h2>Traslados Recientes</h2>
+        <table><tbody id="tabla-traslados"><tr><td style="text-align:center;">Cargando...</td></tr></tbody></table>
+    </div>
+
+    <!-- TANQUEOS RECIENTES -->
+    <div class="monitor-mini">
+        <h2>Tanqueos Recientes <a href="tanqueo.html" class="btn-ver-todo">VER TODO</a></h2>
+        <table><tbody id="tabla-tanqueos"><tr><td style="text-align:center;">Cargando...</td></tr></tbody></table>
+    </div>
+
+    <div class="monitor-mini">
+        <h2>Estado de Flota General</h2>
+        <table><tbody id="tabla-flota"><tr><td style="text-align:center;">Cargando...</td></tr></tbody></table>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="monitor-mini" style="text-align:center; margin-bottom:30px;">
+        <div style="font-size:10px; color:#94a3b8; font-weight:600; text-transform:uppercase;">Diseñado & Desarrollado por</div>
+        <div style="font-size:15px; font-weight:800; color:#001a70; margin-top:4px;">Zaider J. Buitrago A.</div>
+        <div style="font-size:10px; color:#a5b4fc; font-weight:700; margin-top:7px;">J.R. CARROZAS © 2026</div>
+    </div>
+
+<script src="db.js"></script>
+<script>
+    let userSesion = {};
+    const norm = str => String(str || '').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+
+    // Lista en memoria de notificaciones vigentes para la campana de
+    // esta regional (ya filtradas por DB.obtenerNotificaciones, que es
+    // la única fuente de verdad — nunca se filtra "a mano" aquí).
+    let notisRegional = [];
+    let intervaloCampana = null;
+
+    window.onload = async () => {
+        const sesionRaw = localStorage.getItem('usuario_sesion');
+        if (!sesionRaw) { window.location.href = "index.html"; return; }
+        
+        userSesion = JSON.parse(sesionRaw);
+        const rol = norm(userSesion.rol);
+        if (!rol.includes('coordinador')) { window.location.href = "panel_conductor.html"; return; }
+
+        if (!userSesion.regional) {
+            console.warn('⚠️ Este usuario no tiene una "regional" asignada — las notificaciones y tablas regionales quedarán vacías. Revisa el registro de este coordinador.');
+        }
+
+        // SALUDO NOMBRE COMPLETO
+        document.getElementById('txt-nombre').innerText = "Hola, " + (userSesion.nombre || "Coordinador/a");
+        document.getElementById('txt-reg-desc').innerText = "📍 Regional: " + (userSesion.regional || "Sin regional asignada");
+        document.getElementById('campana-titulo-regional').innerText = "⚠️ " + (userSesion.regional || "Tu regional");
+
+        await Promise.all([cargarApoyos(), cargarAverias(), cargarTraslados(), cargarTanqueos(), cargarFlota(), verificarBadges(), cargarNotificacionesRegional()]);
+        activarRealtime();
+
+        // Polling de la campana: como el backend es Google Apps Script +
+        // Sheets (sin websockets reales), se refresca cada 17s en vez de
+        // depender de un canal en vivo — así el coordinador ve nuevas
+        // alertas y ve desaparecer las que ya se resolvieron, sin
+        // recargar la página.
+        intervaloCampana = setInterval(cargarNotificacionesRegional, 17000);
+    };
+
+    // ══════════════════════════════════════════════
+    // CAMPANA — NOTIFICACIONES DE LA REGIONAL
+    // ══════════════════════════════════════════════
+    // Usa DB.obtenerNotificaciones(regional) como ÚNICA fuente de
+    // verdad para el filtrado — esa función ya resuelve de forma
+    // robusta el dato heredado de "alcance" y garantiza que nunca se
+    // mezclen notificaciones entre regionales distintas.
+    async function cargarNotificacionesRegional() {
+        if (!userSesion.regional) { renderCampana(); return; }
+        try {
+            const [resNotis, resAbiertos] = await Promise.all([
+                DB.obtenerNotificaciones(userSesion.regional, { soloNoLeidas: true }),
+                DB.obtenerPlacasConTrasladoActivo()
+            ]);
+
+            if (!resNotis.ok) {
+                console.warn('No se pudieron cargar las notificaciones de la regional:', resNotis.error);
+                return;
+            }
+
+            const idsAbiertos = new Set(
+                (resAbiertos && resAbiertos.ok ? resAbiertos.data : [])
+                    .map(t => String(t.id_salida || '').trim())
+                    .filter(Boolean)
+            );
+
+            // Para las notificaciones de tipo "cierre_pendiente" (traen
+            // id_salida_ref), solo se muestran si ese servicio sigue
+            // realmente abierto — así la campana se limpia sola apenas
+            // se registra la Llegada, sin depender de que alguien la
+            // marque como leída a mano. El resto de tipos (avería,
+            // apoyo aceptado, tanqueo innecesario, etc.) se muestran
+            // siempre que no estén leídas.
+            const relevantes = resNotis.data.filter(n => {
+                if (normTexto_(n.tipo) !== 'cierre_pendiente') return true;
+                const idSalida = String(n.id_salida_ref || '').trim();
+                return idSalida ? idsAbiertos.has(idSalida) : true;
+            });
+
+            notisRegional = relevantes;
+            renderCampana();
+        } catch (e) {
+            console.warn('No se pudieron cargar las notificaciones de la regional:', e.message);
+        }
+    }
+
+    function normTexto_(s) {
+        return (s || '').toString().toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    }
+
+    const ICONOS_POR_TIPO = {
+        cierre_pendiente:     '🚨',
+        averia_reportada:     '⚠️',
+        apoyo_aceptado:       '🤝',
+        apoyo_solicitado:     '📤',
+        tanqueo_innecesario:  '⛽',
+    };
+
+    function renderCampana() {
+        const badge = document.getElementById('badge-campana');
+        const lista = document.getElementById('campana-lista');
+
+        if (notisRegional.length > 0) {
+            badge.style.display = 'flex';
+            badge.innerText = notisRegional.length > 9 ? '9+' : notisRegional.length;
+        } else {
+            badge.style.display = 'none';
+        }
+
+        // 🆕 Badge específico en la tarjeta "Tanqueos" — solo cuenta las
+        // notificaciones de tipo "tanqueo_innecesario" pendientes de esta
+        // regional. Se limpia sola apenas se marcan como leídas (desde la
+        // propia campana), sin necesidad de tocar nada más.
+        actualizarBadgeTanqueo();
+
+        if (!userSesion.regional) {
+            lista.innerHTML = '<div class="campana-vacio">⚠️ Tu usuario no tiene una regional asignada.<br>Contacta a Administración.</div>';
+            return;
+        }
+
+        if (notisRegional.length === 0) {
+            lista.innerHTML = '<div class="campana-vacio">✅ Sin notificaciones pendientes en ' + (userSesion.regional || 'tu regional') + '.</div>';
+            return;
+        }
+
+        lista.innerHTML = notisRegional.map(n => {
+            const icono = ICONOS_POR_TIPO[n.tipo] || '🔔';
+            const titulo = n.titulo || (n.placa ? icono + ' ' + n.placa : icono + ' Notificación');
+            const detalle = n.cuerpo || [
+                n.conductor ? 'Conductor: ' + n.conductor : '',
+                n.hora_salida ? 'Salió a las ' + n.hora_salida : ''
+            ].filter(Boolean).join(' · ');
+
+            const idSeguro = String(n.id || '').replace(/'/g, '');
+            const placaSegura = String(n.placa || '').replace(/'/g, '');
+            const esCierre = normTexto_(n.tipo) === 'cierre_pendiente';
+            const accion = esCierre && placaSegura
+                ? `irARegistrarLlegada('${placaSegura}', '${idSeguro}')`
+                : `marcarNotificacionLeida('${idSeguro}')`;
+            const cta = esCierre && placaSegura ? 'Tocar para registrar la llegada →' : 'Tocar para marcar como leída ✓';
+
+            return `
+                <div class="campana-item" onclick="${accion}">
+                    <div class="ci-placa">${icono} ${titulo}</div>
+                    <div class="ci-detalle">${detalle || 'Sin más detalles'}</div>
+                    <div class="ci-cta">${cta}</div>
+                </div>`;
+        }).join('');
+    }
+
+    // 🆕 Actualiza el badge rojo de la tarjeta "Tanqueos" con el número
+    // de notificaciones de tipo "tanqueo_innecesario" aún no leídas en
+    // esta regional. Al marcarlas como leídas desde la campana (arriba),
+    // notisRegional se actualiza y este badge desaparece solo.
+    function actualizarBadgeTanqueo() {
+        const badge = document.getElementById('badge-tanqueo');
+        if (!badge) return;
+        const pendientes = notisRegional.filter(n => normTexto_(n.tipo) === 'tanqueo_innecesario');
+        if (pendientes.length > 0) { badge.style.display = 'flex'; badge.innerText = pendientes.length; }
+        else { badge.style.display = 'none'; }
+    }
+
+    function toggleCampana() {
+        document.getElementById('campana-dropdown').classList.toggle('visible');
+    }
+
+    // Cierra el dropdown al tocar fuera de él
+    document.addEventListener('click', function(e) {
+        const wrap = document.getElementById('campana-wrap');
+        const dropdown = document.getElementById('campana-dropdown');
+        if (wrap && dropdown && !wrap.contains(e.target)) {
+            dropdown.classList.remove('visible');
+        }
+    });
+
+    // Al tocar una notificación de "servicio sin cerrar", se va directo
+    // a registro_llegada.html con la placa preseleccionada, y de paso se
+    // marca la notificación como leída (aunque también se limpia sola
+    // cuando la Llegada se guarde, por si el coordinador solo la mira
+    // sin llegar a completar el registro).
+    function irARegistrarLlegada(placa, idNotificacion) {
+        if (idNotificacion) marcarNotificacionLeida(idNotificacion, true);
+        window.location.href = 'registro_llegada.html?placa=' + encodeURIComponent(placa);
+    }
+
+    async function marcarNotificacionLeida(id, silencioso) {
+        if (!id) return;
+        try {
+            await DB.marcarNotificacionLeida(id);
+            notisRegional = notisRegional.filter(n => String(n.id) !== String(id));
+            renderCampana();
+        } catch (e) {
+            if (!silencioso) console.warn('No se pudo marcar la notificación como leída:', e.message);
+        }
+    }
+
+    async function marcarTodasLeidas(e) {
+        if (e) e.stopPropagation();
+        const pendientes = notisRegional.slice();
+        if (!pendientes.length) return;
+        notisRegional = [];
+        renderCampana();
+        for (const n of pendientes) {
+            try { await DB.marcarNotificacionLeida(n.id); } catch (err) { /* se reintentará en el próximo polling */ }
+        }
+    }
+
+    async function cargarApoyos() {
+        const { data } = await DB.supabase.from('solicitud_apoyo').select('*').eq('coordinador', userSesion.nombre).order('created_at',{ascending:false}).limit(3);
+        const t = document.getElementById('tabla-apoyos');
+        if(!data || data.length === 0) { t.innerHTML = '<tr><td>Sin solicitudes activas.</td></tr>'; return; }
+        t.innerHTML = data.map(s => `<tr><td><b>${s.origen} ➔ ${s.destino}</b></td><td style="text-align:right;"><span class="status-pill pill-${s.estado}">${s.estado}</span></td></tr>`).join('');
+    }
+
+    // Filtro regional normalizado (sin depender de mayúsculas/tildes)
+    // para las tablas de abajo, en vez de un .eq() exacto que podría
+    // fallar por diferencias de formato entre hojas.
+    function filtrarPorRegional(rows, campoRegional) {
+        const miRegional = norm(userSesion.regional);
+        if (!miRegional) return [];
+        return (rows || []).filter(r => norm(r[campoRegional]) === miRegional);
+    }
+
+    async function cargarAverias() {
+        const { data } = await DB.supabase.from('Averias').select('*').order('created_at',{ascending:false});
+        const propias = filtrarPorRegional(data, 'regional').slice(0, 3);
+        const t = document.getElementById('tabla-averias');
+        if(propias.length === 0) { t.innerHTML = '<tr><td>Sin averías reportadas.</td></tr>'; return; }
+        t.innerHTML = propias.map(av => `<tr><td><b>${av.placa_vehiculo}</b><br><small>${av.tipo_falla}</small></td><td style="text-align:right; font-size:11px;">${new Date(av.created_at).toLocaleDateString()}</td></tr>`).join('');
+    }
+
+    async function cargarTraslados() {
+        const { data } = await DB.supabase.from('Traslado').select('*').order('id_salida',{ascending:false});
+        const propios = filtrarPorRegional(data, 'regional').slice(0, 3);
+        const t = document.getElementById('tabla-traslados');
+        if(propios.length === 0) { t.innerHTML = '<tr><td>Sin traslados hoy.</td></tr>'; return; }
+        t.innerHTML = propios.map(tr => `<tr><td><b>${tr.placa}</b></td><td style="text-align:right; font-size:11px;">${tr.origen} ➔ ${tr.destino}</td></tr>`).join('');
+    }
+
+    // Cargar últimos 3 tanqueos de la regional del coordinador
+    async function cargarTanqueos() {
+        const { data } = await DB.supabase.from('Tanqueo').select('*').order('created_at', {ascending:false});
+        const propios = filtrarPorRegional(data, 'REGIONAL').slice(0, 3);
+        const t = document.getElementById('tabla-tanqueos');
+        if (propios.length === 0) { t.innerHTML = '<tr><td>Sin tanqueos registrados.</td></tr>'; return; }
+        t.innerHTML = propios.map(tq => `
+            <tr>
+                <td>
+                    <b>${tq.CARROZA || tq.PLACA}</b><br>
+                    <small>${tq.ESTACION_SERVICIO || ''} · ${tq.CIUDAD || ''}</small>
+                </td>
+                <td style="text-align:right;">
+                    <b>${tq.GALONES || 0} gal</b><br>
+                    <small style="color:#64748b;">$${Number(tq.VALOR_TOTAL||0).toLocaleString('es-CO')}</small>
+                </td>
+            </tr>`).join('');
+    }
+
+    // Cálculo de combustible estimado restante por carroza
+    // Fórmula: galones restantes = galones del último tanqueo - (km recorridos desde ese tanqueo / rendimiento)
+    function calcularCombustible(carroza, tanqueos) {
+        const rendimiento = Number(carroza.rendimiento_km_gal || carroza.ultimo_rendimiento_km_gal) || 25;
+        const capacidad = Number(carroza.capacidad_galones) || 55;
+        const kmActual = Number(carroza.kilometraje_actual) || 0;
+
+        const ultimo = (tanqueos || [])
+            .filter(t => norm(t.PLACA) === norm(carroza.placa))
+            .sort((a,b) => String(b.FECHA||'').localeCompare(String(a.FECHA||'')))[0];
+
+        if (!ultimo) return { porcentaje: null, color: '#94a3b8', texto: 'Sin datos' };
+
+        const galonesLlenado = Number(ultimo.GALONES) || 0;
+        const kmEnTanqueo = Number(ultimo.KILOMETRAJE) || kmActual;
+        const kmRecorridos = Math.max(0, kmActual - kmEnTanqueo);
+        const galonesConsumidos = kmRecorridos / rendimiento;
+        const galonesRestantes = Math.max(0, galonesLlenado - galonesConsumidos);
+
+        let porcentaje = Math.round((galonesRestantes / capacidad) * 100);
+        porcentaje = Math.min(100, Math.max(0, porcentaje));
+
+        const color = porcentaje <= 25 ? '#ef4444' : (porcentaje <= 50 ? '#f59e0b' : '#10b981');
+        return { porcentaje, color, texto: porcentaje + '%' };
+    }
+
+    async function cargarFlota() {
+        const { data: carrozasTodas } = await DB.supabase.from('carrozas').select('*').order('placa');
+        const { data: tanqueos } = await DB.supabase.from('Tanqueo').select('*').order('created_at', {ascending:false});
+
+        // Estado de flota: se muestra la de la regional del coordinador.
+        // La regional REAL y actual de una carroza es sede_intercambio
+        // si tiene una (viene de un traslado temporal a otra regional);
+        // si no, es sede_asignada. Esta es la MISMA lógica que ya usa
+        // index.html al listar placas en el registro — si aquí solo se
+        // mirara sede_asignada, cualquier carroza con un intercambio
+        // activo desaparecería del panel de su regional real.
+        const miRegional = norm(userSesion.regional);
+        const carrozas = (carrozasTodas || []).filter(c => {
+            const ubicacionReal = c.sede_intercambio || c.sede_asignada;
+            return norm(ubicacionReal) === miRegional;
+        });
+
+        const t = document.getElementById('tabla-flota');
+        if (!carrozas.length) {
+            t.innerHTML = '<tr><td>Sin carrozas registradas en tu regional.</td></tr>';
+            console.warn(
+                '⚠️ "Estado de Flota General" quedó vacío para la regional "' + userSesion.regional + '". ' +
+                'Verifica que las carrozas en la hoja "carrozas" tengan sede_asignada (o sede_intercambio) ' +
+                'escrito EXACTAMENTE como "' + userSesion.regional + '".',
+                carrozasTodas
+            );
+            return;
+        }
+
+        t.innerHTML = carrozas.map(c => {
+            const estado = c.estado || '';
+            let cls = estado.includes('Taller') ? 'pill-taller' : estado.includes('Disponible') ? 'pill-disponible' : 'pill-ruta';
+            const comb = calcularCombustible(c, tanqueos);
+            const fuelHtml = comb.porcentaje === null
+                ? `<small style="color:#94a3b8;">⛽ sin registro</small>`
+                : `<div class="fuel-wrap">
+                       <span class="fuel-pct" style="color:${comb.color};">⛽ ${comb.texto}</span>
+                       <div class="fuel-bar-mini"><div class="fuel-fill" style="width:${comb.porcentaje}%; background:${comb.color};"></div></div>
+                   </div>`;
+            return `<tr>
+                        <td><b>${c.placa}</b></td>
+                        <td style="text-align:right;">
+                            <span class="status-pill ${cls}">● ${estado || 'Sin estado'}</span>
+                            ${fuelHtml}
+                        </td>
+                    </tr>`;
+        }).join('');
+    }
+
+    async function verificarBadges() {
+        const reg = norm(userSesion.regional);
+        const { data } = await DB.supabase.from('solicitud_apoyo').select('*').eq('estado', 'pendiente');
+        const vis = (data || []).filter(s => {
+            const alcance = norm(s.alcance);
+            const esGlobal = alcance === 'nacional' || alcance === 'global' || alcance === 'todas';
+            const regionalSolicitante = norm(s.regional_solicitante || s.regional);
+            return esGlobal || (reg && regionalSolicitante === reg);
+        });
+        const b = document.getElementById('badge-apoyo');
+        if (vis.length > 0) { b.style.display = 'flex'; b.innerText = vis.length; } else { b.style.display = 'none'; }
+    }
+
+    // El canal Realtime es un stub de compatibilidad (este backend es
+    // Google Apps Script + Sheets, sin websockets reales) — se deja
+    // conectado por si en el futuro se migra a un backend con soporte
+    // real de Realtime, pero la campana NO depende de esto: usa el
+    // polling de cargarNotificacionesRegional() de arriba.
+    function activarRealtime() {
+        DB.supabase.channel('coord-push').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notificaciones_apoyo' }, payload => {
+            const n = payload.new;
+            const alcance = norm(n.alcance);
+            const esGlobal = alcance === 'nacional' || alcance === 'global' || alcance === 'todas';
+            if (esGlobal || norm(n.regional) === norm(userSesion.regional)) {
+                document.getElementById('push-titulo').innerText = n.titulo;
+                document.getElementById('push-body').innerText = n.cuerpo;
+                document.getElementById('push-overlay').classList.add('visible');
+                document.getElementById('push-notif').classList.add('visible');
+                verificarBadges();
+                cargarNotificacionesRegional();
+            }
+        }).subscribe();
+    }
+
+    function cerrarPush() { document.getElementById('push-overlay').classList.remove('visible'); document.getElementById('push-notif').classList.remove('visible'); }
+    function cerrarSesion() { localStorage.clear(); window.location.href = "index.html"; }
+</script>
+</body>
+</html>

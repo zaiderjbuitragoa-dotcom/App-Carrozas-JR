@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J.R. — Panel Conductor</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --azul:    #001a70;
+            --azul-med:#003399;
+            --celeste: #e8f1ff;
+            --blanco:  #ffffff;
+            --rojo:    #ef4444;
+            --verde:   #10b981;
+            --naranja: #f59e0b;
+            --gris:    #64748b;
+            --sombra:  0 4px 20px rgba(0,26,112,0.08);
+            --sombra-card: 0 2px 12px rgba(0,26,112,0.06);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: linear-gradient(160deg, #dbeafe 0%, #e0e7ff 100%);
+            font-family: 'DM Sans', sans-serif;
+            min-height: 100vh;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header {
+            width: 100%;
+            max-width: 600px;
+            background: var(--azul);
+            padding: 16px 20px;
+            border-radius: 22px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+            box-shadow: 0 6px 24px rgba(0,26,112,0.25);
+        }
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .header-logo {
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px;
+        }
+        .header-txt { color: white; font-weight: 800; font-size: 15px; letter-spacing: 0.3px; }
+        .header-sub { color: rgba(255,255,255,0.6); font-size: 10px; font-weight: 500; }
+
+        .btn-salir {
+            background: rgba(255,255,255,0.12);
+            color: rgba(255,255,255,0.85);
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 700;
+            border: 1.5px solid rgba(255,255,255,0.2);
+            cursor: pointer;
+            transition: 0.2s;
+            font-family: inherit;
+        }
+        .btn-salir:hover { background: rgba(255,255,255,0.22); color: white; }
+
+        .welcome-box {
+            width: 100%;
+            max-width: 600px;
+            margin-bottom: 18px;
+            text-align: center;
+        }
+        .welcome-box h1 {
+            color: var(--azul);
+            font-size: 22px;
+            font-weight: 800;
+        }
+        .welcome-box p { color: var(--gris); font-size: 13px; margin-top: 3px; }
+
+        .panel {
+            width: 100%;
+            max-width: 600px;
+            background: var(--blanco);
+            border-radius: 22px;
+            padding: 20px;
+            box-shadow: var(--sombra);
+            margin-bottom: 16px;
+        }
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .panel-titulo {
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--azul);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .btn-ver-todo {
+            background: var(--celeste);
+            color: var(--azul);
+            font-size: 10px;
+            padding: 5px 12px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            transition: 0.2s;
+            font-family: inherit;
+        }
+        .btn-ver-todo:hover { background: #c7d7ff; }
+
+        .menu-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 13px;
+            width: 100%;
+            max-width: 600px;
+            margin-bottom: 16px;
+        }
+        .card-menu {
+            background: var(--blanco);
+            padding: 22px 10px;
+            border-radius: 20px;
+            text-align: center;
+            text-decoration: none;
+            box-shadow: var(--sombra-card);
+            border: 1.5px solid #e8efff;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: 0.2s;
+            position: relative;
+        }
+        .card-menu:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,26,112,0.12); border-color: #b3c6ff; }
+        .card-menu:active { transform: scale(0.97); }
+        .card-menu i { font-size: 32px; font-style: normal; }
+        .card-menu span {
+            color: var(--azul);
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.3px;
+        }
+        .card-menu.especial {
+            border-color: var(--verde);
+            background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%);
+            grid-column: span 2;
+        }
+        .card-menu.especial:hover { border-color: #059669; }
+
+        @keyframes badgePulse {
+            0%,100% { transform: scale(1); box-shadow: 0 2px 8px rgba(220,38,38,0.5); }
+            50%      { transform: scale(1.2); box-shadow: 0 4px 16px rgba(220,38,38,0.8); }
+        }
+        .badge-num {
+            display: none;
+            position: absolute; top: -9px; right: -9px;
+            background: linear-gradient(135deg, #dc2626, #ef4444);
+            color: white; font-size: 13px; font-weight: 900;
+            min-width: 26px; height: 26px; padding: 0 7px;
+            border-radius: 13px;
+            align-items: center; justify-content: center;
+            box-shadow: 0 2px 10px rgba(220,38,38,0.5);
+            border: 2.5px solid white;
+            animation: badgePulse 1.5s ease infinite;
+            z-index: 10;
+        }
+
+        .carroza-box { padding: 4px 0; }
+        .carroza-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            text-align: left;
+        }
+        .carroza-icono { font-size: 36px; }
+        .carroza-placa { font-size: 22px; font-weight: 900; color: var(--azul); }
+        .carroza-detalle { font-size: 12px; color: var(--gris); margin-top: 1px; }
+        .carroza-km { font-size: 11px; color: #94a3b8; margin-top: 3px; }
+        .estado-pill {
+            font-size: 10px;
+            font-weight: 800;
+            padding: 5px 10px;
+            border-radius: 8px;
+            white-space: nowrap;
+            margin-left: auto;
+        }
+        .btn-cambiar-carroza {
+            width: 100%;
+            margin-top: 14px;
+            padding: 11px;
+            background: #f0f7ff;
+            color: var(--azul);
+            border: 1.5px dashed #90caf9;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 13px;
+            cursor: pointer;
+            font-family: inherit;
+            transition: 0.2s;
+        }
+        .btn-cambiar-carroza:hover { background: #dbeafe; border-color: var(--azul); }
+
+        .btn-asignar {
+            background: var(--azul);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 11px 22px;
+            font-weight: 700;
+            font-size: 13px;
+            cursor: pointer;
+            font-family: inherit;
+            transition: 0.2s;
+            margin-top: 10px;
+        }
+        .btn-asignar:hover { background: var(--azul-med); }
+
+        table { width: 100%; border-collapse: collapse; }
+        td {
+            padding: 11px 6px;
+            font-size: 13px;
+            border-bottom: 1px solid #f1f5f9;
+            color: #334155;
+        }
+        tr:last-child td { border-bottom: none; }
+
+        .status-pill { font-weight: 800; font-size: 10px; padding: 3px 8px; border-radius: 7px; text-transform: uppercase; }
+        .pill-disponible { color: #10b981; background: #ecfdf5; }
+        .pill-taller  { color: var(--rojo); background: #fef2f2; }
+        .pill-ruta    { color: #3b82f6; background: #eff6ff; }
+        .falla-pill   { color: var(--rojo); font-weight: 800; font-size: 10px; background: #fef2f2; padding: 3px 8px; border-radius: 7px; }
+        .servicio-pill{ color: var(--azul); font-weight: 800; font-size: 10px; background: #e0e7ff; padding: 3px 8px; border-radius: 7px; }
+
+        .modal-carroza {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,26,112,0.3); backdrop-filter: blur(5px);
+            z-index: 1000; align-items: center; justify-content: center;
+        }
+        .modal-carroza.open { display: flex; }
+        .modal-box-carroza {
+            background: white; padding: 28px 24px; border-radius: 28px;
+            width: 92%; max-width: 400px; text-align: center;
+            box-shadow: 0 20px 60px rgba(0,26,112,0.2);
+        }
+        .modal-box-carroza h2 { color: var(--azul); margin-bottom: 6px; font-size: 18px; font-weight: 800; }
+        .modal-box-carroza p  { color: var(--gris); font-size: 13px; margin-bottom: 16px; }
+        .modal-box-carroza select {
+            width: 100%; padding: 12px; border: 2px solid #e3f2fd;
+            border-radius: 12px; font-family: inherit; font-size: 14px;
+            color: var(--azul); margin-bottom: 16px; outline: none;
+        }
+        .modal-box-carroza select:focus { border-color: var(--azul); }
+        .modal-btns { display: flex; gap: 10px; }
+        .btn-cancelar-modal {
+            flex: 1; padding: 13px; border: 1.5px solid #e2e8f0;
+            border-radius: 12px; background: white; color: #94a3b8;
+            font-weight: 700; cursor: pointer; font-family: inherit;
+        }
+        .btn-confirmar-modal {
+            flex: 2; padding: 13px; border: none; border-radius: 12px;
+            background: var(--azul); color: white; font-weight: 800;
+            cursor: pointer; font-family: inherit; transition: 0.2s;
+        }
+        .btn-confirmar-modal:hover { background: var(--azul-med); }
+        .btn-confirmar-modal:disabled { background: #94a3b8; cursor: not-allowed; }
+
+        .push-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55); backdrop-filter: blur(3px); z-index: 9998;
+        }
+        .push-overlay.visible { display: block; }
+
+        @keyframes slideDown { from{opacity:0;transform:translateY(-30px) scale(0.95);} to{opacity:1;transform:none;} }
+        @keyframes pulseRing { 0%,100%{box-shadow:0 0 0 0 rgba(16,185,129,0.5);} 60%{box-shadow:0 0 0 14px rgba(16,185,129,0);} }
+
+        .push-notif {
+            display: none; position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: calc(100% - 32px); max-width: 460px;
+            background: #0f172a; border-radius: 24px;
+            padding: 24px 20px 20px; z-index: 9999;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+            border: 1.5px solid #1e3a5f;
+            animation: slideDown 0.4s cubic-bezier(.22,1,.36,1);
+        }
+        .push-notif.visible { display: block; }
+        .push-barra-top {
+            width: 40px; height: 4px;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6, #10b981);
+            border-radius: 4px; margin: 0 auto 18px;
+        }
+        .push-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+        .push-icono {
+            width: 44px; height: 44px; border-radius: 14px;
+            background: var(--azul); display: flex; align-items: center;
+            justify-content: center; font-size: 22px; flex-shrink: 0;
+            animation: pulseRing 1.8s ease infinite;
+        }
+        .push-app-name { font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+        .push-app-sub  { font-size: 10px; color: #475569; margin-top: 2px; }
+        .push-titulo { font-size: 18px; font-weight: 800; color: #f1f5f9; margin-bottom: 8px; }
+        .push-body   { font-size: 14px; color: #94a3b8; line-height: 1.6; margin-bottom: 20px; }
+        .push-aceptada-banner {
+            display: none; background: #065f46; border-radius: 12px;
+            padding: 12px 14px; margin-bottom: 16px;
+            font-size: 13px; font-weight: 700; color: #6ee7b7; text-align: center;
+        }
+        .push-aceptada-banner.visible { display: block; }
+        .push-acciones { display: flex; gap: 10px; }
+        .push-btn-ver {
+            flex: 1; padding: 15px; border: none; border-radius: 14px;
+            background: var(--verde); color: white; font-weight: 800;
+            font-size: 15px; cursor: pointer; transition: 0.15s;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .push-btn-ver:active { transform: scale(0.97); background: #059669; }
+        .push-btn-ver:disabled { background: #374151; color: #6b7280; cursor: not-allowed; }
+        .push-btn-cerrar {
+            padding: 15px 18px; border: 1.5px solid #334155; border-radius: 14px;
+            background: transparent; color: #64748b;
+            font-weight: 700; font-size: 13px; cursor: pointer; font-family: inherit;
+        }
+        .push-btn-cerrar:active { background: #1e293b; }
+
+        .footer-panel {
+            width: 100%; max-width: 600px;
+            text-align: center;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .footer-label { font-size: 10px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+        .footer-name  { font-size: 14px; font-weight: 800; color: var(--azul); margin-top: 4px; }
+        .footer-copy  { font-size: 10px; color: #a5b4fc; font-weight: 700; margin-top: 6px; }
+
+        .empty-state { text-align: center; padding: 16px 0; color: #94a3b8; font-size: 13px; }
+    </style>
+</head>
+<body>
+
+    <div class="push-overlay" id="push-overlay" onclick="ignorarPush()"></div>
+
+    <div class="push-notif" id="push-notif">
+        <div class="push-barra-top"></div>
+        <div class="push-header">
+            <div class="push-icono">🚗</div>
+            <div class="push-app-info">
+                <div class="push-app-name">J.R. Carrozas</div>
+                <div class="push-app-sub">Nueva Solicitud de Apoyo</div>
+            </div>
+        </div>
+        <div class="push-titulo" id="push-titulo">🤝 Solicitud de Apoyo</div>
+        <div class="push-body"   id="push-body">Tienes una nueva solicitud.</div>
+        <div class="push-aceptada-banner" id="push-aceptada-banner">✅ Un compañero ya aceptó este servicio</div>
+        <div class="push-acciones">
+            <button class="push-btn-ver"    id="push-btn-ver"    onclick="verSolicitud()">👀 VER SOLICITUD</button>
+            <button class="push-btn-cerrar" id="push-btn-cerrar" onclick="ignorarPush()">Ignorar</button>
+        </div>
+    </div>
+
+    <div class="modal-carroza" id="modal-carroza">
+        <div class="modal-box-carroza">
+            <h2>🚗 Mi Carroza</h2>
+            <p>Selecciona tu carroza asignada</p>
+            <select id="sel-nueva-carroza">
+                <option value="">Cargando flota...</option>
+            </select>
+            <div class="modal-btns">
+                <button class="btn-cancelar-modal" onclick="cerrarModalCarroza()">Cancelar</button>
+                <button class="btn-confirmar-modal" id="btn-confirmar-carroza" onclick="confirmarCambioCarroza()">CONFIRMAR</button>
+            </div>
+        </div>
+    </div>
+
+    <header>
+        <div class="header-brand">
+            <div class="header-logo">🚗</div>
+            <div>
+                <div class="header-txt">J.R. CARROZAS</div>
+                <div class="header-sub">PANEL CONDUCTOR</div>
+            </div>
+        </div>
+        <button onclick="cerrarSesion()" class="btn-salir">⏻ Salir</button>
+    </header>
+
+    <div class="welcome-box">
+        <h1 id="txt-conductor">Hola...</h1>
+        <p>Panel de Servicios y Reportes</p>
+    </div>
+
+    <div class="panel">
+        <div class="panel-header">
+            <span class="panel-titulo">🚗 Mi Carroza Asignada</span>
+        </div>
+        <div id="mi-carroza-info" class="empty-state">Cargando...</div>
+    </div>
+
+    <div class="menu-grid">
+        <a href="registro_salida.html" class="card-menu">
+            <i>🚚</i><span>Nueva Salida</span>
+        </a>
+        <a href="registro_llegada.html" class="card-menu">
+            <i>🏁</i><span>Llegadas</span>
+        </a>
+        <a href="inspeccion.html" class="card-menu">
+            <i>📋</i><span>Inspección Vehicular</span>
+        </a>
+        <a href="reporte_averia.html" class="card-menu">
+            <i>⚠️</i><span>Reportar Avería</span>
+        </a>
+        <a href="solicitud_apoyo.html" class="card-menu especial">
+            <div id="badge-apoyo" class="badge-num">0</div>
+            <i>🤝</i>
+            <span>Solicitudes de Apoyo</span>
+            <span id="badge-texto" style="display:none; font-size:10px; color:#10b981; font-weight:800;"></span>
+        </a>
+    </div>
+
+    <div class="panel">
+        <div class="panel-header">
+            <span class="panel-titulo">📋 Mis Salidas Recientes</span>
+            <a href="mis_salidas.html" class="btn-ver-todo">VER TODO</a>
+        </div>
+        <table><tbody id="tabla-salidas">
+            <tr><td colspan="3" class="empty-state">Cargando salidas...</td></tr>
+        </tbody></table>
+    </div>
+
+    <div class="panel">
+        <div class="panel-header">
+            <span class="panel-titulo">⚠️ Mis Averías Reportadas</span>
+            <a href="mis_averias.html" class="btn-ver-todo">VER TODO</a>
+        </div>
+        <table><tbody id="tabla-averias">
+            <tr><td colspan="3" class="empty-state">Cargando reportes...</td></tr>
+        </tbody></table>
+    </div>
+
+    <div class="panel">
+        <div class="panel-header">
+            <span class="panel-titulo">🚗 Estado de Flota</span>
+        </div>
+        <table><tbody id="tabla-monitor">
+            <tr><td colspan="3" class="empty-state">Cargando flota...</td></tr>
+        </tbody></table>
+    </div>
+
+    <div class="footer-panel">
+        <div class="footer-label">Diseñado &amp; Desarrollado por</div>
+        <div class="footer-name">Zaider J. Buitrago A.</div>
+        <div class="footer-copy">J.R. CARROZAS © 2026</div>
+    </div>
+
+<script src="db.js"></script>
+<script>
+    const norm = str => String(str || '').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+
+    let userSesion        = {};
+    let solicitudActivaId = null;
+
+    window.onload = async () => {
+        const sesionRaw = localStorage.getItem('usuario_sesion');
+        if (!sesionRaw) { window.location.href = "index.html"; return; }
+
+        try {
+            const user = JSON.parse(sesionRaw);
+            userSesion = user;
+            const rol = norm(user.rol);
+            const usr = norm(user.usuario);
+
+            if (rol.includes('admin') || rol.includes('administracion') || usr.includes('admin')) {
+                window.location.href = "dashboard.html"; return;
+            }
+            if (rol.includes('coordinador')) {
+                window.location.href = "panel_coordinador.html"; return;
+            }
+
+            const nombre = user.nombre || "Conductor";
+            const nombreLimpio = nombre
+                .replace(/^conductor\s+/i, '')
+                .replace(/^director\s+de\s+orquesta\s+/i, '')
+                .trim();
+            document.getElementById('txt-conductor').innerText = "¡Hola, " + nombreLimpio + "!";
+
+            // 🆕 Prioridad para el conductor: lo primero que necesita ver al
+            // entrar es si tiene una Salida abierta o su última Llegada — se
+            // carga y se espera ANTES que el resto, así esos datos llegan
+            // primero (y quedan en caché) aunque el backend esté lento.
+            await cargarSalidasRecientes(nombre);
+
+            // El resto (mi carroza, averías, monitor de flota, apoyos) se
+            // carga después, en paralelo, sin bloquear lo prioritario.
+            cargarMiCarroza(user);
+            cargarResumenAverias(nombre);
+            cargarMonitorFlota();
+            verificarApoyosPendientes(user);
+
+        } catch(e) {
+            console.error("Error sesión:", e);
+            window.location.href = "index.html";
+        }
+    };
+
+    async function cargarMiCarroza(user) {
+        const infoEl = document.getElementById('mi-carroza-info');
+        const placaAsignada = user.placa_asignada || '';
+
+        if (!placaAsignada || placaAsignada === 'Ninguna') {
+            infoEl.innerHTML = `
+                <div style="padding:8px 0;">
+                    <div style="font-size:30px; margin-bottom:8px;">🚗</div>
+                    <div style="color:#94a3b8; font-size:13px; margin-bottom:14px;">Sin carroza asignada</div>
+                    <button onclick="abrirModalCarroza()" class="btn-asignar">+ Asignarme una carroza</button>
+                </div>`;
+            return;
+        }
+
+        try {
+            const res = await DB.obtenerFlota();
+            const c = (res.data || []).find(x => norm(x.placa) === norm(placaAsignada));
+            if (!c) throw new Error('no encontrada');
+
+            let estadoColor = '#10b981'; let estadoBg = '#ecfdf5';
+            if ((c.estado||'').includes('Taller'))  { estadoColor = '#ef4444'; estadoBg = '#fef2f2'; }
+            if ((c.estado||'').includes('Servicio')) { estadoColor = '#3b82f6'; estadoBg = '#eff6ff'; }
+
+            infoEl.innerHTML = `
+                <div class="carroza-row">
+                    <div class="carroza-icono">🚗</div>
+                    <div style="flex:1;">
+                        <div class="carroza-placa">${c.placa}</div>
+                        <div class="carroza-detalle">${c.modelo || 'S/M'} · ${c.tipo_vehiculo || 'S/T'}</div>
+                        <div class="carroza-km">📍 ${c.sede_intercambio || c.sede_asignada || 'S/S'} &nbsp;·&nbsp; 🛣️ ${Number(c.kilometraje_actual||0).toLocaleString()} KM</div>
+                    </div>
+                    <span class="estado-pill" style="background:${estadoBg}; color:${estadoColor};">
+                        ${(c.estado||'S/E').toUpperCase()}
+                    </span>
+                </div>
+                <button onclick="abrirModalCarroza()" class="btn-cambiar-carroza">🔄 Cambiar carroza</button>`;
+        } catch(e) {
+            infoEl.innerHTML = `
+                <div class="empty-state">
+                    No se pudo cargar la carroza asignada.<br>
+                    <button onclick="abrirModalCarroza()" class="btn-asignar" style="margin-top:12px;">Seleccionar carroza</button>
+                </div>`;
+        }
+    }
+
+    async function abrirModalCarroza() {
+        document.getElementById('modal-carroza').classList.add('open');
+        const sel = document.getElementById('sel-nueva-carroza');
+        sel.innerHTML = '<option value="">Cargando flota...</option>';
+
+        const regionalUser = userSesion.regional || '';
+        const res = await DB.obtenerFlota();
+
+        // 🆕 Comparación normalizada (sin tildes/mayúsculas/espacios): antes
+        // era "ubi === regionalUser", una igualdad EXACTA que fallaba en
+        // silencio si el dato guardado tenía distinta tilde, mayúscula o
+        // espacio que el de la hoja "carrozas" — dejando al conductor sin
+        // ver ninguna carroza de su propia regional.
+        const flota = (res.data || []).filter(c => {
+            const ubi = c.sede_intercambio || c.sede_asignada;
+            return norm(ubi) === norm(regionalUser);
+        });
+
+        if (flota.length > 0) {
+            sel.innerHTML = '<option value="">— Selecciona tu placa —</option>' +
+                flota.map(c => {
+                    const enTaller = (c.estado || '').includes('Taller');
+                    return `<option value="${c.placa}" ${enTaller ? 'disabled' : ''}>
+                        ${c.placa} — ${c.modelo || 'S/M'} (${c.tipo_vehiculo || 'S/T'})${enTaller ? ' 🔧 EN TALLER' : ''}
+                    </option>`;
+                }).join('');
+        } else {
+            sel.innerHTML = '<option value="">Sin vehículos en tu regional</option>';
+        }
+    }
+
+    function cerrarModalCarroza() {
+        document.getElementById('modal-carroza').classList.remove('open');
+    }
+
+    async function confirmarCambioCarroza() {
+        const sel   = document.getElementById('sel-nueva-carroza');
+        const placa = sel.value;
+        if (!placa) { alert("Selecciona una placa"); return; }
+
+        const btn = document.getElementById('btn-confirmar-carroza');
+        btn.disabled = true; btn.innerText = "GUARDANDO...";
+
+        try {
+            await DB.actualizarCarroza(placa, { conductor_asignado: userSesion.nombre });
+            await DB.actualizar('usuarios', { placa_asignada: placa }, 'usuario', userSesion.usuario);
+
+            userSesion.placa_asignada = placa;
+            localStorage.setItem('usuario_sesion', JSON.stringify(userSesion));
+            DB.invalidarCache('carrozas');
+            DB.invalidarCache('usuarios');
+
+            cerrarModalCarroza();
+            cargarMiCarroza(userSesion);
+        } catch(e) {
+            alert("Error al guardar: " + e.message);
+        } finally {
+            btn.disabled = false; btn.innerText = "CONFIRMAR";
+        }
+    }
+
+    function mostrarPush(notif) {
+        document.getElementById('push-titulo').textContent = notif.titulo || '🤝 Nueva solicitud de apoyo';
+        document.getElementById('push-body').textContent   = notif.cuerpo || 'Hay una nueva solicitud para tu regional.';
+        document.getElementById('push-aceptada-banner').classList.remove('visible');
+        document.getElementById('push-btn-ver').disabled    = false;
+        document.getElementById('push-btn-ver').textContent = '👀 VER SOLICITUD';
+        document.getElementById('push-overlay').classList.add('visible');
+        document.getElementById('push-notif').classList.add('visible');
+        if (navigator.vibrate) navigator.vibrate([300, 150, 300, 150, 300]);
+    }
+
+    function cerrarPush() {
+        document.getElementById('push-overlay').classList.remove('visible');
+        document.getElementById('push-notif').classList.remove('visible');
+        solicitudActivaId = null;
+    }
+    function ignorarPush() { cerrarPush(); }
+    function verSolicitud() { cerrarPush(); window.location.href = 'solicitud_apoyo.html'; }
+
+    async function verificarApoyosPendientes(user) {
+        try {
+            const regional = norm(user.regional || '');
+            const { data } = await DB.supabase
+                .from('solicitud_apoyo').select('id, alcance, regional_solicitante').eq('estado', 'pendiente');
+            const visibles = (data || []).filter(s => {
+                const alcance = norm(s.alcance);
+                const regSol  = norm(s.regional_solicitante);
+                return alcance === 'nacional' || alcance === regional || regSol === regional;
+            });
+            const badge      = document.getElementById('badge-apoyo');
+            const badgeTexto = document.getElementById('badge-texto');
+            if (visibles.length > 0) {
+                badge.style.display      = 'flex';
+                badge.textContent        = visibles.length;
+                badgeTexto.style.display = 'block';
+                badgeTexto.textContent   = visibles.length === 1 ? '1 pendiente' : visibles.length + ' pendientes';
+            } else {
+                badge.style.display      = 'none';
+                badgeTexto.style.display = 'none';
+            }
+        } catch(e) {}
+    }
+
+    async function cargarSalidasRecientes(nombre) {
+        const tabla = document.getElementById('tabla-salidas');
+        const { ok, data } = await DB.obtenerTrasladosRecientes(200);
+
+        if (!ok || !data || data.length === 0) {
+            tabla.innerHTML = '<tr><td colspan="3" class="empty-state">Sin registros.</td></tr>';
+            return;
+        }
+
+        const nombreBusqueda = norm(nombre);
+        const misSalidas = data
+            .filter(s => norm(s.conductor).includes(nombreBusqueda))
+            .slice(0, 5);
+
+        if (misSalidas.length === 0) {
+            tabla.innerHTML = '<tr><td colspan="3" class="empty-state">No tienes salidas registradas.</td></tr>';
+            return;
+        }
+
+        tabla.innerHTML = misSalidas.map(s => {
+            let fechaCorta = "---";
+            if (s.fecha) {
+                const partes = String(s.fecha).split('/');
+                if (partes.length === 3) {
+                    fechaCorta = partes[0].padStart(2,'0') + '/' + partes[1].padStart(2,'0');
+                } else {
+                    const f = new Date(s.fecha);
+                    if (!isNaN(f.getTime())) {
+                        fechaCorta = String(f.getDate()).padStart(2,'0') + '/' + String(f.getMonth()+1).padStart(2,'0');
+                    }
+                }
+            }
+
+            let horaCorta = "";
+            if (s.hora_de_salida) {
+                const txt = String(s.hora_de_salida).trim();
+                if (/^\d{1,2}:\d{2}/.test(txt)) {
+                    horaCorta = txt.substring(0, 5);
+                } else {
+                    const h = new Date(txt);
+                    if (!isNaN(h.getTime())) {
+                        horaCorta = h.getHours().toString().padStart(2,'0') + ':' + h.getMinutes().toString().padStart(2,'0');
+                    } else {
+                        horaCorta = txt.substring(0, 5);
+                    }
+                }
+            }
+
+            return `
+            <tr>
+              <td style="width:85px;">
+                <b style="font-size:15px; color:var(--azul);">${s.placa || 'S/P'}</b><br>
+                <span style="font-size:10px; color:var(--gris); font-weight:700;">🏙️ ${s.regional || ''}</span>
+              </td>
+              <td>
+                <div style="font-size:12px; font-weight:700; color:#334155;">🕊️ ${s.nombre_del_fallecido || 'S/N'}</div>
+                <div style="font-size:11px; color:var(--gris);">📍 ${s.destino || 'Local'}</div>
+              </td>
+              <td style="text-align:right;">
+                <div style="font-size:11px; font-weight:800; color:#1e293b; margin-bottom:4px;">
+                    ${fechaCorta} <span style="color:#94a3b8; font-weight:400;">|</span> ${horaCorta}
+                </div>
+                <span class="servicio-pill">${(s.motivo_de_salida || 'SERVICIO').toUpperCase()}</span>
+              </td>
+            </tr>`;
+        }).join('');
+    }
+
+    async function cargarResumenAverias(nombre) {
+        const tabla = document.getElementById('tabla-averias');
+        try {
+            const { ok, data } = await DB.obtenerTodasAverias(50);
+            if (!ok || !data || data.length === 0) {
+                tabla.innerHTML = '<tr><td colspan="3" class="empty-state">No tienes reportes pendientes.</td></tr>';
+                return;
+            }
+            const nombreBusqueda = norm(nombre);
+            const misAverias = data
+                .filter(av => norm(av.reportado_por || '').includes(nombreBusqueda))
+                .slice(0, 5);
+
+            if (misAverias.length === 0) {
+                tabla.innerHTML = '<tr><td colspan="3" class="empty-state">No tienes reportes pendientes.</td></tr>';
+                return;
+            }
+            tabla.innerHTML = misAverias.map(av => {
+                let fechaTxt = '---';
+                if (av.created_at) {
+                    try { fechaTxt = new Date(av.created_at).toLocaleDateString('es-CO'); } catch(e) { fechaTxt = av.fecha || '---'; }
+                } else if (av.fecha) { fechaTxt = av.fecha; }
+                return '<tr>' +
+                    '<td><b style="color:var(--azul);">' + (av.placa_vehiculo || '---') + '</b></td>' +
+                    '<td style="font-size:11px; color:var(--gris);">' + fechaTxt + '</td>' +
+                    '<td style="text-align:right;"><span class="falla-pill">' + (av.tipo_falla || 'FALLA').toUpperCase() + '</span></td>' +
+                    '</tr>';
+            }).join('');
+        } catch(e) {
+            tabla.innerHTML = '<tr><td colspan="3" class="empty-state">Error al cargar averías.</td></tr>';
+        }
+    }
+
+    async function cargarMonitorFlota() {
+        const tabla = document.getElementById('tabla-monitor');
+        try {
+            const { ok, data } = await DB.obtenerFlota();
+            if (!ok || !data || data.length === 0) {
+                tabla.innerHTML = '<tr><td colspan="3" class="empty-state">Sin datos de flota.</td></tr>';
+                return;
+            }
+            tabla.innerHTML = data.map(c => {
+                let cls = 'pill-disponible';
+                const est = c.estado || 'S/E';
+                if (est.includes('Taller'))  cls = 'pill-taller';
+                if (est.includes('Ruta') || est.includes('Servicio')) cls = 'pill-ruta';
+                return '<tr>' +
+                    '<td><b>' + c.placa + '</b></td>' +
+                    '<td style="font-size:11px; color:var(--gris);">' + Number(c.kilometraje_actual||0).toLocaleString() + ' KM</td>' +
+                    '<td style="text-align:right;"><span class="status-pill ' + cls + '">● ' + est.toUpperCase() + '</span></td>' +
+                    '</tr>';
+            }).join('');
+        } catch(e) {
+            tabla.innerHTML = '<tr><td colspan="3" class="empty-state">Error al cargar flota.</td></tr>';
+        }
+    }
+
+    function cerrarSesion() { localStorage.clear(); window.location.href = "index.html"; }
+</script>
+
+</body>
+</html>

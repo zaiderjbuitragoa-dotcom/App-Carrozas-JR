@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Tanqueo — J.R. Carrozas</title>
+<style>
+  :root{
+    --bg:#eef3fb;
+    --card:#ffffff;
+    --field:#f3f7fd;
+    --line:#c9daf2;
+    --blue:#1d55c9;
+    --blue-soft:#2f6fed;
+    --blue-deep:#123a8a;
+    --text:#16233d;
+    --muted:#647089;
+    --green:#1f9d5c;
+    --amber:#b9790a;
+    --red:#c73a34;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:Arial, "Segoe UI", sans-serif;
+    min-height:100vh;
+    padding:18px 14px 60px;
+  }
+  a, button{font-family:inherit;}
+
+  /* ── Nav superior ─────────────────────────── */
+  .nav-row{
+    max-width:900px; margin:0 auto 16px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .btn-volver, .btn-historial{
+    color:var(--blue); text-decoration:none; font-size:14px; font-weight:700;
+    background:none; border:none; cursor:pointer; padding:6px 2px;
+  }
+  .btn-volver:hover, .btn-historial:hover{ text-decoration:underline; }
+
+  /* ── Tarjeta principal ────────────────────── */
+  .card{
+    max-width:900px; margin:0 auto;
+    background:var(--card);
+    border:2px solid var(--blue);
+    border-radius:14px;
+    padding:28px 30px 30px;
+    box-shadow:0 6px 24px -12px rgba(29,85,201,.25);
+  }
+  .card h1{
+    text-align:center; font-size:22px; letter-spacing:.03em;
+    color:var(--blue-deep); margin:0 0 26px; font-weight:700;
+  }
+
+  .row2{display:grid; grid-template-columns:1fr 1fr; gap:22px;}
+  @media (max-width:620px){ .row2{grid-template-columns:1fr;} }
+
+  .field{margin-bottom:20px;}
+  .field label{
+    display:block; font-size:12px; font-weight:700; letter-spacing:.04em;
+    color:var(--muted); text-transform:uppercase; margin-bottom:7px;
+  }
+  .field .req{color:var(--red);}
+  input, select, textarea{
+    width:100%; background:var(--field); border:1px solid var(--line);
+    color:var(--text); border-radius:8px; padding:11px 12px; font-size:15px;
+    font-family:inherit; outline:none;
+  }
+  input::placeholder, textarea::placeholder{color:#96a3ba;}
+  input:focus, select:focus, textarea:focus{ border-color:var(--blue); box-shadow:0 0 0 3px rgba(29,85,201,.12); }
+  input:disabled, input:read-only{ color:#7c88a0; background:#e7edf7; }
+  textarea{min-height:78px; resize:vertical;}
+  .hint{font-size:11.5px; color:var(--amber); margin-top:6px;}
+
+  /* 🆕 Buscador de placas (combobox filtrable) */
+  .combo-wrap{position:relative;}
+  .combo{position:relative;}
+  .combo input{
+    width:100%; background:var(--field); border:1px solid var(--line);
+    color:var(--text); border-radius:8px; padding:11px 12px; font-size:15px;
+  }
+  .combo input:focus{ border-color:var(--blue); box-shadow:0 0 0 3px rgba(29,85,201,.12); }
+  .combo-list{
+    display:none; position:absolute; z-index:20; top:calc(100% + 4px); left:0; right:0;
+    max-height:240px; overflow-y:auto; background:#fff; border:1px solid var(--line);
+    border-radius:8px; box-shadow:0 8px 24px -8px rgba(29,85,201,.35);
+  }
+  .combo-list.show{display:block;}
+  .combo-item{padding:11px 12px; font-size:14px; color:var(--text); cursor:pointer;}
+  .combo-item:hover, .combo-item.activo{background:rgba(29,85,201,.08);}
+  .combo-item.sin-resultados{color:var(--muted); cursor:default; font-style:italic;}
+  #selCarroza{display:none;}
+
+  /* ── Selector de nivel visual de combustible (chips) ── */
+  .nivel-chips{
+    display:grid; grid-template-columns:repeat(5, 1fr); gap:8px;
+  }
+  @media (max-width:620px){ .nivel-chips{grid-template-columns:repeat(3, 1fr);} }
+  .nivel-chip{
+    border:1.5px solid var(--line); background:var(--field); border-radius:8px;
+    padding:10px 6px; text-align:center; cursor:pointer; user-select:none;
+    font-size:12.5px; font-weight:700; color:var(--muted); line-height:1.3;
+  }
+  .nivel-chip .emoji{display:block; font-size:17px; margin-bottom:3px;}
+  .nivel-chip:hover{border-color:var(--blue-soft);}
+  .nivel-chip.sel{
+    border-color:var(--blue); background:rgba(29,85,201,.08); color:var(--blue-deep);
+  }
+
+  /* ── Caja de estado (equivalente a la caja amarilla de config) ── */
+  .config-box{
+    background:#f2f7ff; border:1px solid var(--blue-soft); border-radius:10px;
+    padding:16px 18px; margin-bottom:22px;
+  }
+  .config-box .titulo{
+    font-size:12px; font-weight:700; letter-spacing:.05em; color:var(--blue-deep);
+    text-transform:uppercase; margin-bottom:10px;
+  }
+  .config-box .placeholder-txt{ color:var(--muted); font-size:13.5px; }
+  .estado-linea{
+    display:flex; gap:8px; align-items:flex-start; font-size:13.5px; color:#33415c;
+    margin-bottom:7px; line-height:1.4;
+  }
+  .estado-linea:last-child{margin-bottom:0;}
+  .estado-linea b{color:var(--text);}
+
+  .total-box{
+    background:var(--field); border:1px dashed var(--blue-soft); border-radius:8px;
+    padding:12px 14px; display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:20px;
+  }
+  .total-box .lbl{font-size:12px; font-weight:700; letter-spacing:.04em; color:var(--muted); text-transform:uppercase;}
+  .total-box .val{font-size:19px; font-weight:700; color:var(--blue-deep);}
+
+  /* foto */
+  .photo-box{
+    border:1.5px dashed var(--line); border-radius:8px; padding:16px;
+    text-align:center; cursor:pointer; color:var(--muted); font-size:13px;
+    background:var(--field);
+  }
+  .photo-box:hover{border-color:var(--blue);}
+  .photo-box.has-img{padding:8px; border-style:solid; border-color:var(--blue);}
+  .photo-box img{max-width:100%; max-height:220px; border-radius:6px; display:block; margin:0 auto;}
+  .photo-box .icon{font-size:24px; display:block; margin-bottom:6px;}
+  .photo-box small{display:block; margin-top:4px; color:#96a3ba;}
+  .photo-box.leyendo{border-style:solid; border-color:var(--amber); color:var(--amber); cursor:wait;}
+
+  .ocr-banner{
+    display:none; align-items:flex-start; gap:10px;
+    border-radius:8px; padding:11px 14px; font-size:12.5px; line-height:1.4; margin-top:10px;
+    border:1px solid var(--blue-soft); background:rgba(47,111,237,.08); color:var(--blue-deep);
+  }
+  .ocr-banner.show{display:flex;}
+  .ocr-banner.err{border-color:var(--red); background:rgba(199,58,52,.08); color:#a12d28;}
+
+  .alert-banner{
+    display:none; align-items:flex-start; gap:10px;
+    border-radius:8px; padding:12px 14px; font-size:13px; line-height:1.4; margin-bottom:20px;
+    border:1px solid;
+  }
+  .alert-banner.show{display:flex;}
+  .alert-banner.verde{background:rgba(31,157,92,.08); border-color:var(--green); color:#1a7a48;}
+  .alert-banner.amarillo{background:rgba(185,121,10,.08); border-color:var(--amber); color:#8f5f08;}
+  .alert-banner.rojo{background:rgba(199,58,52,.08); border-color:var(--red); color:#a12d28;}
+
+  button.submit{
+    width:100%; padding:15px; border:none; border-radius:10px;
+    background:var(--blue); color:#ffffff; font-weight:700; font-size:15px;
+    letter-spacing:.03em; text-transform:uppercase; cursor:pointer;
+  }
+  button.submit:hover{background:var(--blue-deep);}
+  button.submit:disabled{opacity:.5; cursor:not-allowed;}
+  .msg{text-align:center; font-size:13px; margin-top:12px; min-height:16px; color:var(--muted);}
+  .msg.ok{color:var(--green);}
+  .msg.err{color:var(--red);}
+
+  .status-pill{
+    display:inline-flex; align-items:center; gap:6px; font-size:11px;
+    color:var(--muted); margin-left:10px;
+  }
+  .status-pill .dot{width:7px; height:7px; border-radius:50%; background:var(--muted);}
+  .status-pill.on .dot{background:var(--green);}
+  .status-pill.on{color:var(--green);}
+
+  /* ── Historial ────────────────────────────── */
+  .historial{max-width:900px; margin:22px auto 0;}
+  .historial-head{
+    display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;
+  }
+  .historial-head h2{ font-size:14px; letter-spacing:.04em; color:var(--blue-deep); text-transform:uppercase; margin:0; }
+  .badge-count{
+    background:var(--field); border:1px solid var(--line); color:var(--muted);
+    font-size:11.5px; padding:3px 10px; border-radius:999px;
+  }
+  table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  th{
+    text-align:left; color:var(--muted); font-weight:700; text-transform:uppercase;
+    font-size:10.5px; letter-spacing:.03em; padding:8px 8px; border-bottom:1px solid var(--line);
+  }
+  td{ padding:9px 8px; border-bottom:1px solid var(--line); color:#33415c; }
+  tr:last-child td{border-bottom:none;}
+  .tabla-vacia{color:var(--muted); font-size:13px; padding:14px 4px;}
+</style>
+</head>
+<body>
+
+  <div class="nav-row">
+    <button class="btn-volver" type="button" onclick="volver()">← Volver</button>
+    <div style="display:flex; align-items:center;">
+      <button class="btn-historial" type="button" onclick="cancelarFormulario()">Cancelar</button>
+      <span class="status-pill" id="pillConexion"><span class="dot"></span><span>Conectando…</span></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h1>⛽ Registro de Tanqueo</h1>
+
+    <form id="formTanqueo">
+
+      <div class="row2">
+        <div class="field combo-wrap">
+          <label>Carroza / Placa <span class="req">*</span></label>
+          <div class="combo">
+            <input type="text" id="inBuscarPlaca" placeholder="Escribe la placa o carroza…" autocomplete="off">
+            <div class="combo-list" id="listaPlacas"></div>
+          </div>
+          <select id="selCarroza" required>
+            <option value="">— Seleccione placa —</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Fecha</label>
+          <input type="text" id="inFecha" disabled>
+        </div>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label>Conductor <span class="req">*</span></label>
+          <input type="text" id="inConductor" placeholder="Nombre de quien tanquea" required>
+        </div>
+        <div class="field">
+          <label>Hora</label>
+          <input type="time" id="inHora" required>
+        </div>
+      </div>
+
+      <!-- ── Estado actual de la carroza ─────────────── -->
+      <div class="config-box" id="statusCard">
+        <div class="titulo">Estado actual de la carroza</div>
+        <div class="placeholder-txt">Selecciona la placa para ver el nivel de combustible y el estado del aceite.</div>
+      </div>
+
+      <!-- 🆕 Nivel de combustible observado (inspección visual antes de tanquear) -->
+      <div class="field">
+        <label>Nivel de combustible observado (antes de tanquear) <span class="req">*</span></label>
+        <div class="nivel-chips" id="nivelChips">
+          <div class="nivel-chip" data-val="Vacío/Reserva"><span class="emoji">🔴</span>Vacío / Reserva</div>
+          <div class="nivel-chip" data-val="1/4"><span class="emoji">🟠</span>1/4</div>
+          <div class="nivel-chip" data-val="Medio (1/2)"><span class="emoji">🟡</span>Medio (1/2)</div>
+          <div class="nivel-chip" data-val="3/4"><span class="emoji">🟢</span>3/4</div>
+          <div class="nivel-chip" data-val="Lleno (4/4)"><span class="emoji">🟢</span>Lleno (4/4)</div>
+        </div>
+        <input type="hidden" id="inNivelObservado" required>
+        <div class="ocr-banner" id="alertaInnecesario" style="border-color:var(--amber); background:rgba(185,121,10,.08); color:#8f5f08;"></div>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label>Estación de servicio <span class="req">*</span></label>
+          <input type="text" id="inEstacion" placeholder="Ej: Terpel Autopista Sur" required>
+        </div>
+        <div class="field">
+          <label>Ciudad <span class="req">*</span></label>
+          <input type="text" id="inCiudad" placeholder="Ej: Pereira" required>
+        </div>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label>Kilometraje <span class="req">*</span></label>
+          <input type="number" id="inKilometraje" placeholder="Ej: 155000" inputmode="numeric" required>
+        </div>
+        <div class="field">
+          <label>Galones <span class="req">*</span></label>
+          <input type="number" id="inGalones" step="0.01" placeholder="10.5" inputmode="decimal" required>
+        </div>
+      </div>
+      <div class="hint" id="hintKm"></div>
+
+      <div class="row2">
+        <div class="field">
+          <label>Valor por galón <span class="req">*</span></label>
+          <input type="number" id="inValorGalon" placeholder="10500" inputmode="numeric" required>
+        </div>
+        <div class="field">
+          <label>Número de factura</label>
+          <input type="text" id="inFactura" placeholder="N° de la tirilla/factura">
+        </div>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label>Forma de pago <span class="req">*</span></label>
+          <select id="selFormaPago" required>
+            <option value="">— Seleccione —</option>
+            <option value="Efectivo">Efectivo</option>
+            <option value="Crédito">Crédito</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Tipo de combustible <span class="req">*</span></label>
+          <select id="selTipoCombustible" required>
+            <option value="">— Seleccione —</option>
+            <option value="Gasolina">Gasolina</option>
+            <option value="Diésel">Diésel</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="total-box">
+        <span class="lbl">Valor total</span>
+        <span class="val" id="valTotal">$ 0</span>
+      </div>
+      <input type="hidden" id="inValorTotal">
+
+      <div class="field">
+        <label>Foto de la tirilla</label>
+        <label class="photo-box" id="photoBox" for="inputFoto">
+          <span class="icon">📷</span>
+          Toca para tomar o subir la foto del comprobante
+          <small>Se lee automáticamente y se comprime antes de guardar</small>
+        </label>
+        <input type="file" id="inputFoto" accept="image/*" capture="environment" style="display:none">
+        <div class="ocr-banner" id="ocrBanner"></div>
+      </div>
+
+      <div class="field">
+        <label>Observaciones</label>
+        <textarea id="inObservaciones" placeholder="Comentarios adicionales (opcional)"></textarea>
+      </div>
+
+      <div class="alert-banner" id="alertBanner"></div>
+
+      <button class="submit" id="btnGuardar" type="button">Guardar tanqueo</button>
+      <div class="msg" id="msg"></div>
+
+    </form>
+  </div>
+
+  <!-- ── Historial de tanqueos ─────────────────────────── -->
+  <div class="historial">
+    <div class="historial-head">
+      <h2>Últimos tanqueos</h2>
+      <span class="badge-count" id="badgeCount">0 registros</span>
+    </div>
+    <div class="card" style="padding:6px 14px;">
+      <table id="tablaTanqueos">
+        <thead>
+          <tr>
+            <th>Fecha</th><th>Placa</th><th>Km</th><th>Galones</th><th>Total</th><th>Rendim.</th>
+          </tr>
+        </thead>
+        <tbody id="tbodyTanqueos">
+          <tr><td colspan="6" class="tabla-vacia">Cargando…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="db.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    // ══════════════════════════════════════════════════════════
+    // 🆕 v10.17 — LECTURA DE TIRILLAS: TESSERACT.JS (OCR LOCAL)
+    // ══════════════════════════════════════════════════════════
+    // Se abandonó Gemini para esta función: desde junio 2026 Google
+    // solo emite API keys formato "AQ." y esas keys están rotas para
+    // generateContent (error ACCESS_TOKEN_TYPE_UNSUPPORTED) — es un
+    // bug de la plataforma de Google, reportado por decenas de
+    // desarrolladores, sin fecha de arreglo. No depende de nuestra
+    // configuración ni de la cuenta usada.
+    //
+    // Tesseract.js lee el texto de la imagen 100% en el navegador,
+    // sin ninguna API key, sin backend, sin cuenta de Google. Es
+    // menos preciso que Gemini (no "entiende" cuál número es cuál,
+    // solo extrae texto crudo), así que aquí se aplican patrones
+    // (regex) para intentar ubicar cada campo. SIEMPRE revisa los
+    // datos autocompletados antes de guardar — este OCR es una
+    // ayuda, no un reemplazo de la revisión manual.
+    let flotaCache = [];
+    let fotoBase64 = '';
+
+    // ══════════════════════════════════════════════════════════
+    // 🆕 ALERTA DE TANQUEO INNECESARIO
+    // ══════════════════════════════════════════════════════════
+    // Se considera "innecesario" un tanqueo cuando la carroza todavía
+    // no ha consumido al menos este % mínimo de su tanque, es decir,
+    // cuando le queda más del (100 - UMBRAL) % de combustible.
+    // Ej: UMBRAL = 20  →  se alerta si al momento de tanquear el
+    // tanque todavía tiene MÁS del 80% (no se ha gastado ni el 20%).
+    const UMBRAL_PORCENTAJE_MINIMO_CONSUMO = 20;
+    // Niveles observados (chips) que por sí solos también disparan la alerta,
+    // sin importar lo que diga el cálculo del sistema.
+    const NIVELES_OBSERVADOS_ALTOS = ['3/4', 'Lleno (4/4)'];
+
+    let estadoCarrozaActual = null; // guarda el último resultado de DB.obtenerEstadoCarroza()
+    let posibleInnecesario = { flag: false, motivo: '' }; // 🆕 se envía junto con el tanqueo al guardar
+
+    // ── Navegación: volver / cancelar ───────────────────
+    function volver() {
+      if (document.referrer && document.referrer.indexOf(window.location.host) !== -1) {
+        history.back();
+      } else {
+        window.location.href = 'index.html';
+      }
+    }
+
+    function limpiarFormulario() {
+      document.getElementById('formTanqueo').reset();
+      fotoBase64 = '';
+      $('photoBox').classList.remove('has-img', 'leyendo');
+      $('photoBox').innerHTML = '<span class="icon">📷</span>Toca para tomar o subir la foto del comprobante<small>Se lee automáticamente y se comprime antes de guardar</small>';
+      $('ocrBanner').className = 'ocr-banner';
+      $('ocrBanner').innerHTML = '';
+      $('inFecha').value = hoyDDMMAAAA();
+      $('inHora').value = new Date().toTimeString().slice(0,5);
+      $('valTotal').textContent = '$ 0';
+      $('hintKm').textContent = '';
+      $('statusCard').innerHTML = '<div class="titulo">Estado actual de la carroza</div><div class="placeholder-txt">Selecciona la placa para ver el nivel de combustible y el estado del aceite.</div>';
+      $('alertBanner').className = 'alert-banner';
+      $('alertBanner').innerHTML = '';
+      $('msg').textContent = '';
+      $('msg').className = 'msg';
+      // 🆕 limpiar selección de nivel observado y alerta de tanqueo innecesario
+      $('inNivelObservado').value = '';
+      document.querySelectorAll('#nivelChips .nivel-chip').forEach(c => c.classList.remove('sel'));
+      estadoCarrozaActual = null;
+      posibleInnecesario = { flag: false, motivo: '' };
+      $('alertaInnecesario').className = 'ocr-banner';
+      $('alertaInnecesario').innerHTML = '';
+      // 🆕 limpiar buscador de placas
+      $('inBuscarPlaca').value = '';
+      $('listaPlacas').classList.remove('show');
+    }
+
+    function cancelarFormulario() {
+      const tieneDatos = $('inConductor').value || $('inGalones').value || $('inEstacion').value || fotoBase64;
+      if (tieneDatos && !confirm('¿Cancelar este registro? Se perderá lo que hayas escrito.')) return;
+      limpiarFormulario();
+      volver();
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // 🆕 Buscador de placas (combobox filtrable)
+    // ══════════════════════════════════════════════════════════
+    // El <select id="selCarroza"> real sigue existiendo (oculto) y
+    // sigue siendo la "fuente de verdad": todo el resto del código
+    // (OCR, estado de carroza, guardar, etc.) sigue leyendo/escribiendo
+    // ahí igual que antes. El input de texto de arriba es solo una
+    // capa visual para filtrar más fácil desde el celular.
+    function construirListaPlacas() {
+      const cont = $('listaPlacas');
+      cont.innerHTML = '';
+      Array.from($('selCarroza').options).forEach(opt => {
+        if (!opt.value) return; // se salta "— Seleccione placa —"
+        const div = document.createElement('div');
+        div.className = 'combo-item';
+        div.textContent = opt.textContent;
+        div.dataset.value = opt.value;
+        div.addEventListener('click', () => seleccionarPlacaDesdeCombo(opt.value, opt.textContent));
+        cont.appendChild(div);
+      });
+    }
+
+    function filtrarPlacas(texto) {
+      const q = texto.trim().toLowerCase();
+      const cont = $('listaPlacas');
+      const items = Array.from(cont.querySelectorAll('.combo-item:not(.sin-resultados)'));
+      let visibles = 0;
+      items.forEach(div => {
+        const coincide = div.textContent.toLowerCase().includes(q);
+        div.style.display = coincide ? '' : 'none';
+        if (coincide) visibles++;
+      });
+      let avisoVacio = cont.querySelector('.sin-resultados');
+      if (!visibles) {
+        if (!avisoVacio) {
+          avisoVacio = document.createElement('div');
+          avisoVacio.className = 'combo-item sin-resultados';
+          avisoVacio.textContent = 'Sin resultados para "' + texto + '"';
+          cont.appendChild(avisoVacio);
+        } else {
+          avisoVacio.textContent = 'Sin resultados para "' + texto + '"';
+          avisoVacio.style.display = '';
+        }
+      } else if (avisoVacio) {
+        avisoVacio.style.display = 'none';
+      }
+      cont.classList.add('show');
+    }
+
+    function seleccionarPlacaDesdeCombo(valor, label) {
+      $('selCarroza').value = valor;
+      $('inBuscarPlaca').value = label;
+      $('listaPlacas').classList.remove('show');
+      $('selCarroza').dispatchEvent(new Event('change'));
+    }
+
+    $('inBuscarPlaca').addEventListener('input', (e) => filtrarPlacas(e.target.value));
+    $('inBuscarPlaca').addEventListener('focus', (e) => filtrarPlacas(e.target.value));
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.combo-wrap')) $('listaPlacas').classList.remove('show');
+    });
+
+    // 🆕 Selector de nivel de combustible observado (chips)
+    document.querySelectorAll('#nivelChips .nivel-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        document.querySelectorAll('#nivelChips .nivel-chip').forEach(c => c.classList.remove('sel'));
+        chip.classList.add('sel');
+        $('inNivelObservado').value = chip.dataset.val;
+        evaluarTanqueoInnecesario(); // 🆕
+      });
+    });
+
+    // 🆕 Evalúa si este tanqueo parece innecesario y muestra/oculta el aviso.
+    // No bloquea el guardado — es solo una alerta informativa para que el
+    // coordinador la revise en el historial o converse con el conductor.
+    function evaluarTanqueoInnecesario() {
+      const banner = $('alertaInnecesario');
+      const nivelObs = $('inNivelObservado').value;
+
+      const motivos = [];       // para el banner (HTML)
+      const motivosPlano = [];  // 🆕 para guardar en la hoja (texto plano, sin <b>)
+
+      if (estadoCarrozaActual && typeof estadoCarrozaActual.porcentaje_combustible === 'number') {
+        const pct = estadoCarrozaActual.porcentaje_combustible;
+        if (pct >= (100 - UMBRAL_PORCENTAJE_MINIMO_CONSUMO)) {
+          motivos.push(`el sistema calcula que la carroza aún tiene <b>${pct}%</b> de combustible (no se ha consumido ni el ${UMBRAL_PORCENTAJE_MINIMO_CONSUMO}% mínimo esperado)`);
+          motivosPlano.push(`Sistema calculó ${pct}% de combustible restante (no se consumió ni el ${UMBRAL_PORCENTAJE_MINIMO_CONSUMO}% mínimo esperado)`);
+        }
+      }
+
+      if (nivelObs && NIVELES_OBSERVADOS_ALTOS.includes(nivelObs)) {
+        motivos.push(`marcaste el tanque como <b>${nivelObs}</b> al momento de tanquear`);
+        motivosPlano.push(`Nivel observado marcado como "${nivelObs}" al momento de tanquear`);
+      }
+
+      // 🆕 guarda el resultado para enviarlo junto con el tanqueo
+      posibleInnecesario = { flag: motivosPlano.length > 0, motivo: motivosPlano.join('. ') };
+
+      if (motivos.length) {
+        banner.className = 'ocr-banner show';
+        banner.style.borderColor = 'var(--amber)';
+        banner.style.background = 'rgba(185,121,10,.08)';
+        banner.style.color = '#8f5f08';
+        banner.innerHTML = '⚠️ <span><b>Este tanqueo podría ser innecesario:</b> ' + motivos.join(' y ') + '. Verifica con el conductor antes de continuar, o dejarlo anotado en Observaciones.</span>';
+      } else {
+        banner.className = 'ocr-banner';
+        banner.innerHTML = '';
+      }
+    }
+
+    // ── Fecha/hora por defecto ─────────────────────────
+    function hoyDDMMAAAA() {
+      const h = new Date();
+      return h.getDate().toString().padStart(2,'0') + '/' + (h.getMonth()+1).toString().padStart(2,'0') + '/' + h.getFullYear();
+    }
+    $('inFecha').value = hoyDDMMAAAA();
+    $('inHora').value = new Date().toTimeString().slice(0,5);
+
+    // ── Estado de conexión ──────────────────────────────
+    async function chequearConexion() {
+      const pill = $('pillConexion');
+      const r = await DB.testConexion();
+      if (r.ok) { pill.classList.add('on'); pill.querySelector('span:last-child').textContent = 'Conectado'; }
+      else { pill.querySelector('span:last-child').textContent = 'Sin conexión'; }
+    }
+
+    // ── Cargar flota ────────────────────────────────────
+    async function cargarFlota() {
+      const r = await DB.obtenerFlota();
+      flotaCache = (r.ok && r.data) ? r.data : [];
+      const sel = $('selCarroza');
+      flotaCache.forEach((c, i) => {
+        const label = c.carroza || c.nombre || c.numero_interno || c.placa || ('Carroza ' + (i+1));
+        const opt = document.createElement('option');
+        opt.value = c.placa || '';
+        opt.textContent = label + (c.placa ? ' — ' + c.placa : '');
+        sel.appendChild(opt);
+      });
+      construirListaPlacas(); // 🆕 arma la lista filtrable del buscador
+    }
+
+    // ── Pintar caja de estado ───────────────────────────
+    async function pintarEstado(placa) {
+      const card = $('statusCard');
+      card.innerHTML = '<div class="titulo">Estado actual de la carroza</div><div class="placeholder-txt">Cargando…</div>';
+      const est = await DB.obtenerEstadoCarroza(placa);
+      estadoCarrozaActual = est.ok ? est : null; // 🆕 guarda para evaluar alerta de tanqueo innecesario
+      evaluarTanqueoInnecesario(); // 🆕
+      if (!est.ok) {
+        card.innerHTML = '<div class="titulo">Estado actual de la carroza</div><div class="placeholder-txt">No hay información de combustible registrada para esta carroza (se asumirá tanque lleno).</div>';
+        return;
+      }
+      card.innerHTML = `
+        <div class="titulo">Estado actual de la carroza — ${est.placa}</div>
+        <div class="estado-linea"><span>${est.nivel_combustible}</span><span>Combustible: <b>${est.porcentaje_combustible}%</b> (${est.combustible_galones} / ${est.capacidad_galones} gal)</span></div>
+        <div class="estado-linea"><span>${est.alerta_rendimiento.emoji}</span><span>Rendimiento: <b>${est.rendimiento_ultimo_km_gal ? est.rendimiento_ultimo_km_gal + ' km/gal' : 'sin datos aún'}</b> — ${est.alerta_rendimiento.texto}</span></div>
+        <div class="estado-linea"><span>${est.estado_aceite.emoji}</span><span><b>Aceite:</b> ${est.estado_aceite.texto}</span></div>
+        <div class="estado-linea"><span>🧭</span><span>Kilometraje registrado: <b>${est.kilometraje_actual.toLocaleString('es-CO')} km</b></span></div>
+      `;
+    }
+
+    $('selCarroza').addEventListener('change', (e) => {
+      const placa = e.target.value;
+      if (placa) pintarEstado(placa);
+      else limpiarFormulario();
+    });
+
+    // ── Total automático ────────────────────────────────
+    function actualizarTotal() {
+      const g = parseFloat($('inGalones').value) || 0;
+      const vg = parseFloat($('inValorGalon').value) || 0;
+      const total = Math.round(g * vg);
+      $('valTotal').textContent = '$ ' + total.toLocaleString('es-CO');
+      $('inValorTotal').value = total;
+    }
+    $('inGalones').addEventListener('input', actualizarTotal);
+    $('inValorGalon').addEventListener('input', actualizarTotal);
+
+    // ── Foto: comprime, muestra preview y dispara lectura automática ──
+    $('inputFoto').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = new Image();
+        img.onload = () => {
+          // Nota: esta foto también la lee Gemini (OCR) para autocompletar
+          // el formulario, así que no se comprime tan fuerte como las demás
+          // — hay que mantener el texto de la tirilla legible.
+          const maxW = 1000;
+          const scale = Math.min(1, maxW / img.width);
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width * scale;
+          canvas.height = img.height * scale;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          fotoBase64 = canvas.toDataURL('image/jpeg', 0.68); // 🆕 antes 0.72
+          const box = $('photoBox');
+          box.classList.add('has-img');
+          box.innerHTML = `<img src="${fotoBase64}" alt="Tirilla">`;
+
+          // 🆕 dispara la lectura automática apenas queda lista la foto
+          autocompletarDesdeTirilla(fotoBase64);
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // ── Lista de placas de la flota, para intentar reconocerlas en el texto OCR ──
+    function buscarPlacaEnTexto(texto) {
+      // Primero intenta encontrar una placa YA REGISTRADA en la flota dentro
+      // del texto leído (más confiable que adivinar un patrón genérico).
+      const limpio = texto.toUpperCase().replace(/[^A-Z0-9\s]/g, ' ');
+      for (const c of flotaCache) {
+        const p = String(c.placa || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
+        if (!p) continue;
+        if (limpio.replace(/\s+/g, '').includes(p)) return c.placa;
+      }
+      // Si no encontró ninguna conocida, intenta el patrón típico colombiano
+      // de placas particulares/oficiales: 3 letras + 2-3 números.
+      const m = texto.match(/\b[A-Z]{3}\s?-?\s?\d{2,3}\b/i);
+      return m ? m[0].replace(/[\s-]/g, '').toUpperCase() : null;
+    }
+
+    // ── Intenta ubicar cada campo dentro del texto crudo leído por OCR ──
+    function parsearTextoTirilla(texto) {
+      const t = texto.replace(/\r/g, '');
+      const r = {};
+
+      r.placa = buscarPlacaEnTexto(t);
+
+      // Hora HH:MM (24h o con am/pm)
+      const mHora = t.match(/\b([01]?\d|2[0-3]):([0-5]\d)\s*(am|pm|a\.m\.|p\.m\.)?/i);
+      if (mHora) {
+        let hh = parseInt(mHora[1], 10);
+        const mm = mHora[2];
+        const ampm = (mHora[3] || '').toLowerCase();
+        if (ampm.startsWith('p') && hh < 12) hh += 12;
+        if (ampm.startsWith('a') && hh === 12) hh = 0;
+        r.hora = String(hh).padStart(2, '0') + ':' + mm;
+      }
+
+      // Kilometraje: busca "KM" cerca de un número de 4-7 dígitos
+      const mKm = t.match(/K[IÍ]?LO?M?E?T?R?A?J?E?\.?\s*:?\s*([\d.,]{4,9})/i)
+                || t.match(/\bKM\.?\s*:?\s*([\d.,]{4,9})/i);
+      if (mKm) r.kilometraje = mKm[1].replace(/[.,]/g, '');
+
+      // Galones: número decimal cerca de "GAL"
+      const mGal = t.match(/([\d]{1,3}[.,]\d{1,3})\s*GAL/i) || t.match(/GAL\w*\.?\s*:?\s*([\d]{1,3}[.,]\d{1,3})/i);
+      if (mGal) r.galones = mGal[1].replace(',', '.');
+
+      // Valor total: cerca de "TOTAL"
+      const mTotal = t.match(/TOTAL\D{0,10}([\d.,]{4,10})/i);
+      if (mTotal) r.valor_total = mTotal[1].replace(/[.,](?=\d{3}\b)/g, '');
+
+      // Valor por galón: cerca de "VALOR" o "PRECIO" + "GAL"
+      const mVG = t.match(/(?:VALOR|PRECIO)\D{0,15}GAL\D{0,5}([\d.,]{3,8})/i)
+               || t.match(/GAL\D{0,5}(?:VALOR|PRECIO)\D{0,5}([\d.,]{3,8})/i);
+      if (mVG) r.valor_galon = mVG[1].replace(/[.,](?=\d{3}\b)/g, '');
+
+      // Número de factura / remisión
+      const mFac = t.match(/(?:FACTURA|REMISI[OÓ]N|TIRILLA)\D{0,10}([A-Z0-9-]{3,15})/i);
+      if (mFac) r.numero_factura = mFac[1];
+
+      // Forma de pago
+      if (/EFECTIVO|CONTADO/i.test(t)) r.forma_pago = 'Efectivo';
+      else if (/CR[EÉ]DITO/i.test(t)) r.forma_pago = 'Crédito';
+
+      // Tipo de combustible
+      if (/CORRIENTE|EXTRA|GASOLINA/i.test(t)) r.tipo_combustible = 'Gasolina';
+      else if (/ACPM|DIESEL|DI[EÉ]SEL/i.test(t)) r.tipo_combustible = 'Diésel';
+
+      return r;
+    }
+
+    // 🆕 v10.17 — Lee la tirilla con Tesseract.js (OCR 100% local, sin
+    // API key ni backend). Ver nota junto al changelog más arriba.
+    // Nunca bloquea el formulario: si falla o no reconoce nada, solo
+    // se avisa y se sigue llenando a mano como siempre.
+    async function autocompletarDesdeTirilla(base64) {
+      const box = $('photoBox');
+      const banner = $('ocrBanner');
+
+      box.classList.add('leyendo');
+      banner.className = 'ocr-banner show';
+      banner.innerHTML = '⏳ Leyendo datos de la tirilla (puede tardar 10-20 seg)…';
+
+      try {
+        const resultado = await Tesseract.recognize(base64, 'spa', {
+          logger: () => {} // silencia el progreso en consola
+        });
+        const texto = (resultado && resultado.data && resultado.data.text) || '';
+
+        box.classList.remove('leyendo');
+
+        if (!texto.trim()) {
+          banner.className = 'ocr-banner show err';
+          banner.innerHTML = '⚠️ No se pudo leer texto en la foto. Llena los campos manualmente.';
+          return;
+        }
+
+        const r = parsearTextoTirilla(texto);
+        const camposLlenados = [];
+
+        if (r.placa) {
+          const placaNorm = String(r.placa).trim().toUpperCase().replace(/\s+/g,'');
+          const sel = $('selCarroza');
+          const opcion = Array.from(sel.options).find(o => o.value.trim().toUpperCase().replace(/\s+/g,'') === placaNorm);
+          if (opcion) {
+            sel.value = opcion.value;
+            $('inBuscarPlaca').value = opcion.textContent; // 🆕 sincroniza el buscador de placas
+            sel.dispatchEvent(new Event('change'));
+            camposLlenados.push('placa');
+          }
+        }
+        if (r.kilometraje) { $('inKilometraje').value = r.kilometraje; $('inKilometraje').dispatchEvent(new Event('input')); camposLlenados.push('kilometraje'); }
+        if (r.galones) { $('inGalones').value = r.galones; camposLlenados.push('galones'); }
+        if (r.valor_galon) { $('inValorGalon').value = r.valor_galon; camposLlenados.push('valor/galón'); }
+        if (r.valor_total && !r.valor_galon) { /* se recalcula solo si hay galones+valor_galon */ }
+        if (r.numero_factura) { $('inFactura').value = r.numero_factura; camposLlenados.push('factura'); }
+        if (r.hora) { $('inHora').value = r.hora; camposLlenados.push('hora'); }
+        if (r.forma_pago) { $('selFormaPago').value = r.forma_pago; camposLlenados.push('forma de pago'); }
+        if (r.tipo_combustible) { $('selTipoCombustible').value = r.tipo_combustible; camposLlenados.push('combustible'); }
+
+        actualizarTotal();
+
+        if (camposLlenados.length) {
+          banner.className = 'ocr-banner show';
+          banner.innerHTML = '✅ Se detectaron algunos datos: ' + camposLlenados.join(', ') + '. <b>Revisa cuidadosamente</b> — la lectura automática puede tener errores, completa lo que falte.';
+        } else {
+          banner.className = 'ocr-banner show err';
+          banner.innerHTML = '⚠️ No se reconocieron campos claros en la foto. Llena los campos manualmente.';
+        }
+
+      } catch (err) {
+        box.classList.remove('leyendo');
+        banner.className = 'ocr-banner show err';
+        banner.innerHTML = '⚠️ No se pudo leer la tirilla automáticamente. Llena los campos manualmente.';
+        console.warn('Error leyendo tirilla (Tesseract):', err.message);
+      }
+    }
+
+    // ── Validación de km sospechoso (autofill pegado) ──
+    $('inKilometraje').addEventListener('input', (e) => {
+      const digitos = e.target.value.replace(/[^0-9]/g,'');
+      $('hintKm').textContent = digitos.length > 7
+        ? '⚠️ Este valor parece tener dos números pegados. Borra el campo y vuelve a escribir el kilometraje.'
+        : '';
+    });
+
+    // ── Historial ────────────────────────────────────────
+    async function cargarHistorial() {
+      const r = await DB.obtenerTanqueos(15);
+      const tbody = $('tbodyTanqueos');
+      const data = (r.ok && r.data) ? r.data : [];
+      $('badgeCount').textContent = data.length + ' registros';
+      if (!data.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="tabla-vacia">Aún no hay tanqueos registrados.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = data.map(t => `
+        <tr>
+          <td>${t.FECHA || ''}</td>
+          <td>${t.PLACA || ''}</td>
+          <td>${t.KILOMETRAJE || ''}</td>
+          <td>${t.GALONES || ''}</td>
+          <td>$ ${Number(t.VALOR_TOTAL || 0).toLocaleString('es-CO')}</td>
+          <td>${t.RENDIMIENTO_KM_GALON ? t.RENDIMIENTO_KM_GALON + ' km/gal' : '—'}</td>
+        </tr>
+      `).join('');
+    }
+
+    // ── Guardar ──────────────────────────────────────────
+    let enviando = false;
+    $('btnGuardar').addEventListener('click', async () => {
+      if (enviando) return;
+
+      const datos = {
+        carroza:              $('selCarroza').selectedOptions[0] ? $('selCarroza').selectedOptions[0].textContent : '',
+        placa:                $('selCarroza').value.trim().toUpperCase(),
+        conductor:            $('inConductor').value.trim(),
+        hora:                 $('inHora').value,
+        nivel_observado:      $('inNivelObservado').value, // 🆕 nivel visual observado antes de tanquear
+        posible_innecesario:  posibleInnecesario.flag ? 'SI' : 'NO',   // 🆕
+        motivo_innecesario:   posibleInnecesario.motivo || '',          // 🆕
+        estacion_servicio:    $('inEstacion').value.trim(),
+        ciudad:               $('inCiudad').value.trim(),
+        kilometraje:          $('inKilometraje').value,
+        galones:              $('inGalones').value,
+        valor_galon:          $('inValorGalon').value,
+        valor_total:          $('inValorTotal').value,
+        numero_factura:       $('inFactura').value.trim(),
+        forma_pago:           $('selFormaPago').value,
+        tipo_combustible:     $('selTipoCombustible').value,
+        foto_tirilla:         fotoBase64,
+        observaciones:        $('inObservaciones').value.trim(),
+      };
+
+      if (!datos.placa || !datos.conductor || !datos.nivel_observado || !datos.estacion_servicio || !datos.ciudad || !datos.kilometraje || !datos.galones || !datos.valor_galon || !datos.forma_pago || !datos.tipo_combustible) {
+        $('msg').textContent = 'Completa los campos obligatorios (*) antes de guardar.';
+        $('msg').className = 'msg err';
+        return;
+      }
+
+      enviando = true;
+      const btn = $('btnGuardar');
+      btn.disabled = true;
+      btn.textContent = 'Guardando…';
+      $('msg').textContent = '';
+      $('msg').className = 'msg';
+
+      const res = await DB.guardarTanqueo(datos);
+
+      if (res.ok) {
+        $('msg').textContent = '✅ Tanqueo guardado correctamente.';
+        $('msg').className = 'msg ok';
+
+        const banner = $('alertBanner');
+        if (res.alerta_rendimiento) {
+          const niv = res.alerta_rendimiento.nivel;
+          banner.className = 'alert-banner show ' + niv;
+          banner.innerHTML = `<span>${res.alerta_rendimiento.emoji}</span><span><b>${res.km_recorridos} km recorridos</b> desde el último tanqueo → <b>${res.rendimiento_km_galon} km/galón</b>. ${res.alerta_rendimiento.texto}.</span>`;
+        }
+
+        cargarHistorial();
+
+        setTimeout(() => {
+          limpiarFormulario();
+          btn.disabled = false;
+          btn.textContent = 'Guardar tanqueo';
+          enviando = false;
+        }, 2600);
+      } else {
+        $('msg').textContent = '❌ ' + (res.error || 'No se pudo guardar. Intenta nuevamente.');
+        $('msg').className = 'msg err';
+        btn.disabled = false;
+        btn.textContent = 'Guardar tanqueo';
+        enviando = false;
+      }
+    });
+
+    chequearConexion();
+    cargarFlota();
+    cargarHistorial();
+  </script>
+</body>
+</html>

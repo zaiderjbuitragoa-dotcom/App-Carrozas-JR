@@ -1,0 +1,1871 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J.R. — Registro de Salida Oficial</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root { 
+            --azul: #004a99; --azul-cielo: #e3f2fd; 
+            --blanco: #ffffff; --gris: #546e7a; --verde-wa: #25D366;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--azul-cielo); font-family: 'DM Sans', sans-serif; color: var(--azul); padding: 10px; }
+        .container { max-width: 650px; margin: 0 auto; background: var(--blanco); border-radius: 20px; box-shadow: 0 10px 25px rgba(0,74,153,0.1); overflow: hidden; }
+        .header { background: var(--azul); color: var(--blanco); padding: 20px; text-align: center; }
+        .header h2 { font-size: 18px; }
+        .header p  { font-size: 11px; opacity: 0.8; font-weight: bold; margin-top: 4px; }
+        .content { padding: 20px; }
+        .section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--gris); margin: 20px 0 10px; padding-bottom: 5px; font-weight: 700; display: flex; align-items: center; gap: 8px; border-bottom: 2px solid var(--azul-cielo); }
+        label { display: block; font-size: 12px; font-weight: 700; margin-bottom: 5px; color: var(--azul); text-transform: uppercase; }
+        input, select, textarea { width: 100%; padding: 10px; margin-bottom: 12px; border: 2px solid var(--azul-cielo); border-radius: 10px; font-family: inherit; color: var(--azul); background: #f8fbff; font-size: 14px; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--azul); }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+        /* ── BANNER APOYO ── */
+        #banner-apoyo { display: none; background: #fff9db; border: 1.5px dashed #fab005; color: #856404; padding: 10px; border-radius: 12px; margin-bottom: 15px; font-size: 12px; text-align: center; font-weight: 700; }
+
+        /* ── BANNER MODO EDICIÓN ── */
+        #banner-edicion {
+            display: none;
+            background: linear-gradient(135deg, #fef3c7, #fffbeb);
+            border: 2px solid #f59e0b;
+            border-radius: 14px;
+            padding: 14px 16px;
+            margin-bottom: 16px;
+            animation: fadeIn 0.4s ease;
+        }
+        #banner-edicion .edit-titulo {
+            font-size: 13px; font-weight: 800; color: #92400e;
+            display: flex; align-items: center; gap: 8px; margin-bottom: 4px;
+        }
+        #banner-edicion .edit-desc {
+            font-size: 11px; color: #a16207; line-height: 1.5;
+        }
+        #banner-edicion .edit-id {
+            font-size: 10px; color: #d97706; font-weight: 700;
+            margin-top: 6px; font-family: monospace;
+        }
+
+        /* ── KIT DE CARRETERA ── */
+        .kit-selector { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+        .kit-opcion {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 14px; border-radius: 12px;
+            border: 2px solid #e3f2fd; cursor: pointer;
+            transition: all 0.2s ease; background: #f8fbff;
+        }
+        .kit-opcion:hover { border-color: #90caf9; background: #e3f2fd; }
+        .kit-opcion input[type="radio"] { display: none; }
+        .kit-opcion .kit-icono { font-size: 22px; flex-shrink: 0; }
+        .kit-opcion .kit-texto { flex: 1; }
+        .kit-opcion .kit-titulo { font-size: 13px; font-weight: 700; color: var(--azul); }
+        .kit-opcion .kit-desc   { font-size: 11px; color: var(--gris); margin-top: 2px; }
+        .kit-opcion .kit-check  { width: 20px; height: 20px; border-radius: 50%; border: 2px solid #90caf9; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+        .kit-opcion.sel-completo   { border-color: #16a34a; background: #f0fdf4; }
+        .kit-opcion.sel-completo   .kit-check { background: #16a34a; border-color: #16a34a; }
+        .kit-opcion.sel-completo   .kit-check::after { content: '✓'; color: white; font-size: 11px; font-weight: 900; }
+        .kit-opcion.sel-incompleto { border-color: #d97706; background: #fffbeb; }
+        .kit-opcion.sel-incompleto .kit-check { background: #d97706; border-color: #d97706; }
+        .kit-opcion.sel-incompleto .kit-check::after { content: '!'; color: white; font-size: 11px; font-weight: 900; }
+        .kit-opcion.sel-no-tiene   { border-color: #dc2626; background: #fef2f2; }
+        .kit-opcion.sel-no-tiene   .kit-check { background: #dc2626; border-color: #dc2626; }
+        .kit-opcion.sel-no-tiene   .kit-check::after { content: '✗'; color: white; font-size: 11px; font-weight: 900; }
+        .kit-alerta { display: none; padding: 10px 14px; border-radius: 10px; font-size: 12px; font-weight: 600; margin-bottom: 12px; }
+        .kit-alerta.inc { background: #fffbeb; border: 1.5px solid #fcd34d; color: #92400e; display: block; }
+        .kit-alerta.no  { background: #fef2f2; border: 1.5px solid #fca5a5; color: #991b1b; display: block; }
+
+        /* ── ALERTAS VEHÍCULO ── */
+        .alerta-vehiculo { display: none; border-radius: 16px; padding: 16px 18px; margin-bottom: 14px; font-size: 13px; line-height: 1.6; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:none; } }
+        .alerta-vehiculo.en-taller    { background: #fef2f2; border: 2px solid #ef4444; }
+        .alerta-vehiculo.en-taller .av-titulo { font-size: 17px; font-weight: 900; color: #991b1b; margin: 6px 0 4px; }
+        .av-bloqueo { background: #ef4444; color: white; border-radius: 10px; padding: 10px 14px; margin-top: 12px; font-size: 12px; font-weight: 800; text-align: center; }
+        .alerta-vehiculo.mant-vencido { background: #fef2f2; border: 2px solid #fca5a5; }
+        .alerta-vehiculo.mant-proximo { background: #fffbeb; border: 2px solid #fcd34d; }
+        .alerta-vehiculo.al-dia       { background: #f0fdf4; border: 2px solid #86efac; }
+        .km-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.06); border-radius: 8px; padding: 5px 10px; font-size: 13px; font-weight: 800; margin-top: 8px; }
+        .km-progreso-wrap { margin-top: 12px; background: rgba(0,0,0,0.05); border-radius: 10px; overflow: hidden; height: 10px; }
+        .km-progreso-bar  { height: 100%; border-radius: 10px; transition: width 0.5s ease; }
+
+        /* ── DUPLICADO WARNING ── */
+        #banner-duplicado {
+            display: none;
+            background: #fef2f2;
+            border: 2px solid #ef4444;
+            border-radius: 14px;
+            padding: 14px 16px;
+            margin-bottom: 16px;
+            animation: fadeIn 0.3s ease;
+        }
+        #banner-duplicado .dup-titulo {
+            font-size: 13px; font-weight: 800; color: #991b1b;
+            display: flex; align-items: center; gap: 6px;
+        }
+        #banner-duplicado .dup-desc {
+            font-size: 11px; color: #b91c1c; margin-top: 5px; line-height: 1.5;
+        }
+        #banner-duplicado .dup-btn {
+            margin-top: 10px; background: #991b1b; color: white;
+            border: none; border-radius: 10px; padding: 9px 16px;
+            font-size: 12px; font-weight: 800; cursor: pointer;
+            font-family: inherit; width: 100%;
+        }
+
+        /* ── FOTOS / FIRMA / BOTONES ── */
+        .upload-container { border: 2px dashed var(--azul); border-radius: 15px; padding: 15px; text-align: center; background: #f0f7ff; cursor: pointer; margin-bottom: 12px; }
+        .preview-gallery  { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+        .thumb-wrap { position: relative; width: 100%; aspect-ratio: 1/1; }
+        .thumb-wrap img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; border: 1px solid var(--azul-cielo); }
+        .btn-del { position: absolute; top: -5px; right: -5px; background: #ff4444; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+        canvas { border: 2px dashed var(--azul-cielo); border-radius: 12px; width: 100%; height: 140px; background: #fff; touch-action: none; }
+        .acciones { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+        .btn-accion-guardar { width: 100%; padding: 16px; border: none; border-radius: 14px; font-weight: 800; font-size: 15px; cursor: pointer; background: var(--azul); color: white; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: 0 4px 14px rgba(0,74,153,0.25); transition: 0.2s; font-family: inherit; }
+        .btn-accion-guardar.modo-edicion { background: #d97706; box-shadow: 0 4px 14px rgba(217,119,6,0.3); }
+        .btn-accion-wa    { width: 100%; padding: 16px; border: none; border-radius: 14px; font-weight: 800; font-size: 15px; cursor: pointer; background: #25D366; color: white; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .btn-accion-fotos { width: 100%; padding: 14px; border: none; border-radius: 14px; font-weight: 700; background: #128C7E; color: white; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .btn-accion-volver { width: 100%; padding: 13px; border: 1.5px solid #e2e8f0; border-radius: 14px; font-weight: 600; background: transparent; color: #94a3b8; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; font-family: inherit; }
+        .instruccion-fotos { background: #fff9e6; border: 1px solid #f59e0b; border-radius: 12px; padding: 12px 14px; font-size: 12px; color: #92400e; text-align: center; display: none; }
+        #progreso-steps { display:none; background:#f0f7ff; border:1px solid #c7dff7; border-radius:12px; padding:12px 15px; margin-bottom:14px; font-size:12px; }
+        #progreso-steps div { padding: 3px 0; color: #546e7a; }
+        #progreso-steps div.ok   { color: #15803d; font-weight: 700; }
+        #progreso-steps div.err  { color: #dc2626; font-weight: 700; }
+        #progreso-steps div.act  { color: #004a99; font-weight: 700; }
+
+        /* ── 🆕 BOTÓN CHECKLIST DE SALIDA ── */
+        #bloque-checklist { margin: 4px 0 16px; }
+        .btn-checklist {
+            width: 100%; padding: 14px; border: none; border-radius: 14px;
+            font-weight: 800; font-size: 13px; cursor: pointer;
+            background: #eef5ff; color: var(--azul); border: 2px solid #bcdcfb;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            font-family: inherit; transition: 0.2s;
+        }
+        .btn-checklist:active { transform: scale(0.98); }
+        .btn-checklist.hecho { background: #f0fdf4; border-color: #86efac; color: #15803d; }
+        .checklist-estado { text-align: center; font-size: 11px; color: var(--gris); margin-top: 6px; font-weight: 600; }
+
+        /* ── 🆕 MODAL CHECKLIST ── */
+        .modal-overlay {
+            display: none; position: fixed; inset: 0; background: rgba(0,26,60,0.55);
+            z-index: 9998; align-items: flex-end; justify-content: center;
+        }
+        .modal-overlay.visible { display: flex; }
+        .modal-checklist {
+            background: var(--blanco); width: 100%; max-width: 650px;
+            border-radius: 22px 22px 0 0; max-height: 90vh; display: flex;
+            flex-direction: column; animation: fadeIn 0.25s ease;
+        }
+        .modal-header {
+            padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 2px solid var(--azul-cielo); position: sticky; top: 0; background: var(--blanco);
+            border-radius: 22px 22px 0 0;
+        }
+        .modal-header h3 { font-size: 15px; color: var(--azul); }
+        .modal-cerrar { background: #f1f5f9; border: none; width: 30px; height: 30px; border-radius: 50%; font-size: 14px; color: #64748b; cursor: pointer; }
+        .modal-body { padding: 16px 20px; overflow-y: auto; }
+        .modal-footer { padding: 14px 20px; border-top: 2px solid var(--azul-cielo); }
+        .btn-checklist-guardar {
+            width: 100%; padding: 15px; border: none; border-radius: 14px; font-weight: 800;
+            font-size: 14px; cursor: pointer; background: var(--azul); color: white; font-family: inherit;
+        }
+        .checklist-aviso-previo {
+            background: #eef5ff; border: 1.5px dashed #90caf9; border-radius: 12px;
+            padding: 10px 12px; font-size: 11px; color: #004a99; margin-bottom: 14px; font-weight: 600;
+        }
+        .checklist-info-servicio {
+            background: #f8fbff; border: 1.5px solid var(--azul-cielo); border-radius: 12px;
+            padding: 10px 12px; font-size: 12px; color: var(--azul); margin-bottom: 14px; font-weight: 700;
+            display: flex; align-items: center; gap: 8px;
+        }
+        #canvas-chk { border: 2px dashed var(--azul-cielo); border-radius: 12px; width: 100%; height: 110px; background: #fff; touch-action: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h2 id="saludo">CARGANDO PERFIL...</h2>
+        <p id="rol-info" style="opacity:0.8; font-size:11px; margin-top:4px;"></p>
+    </div>
+
+    <div class="content">
+
+        <!-- BANNER APOYO -->
+        <div id="banner-apoyo">🤝 SERVICIO DE APOYO DETECTADO: Los datos se han pre-cargado.</div>
+
+        <!-- BANNER MODO EDICIÓN -->
+        <div id="banner-edicion">
+            <div class="edit-titulo">✏️ MODO EDICIÓN ACTIVO</div>
+            <div class="edit-desc">
+                Se encontró un registro previo de salida para esta carroza.<br>
+                Al guardar, <strong>se actualizará</strong> el registro existente sin crear duplicados.
+            </div>
+            <div class="edit-id" id="edit-id-info"></div>
+        </div>
+
+        <!-- BANNER DUPLICADO -->
+        <div id="banner-duplicado">
+            <div class="dup-titulo">🚫 POSIBLE DUPLICADO DETECTADO</div>
+            <div class="dup-desc" id="dup-desc">
+                Ya existe un registro activo para esta placa. Si deseas corregir datos, usa el botón de edición.
+            </div>
+            <button class="dup-btn" onclick="activarModoEdicion()">✏️ EDITAR REGISTRO EXISTENTE</button>
+        </div>
+
+        <!-- ── RESPONSABLE ── -->
+        <div class="section-title">Datos de Responsable</div>
+        <div class="grid-2">
+            <div>
+                <label>Conductor</label>
+                <input type="text" id="conductor" readonly style="background:#eef5ff; font-weight:bold;">
+            </div>
+            <div>
+                <label>Regional</label>
+                <select id="regional" onchange="cargarPlacas()">
+                    <option value="Risaralda">Risaralda</option>
+                    <option value="Antioquia">Antioquia</option>
+                    <option value="Caldas">Caldas</option>
+                    <option value="Quindío">Quindío</option>
+                    <option value="Valle Norte">Valle Norte</option>
+                    <option value="Valle Centro">Valle Centro</option>
+                    <option value="Valle Sur">Valle Sur</option>
+                    <option value="C/ Marca">Cundinamarca</option>
+                    <option value="Tolima Norte">Tolima Norte</option>
+                    <option value="FUSA">Fusagasugá</option>
+                    <option value="COMODIN">Comodín</option>
+                    <option value="CARTAGO">Cartago</option>
+                    <option value="POPAYAN">Popayán</option>
+                    <option value="GARZON">Garzón</option>
+                    <option value="MEDELLIN">Medellín</option>
+                    <option value="NEIVA">Neiva</option>
+                    <option value="PALMIRA">Palmira</option>
+                    <option value="TULUA">Tuluá</option>
+                    <option value="BARRANQUILLA">Barranquilla</option>
+                    <option value="LIBANO">Líbano</option>
+                    <option value="GIRARDOT">Girardot</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- ── VEHÍCULO ── -->
+        <div class="section-title">Información del Vehículo</div>
+        <div class="grid-2">
+            <div>
+                <label>Placa Vehículo</label>
+                <select id="placa" onchange="alSeleccionarPlaca()">
+                    <option value="">Cargando flota...</option>
+                </select>
+            </div>
+            <div>
+                <label>Motivo Salida</label>
+                <select id="motivo" onchange="validarCompatibilidad()">
+                    <option value="Sepelio">Sepelio</option>
+                    <option value="Traslado Nacional">Traslado Nacional</option>
+                    <option value="Recogida De Cuerpo">Recogida De Cuerpo</option>
+                    <option value="Recogida Y traslado De Mascota">Recogida Y traslado De Mascota</option>
+                    <option value="Recogida y Traslado De Restos">Recogida y Traslado De Restos</option>
+                    <option value="Recogida De Cofres">Recogida De Cofres</option>
+                    <option value="Puesta En Velación">Puesta En Velación</option>
+                    <option value="Taller">Taller</option>
+                    <option value="Tramites Empresarial">Tramites Empresarial</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="alerta-vehiculo" id="alerta-vehiculo"></div>
+        <div class="alerta-vehiculo" id="alerta-combustible"></div>
+
+        <!-- ── 🆕 CHECKLIST DE SALIDA ── -->
+        <div id="bloque-checklist" style="display:none;">
+            <button type="button" class="btn-checklist" id="btn-checklist" onclick="abrirChecklist()">
+                <span id="checklist-icono">📋</span>
+                <span id="checklist-texto">Hacer Checklist de la Carroza</span>
+            </button>
+            <div class="checklist-estado" id="checklist-estado"></div>
+        </div>
+
+        <!-- ── KIT DE CARRETERA ── -->
+        <div class="section-title">🧰 Kit de Carretera</div>
+        <div class="kit-selector" id="kit-selector">
+            <label class="kit-opcion" id="kit-completo" onclick="seleccionarKit('completo')">
+                <input type="radio" name="kit" value="completo">
+                <div class="kit-icono">✅</div>
+                <div class="kit-texto">
+                    <div class="kit-titulo">Completo — Todo en orden</div>
+                    <div class="kit-desc">Kit reglamentario y extintor vigentes</div>
+                </div>
+                <div class="kit-check" id="check-completo"></div>
+            </label>
+            <label class="kit-opcion" id="kit-incompleto" onclick="seleccionarKit('incompleto')">
+                <input type="radio" name="kit" value="incompleto">
+                <div class="kit-icono">⚠️</div>
+                <div class="kit-texto">
+                    <div class="kit-titulo">Incompleto — Faltan elementos</div>
+                    <div class="kit-desc">Reporte faltantes al coordinador</div>
+                </div>
+                <div class="kit-check" id="check-incompleto"></div>
+            </label>
+            <label class="kit-opcion" id="kit-no-tiene" onclick="seleccionarKit('no-tiene')">
+                <input type="radio" name="kit" value="no-tiene">
+                <div class="kit-icono">🚫</div>
+                <div class="kit-texto">
+                    <div class="kit-titulo">Sin kit — No tiene</div>
+                    <div class="kit-desc">La carroza no cuenta con kit de carretera</div>
+                </div>
+                <div class="kit-check" id="check-no-tiene"></div>
+            </label>
+        </div>
+        <div class="kit-alerta" id="kit-alerta"></div>
+
+        <!-- ── SERVICIO ── -->
+        <div class="section-title">Datos del Servicio</div>
+        <label>Nombre del Fallecido</label>
+        <input type="text" id="fallecido" placeholder="Nombre completo">
+
+        <div class="grid-2">
+            <div><label>Lugar de Recogida</label><input type="text" id="clinica" placeholder="Sitio"></div>
+            <div><label>N° Prestación</label><input type="text" id="prestacion" placeholder="Código"></div>
+        </div>
+        <div class="grid-2">
+            <div><label>Origen (Ciudad)</label><input type="text" id="origen" placeholder="De:"></div>
+            <div><label>Destino (Ciudad)</label><input type="text" id="destino" placeholder="Para:"></div>
+        </div>
+
+        <div class="section-title">Control de Kilometraje y Hora</div>
+        <div class="grid-2">
+            <div><label>Hora Salida</label><input type="time" id="hora_salida"></div>
+            <div><label>KM Salida</label><input type="number" id="km_s"></div>
+        </div>
+
+        <div class="section-title">Evidencias Fotográficas</div>
+        <div class="upload-container" onclick="document.getElementById('fotos-input').click()">
+            <span id="upload-text">📸 Toca para subir fotos (Máximo 4)</span>
+            <input type="file" id="fotos-input" accept="image/*" multiple hidden onchange="procesarFotos(this)">
+        </div>
+        <div class="preview-gallery" id="galeria"></div>
+
+        <label>Observaciones de Salida</label>
+        <textarea id="observaciones" rows="2" placeholder="Novedades del vehículo o servicio..."></textarea>
+
+        <div class="section-title">Firma de Responsable</div>
+        <canvas id="canvas"></canvas>
+        <p onclick="borrarFirma()" style="text-align:right; color:#ff4444; font-size:11px; cursor:pointer; margin-top:5px; font-weight:bold;">✖ BORRAR FIRMA</p>
+
+        <div class="section-title">Notificación</div>
+        <label>Nombre del Coordinador (para el reporte)</label>
+        <input type="text" id="nombre-coordinador" placeholder="Ej: Cesar Hincapie">
+
+        <div id="progreso-steps">
+            <div id="step-carroza">⏳ Actualizando estado de carroza...</div>
+            <div id="step-traslado">⏳ Guardando traslado...</div>
+            <div id="step-apoyo" style="display:none;">⏳ Vinculando solicitud de apoyo...</div>
+        </div>
+
+        <div class="acciones">
+            <button class="btn-accion-guardar" id="btn-envio" onclick="guardarTodo()">
+                <span id="btn-icono">💾</span> <span id="btn-texto">GUARDAR EN SISTEMA</span>
+            </button>
+            <div id="bloque-wa" style="display:none; flex-direction:column; gap:8px;">
+                <button class="btn-accion-wa" id="btn-wa" onclick="enviarWA()">
+                    <span>💬</span> ENVIAR REPORTE POR WHATSAPP
+                </button>
+                <button class="btn-accion-fotos" onclick="compartirFotos()">
+                    <span>📸</span> COMPARTIR FOTOS
+                </button>
+                <div class="instruccion-fotos" id="instruccion-fotos">
+                    <b>📱 Descarga lista.</b> Adjunta las fotos desde tu galería en WhatsApp.
+                </div>
+            </div>
+            <button class="btn-accion-volver" onclick="irAtras()">← Volver</button>
+        </div>
+
+    </div>
+</div>
+
+<!-- ── 🆕 MODAL CHECKLIST DE SALIDA ── -->
+<div class="modal-overlay" id="modal-checklist-overlay" onclick="cerrarChecklist(event)">
+    <div class="modal-checklist" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3 id="modal-checklist-titulo">📋 Checklist de Carroza</h3>
+            <button type="button" class="modal-cerrar" onclick="cerrarChecklist()">✕</button>
+        </div>
+        <div class="modal-body" id="modal-checklist-body">
+
+            <div id="checklist-previo-aviso" class="checklist-aviso-previo" style="display:none;"></div>
+
+            <!-- 🆕 El "Tipo de Servicio" ya NO se pregunta aparte: se toma
+                 automáticamente del mismo "Motivo Salida" elegido arriba en
+                 el formulario principal (motivo_de_salida), para que quede
+                 registrado igual en ambas hojas (Traslados y Checklist_Salida). -->
+            <div class="checklist-info-servicio" id="checklist-info-servicio">
+                🧾 Tipo de Servicio: <span id="checklist-motivo-mostrado">—</span>
+            </div>
+
+            <div class="section-title" style="margin-top:0;">Estado General</div>
+            <div>
+                <label>Estado del Vehículo</label>
+                <select id="chk_estado_vehiculo">
+                    <option value="Bueno">Bueno</option>
+                    <option value="Regular">Regular</option>
+                    <option value="Malo">Malo</option>
+                </select>
+            </div>
+
+            <div class="section-title">Sistemas y Niveles</div>
+            <div class="grid-2">
+                <div>
+                    <label>Sistema de Luces</label>
+                    <select id="chk_luces"><option value="Bueno">Bueno</option><option value="Regular">Regular</option><option value="Malo">Malo</option></select>
+                </div>
+                <div>
+                    <label>Sistema de Frenos</label>
+                    <select id="chk_frenos"><option value="Bueno">Bueno</option><option value="Regular">Regular</option><option value="Malo">Malo</option></select>
+                </div>
+            </div>
+            <div class="grid-2">
+                <div>
+                    <label>Nivel de Agua</label>
+                    <select id="chk_agua"><option value="Bueno">Bueno</option><option value="Regular">Regular</option><option value="Malo">Malo</option></select>
+                </div>
+                <div>
+                    <label>Nivel de Aceite</label>
+                    <select id="chk_aceite"><option value="Bueno">Bueno</option><option value="Regular">Regular</option><option value="Malo">Malo</option></select>
+                </div>
+            </div>
+            <div class="grid-2">
+                <div>
+                    <label>Nivel de Gasolina</label>
+                    <select id="chk_gasolina"><option value="Lleno">Lleno</option><option value="3/4">3/4</option><option value="1/2">1/2</option><option value="1/4">1/4</option><option value="Reserva">Reserva</option></select>
+                </div>
+                <div>
+                    <label>Llanta de Repuesto</label>
+                    <select id="chk_llanta_repuesto"><option value="Sí">Sí</option><option value="No">No</option></select>
+                </div>
+            </div>
+
+            <div class="section-title">Documentos y Seguridad</div>
+            <div class="grid-2">
+                <div><label>SOAT</label><select id="chk_soat"><option value="Sí">Sí</option><option value="No">No</option></select></div>
+                <div><label>Tecnomecánica</label><select id="chk_tecno"><option value="Sí">Sí</option><option value="No">No</option></select></div>
+            </div>
+            <div class="grid-2">
+                <div><label>Botiquín</label><select id="chk_botiquin"><option value="Sí">Sí</option><option value="No">No</option></select></div>
+                <div><label>Extintor</label><select id="chk_extintor"><option value="Sí">Sí</option><option value="No">No</option></select></div>
+            </div>
+            <div class="grid-2">
+                <div><label>Cinturón de Seguridad</label><select id="chk_cinturon"><option value="Sí">Sí</option><option value="No">No</option></select></div>
+                <div><label>Gato</label><select id="chk_gato"><option value="Sí">Sí</option><option value="No">No</option></select></div>
+            </div>
+            <div class="grid-2">
+                <div><label>Llave de Ruedas</label><select id="chk_llave_ruedas"><option value="Sí">Sí</option><option value="No">No</option></select></div>
+                <div><label>Triángulos</label><select id="chk_triangulos"><option value="Sí">Sí</option><option value="No">No</option></select></div>
+            </div>
+
+            <label>Observaciones del Checklist</label>
+            <textarea id="chk_observaciones" rows="2" placeholder="Novedades encontradas en la revisión..."></textarea>
+
+            <div class="section-title">Firma de Quien Revisa</div>
+            <canvas id="canvas-chk"></canvas>
+            <p onclick="borrarFirmaChk()" style="text-align:right; color:#ff4444; font-size:11px; cursor:pointer; margin-top:5px; font-weight:bold;">✖ BORRAR FIRMA</p>
+
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn-checklist-guardar" id="btn-guardar-checklist" onclick="guardarChecklist()">💾 Guardar Checklist</button>
+        </div>
+    </div>
+</div>
+
+<script src="db.js"></script>
+<script>
+    let fotosArray       = [];
+    let datosFinales     = {};
+    let flotaCompleta    = [];
+    let kitSeleccionado  = '';
+    let idApoyoCapturado = null;
+    let modoEdicion      = false;
+    let registroExistenteId = null;
+    let registroDuplicadoId = null;
+    let guardandoActualmente = false;
+
+    // 🆕 Bandera de bloqueo: true = no se puede guardar la salida
+    // (servicio anterior sin cerrar, o vehículo en taller/parque automotor)
+    let salidaBloqueada = false;
+
+    // 🆕 Guarda el registro de traslado pendiente (servicio sin cerrar)
+    // detectado para la placa seleccionada, para poder usarlo en la
+    // notificación al coordinador.
+    let pendienteActual = null;
+
+    // ══════════════════════════════════════════════
+    // 🆕 CHECKLIST DE CARROZA (Google Sheets, hoja "Checklist_Salida")
+    // ══════════════════════════════════════════════
+    // 🆕 CORREGIDO: antes había que pegar aquí, a mano, la misma URL de
+    // despliegue (Web App) de Code.gs que ya usa db.js para leer/guardar
+    // en Google Sheets — eso es justamente lo que generaba el error,
+    // porque el placeholder 'PEGA_AQUI_TU_URL_DE_DESPLIEGUE_DE_CODE_GS'
+    // se quedaba sin reemplazar y el fetch fallaba silenciosamente.
+    //
+    // Ahora se reutiliza automáticamente `window.URL_GAS`, que db.js
+    // expone (ver el final de db.js), así que esta URL SIEMPRE queda en
+    // sincronía con la que usan DB.obtenerMantenimientos(),
+    // DB.guardarTraslado(), etc. — sin mantenimiento manual duplicado.
+    //
+    // El operador `||` de respaldo es solo un salvavidas por si algún
+    // día db.js se carga en un orden distinto o se sirve desde una
+    // versión vieja sin el `window.URL_GAS` — así el checklist no
+    // queda roto en silencio, sino que usa la URL real conocida.
+    const APPS_SCRIPT_URL = window.URL_GAS || 'https://script.google.com/macros/s/AKfycby3-BtZUU8OrRr9eU3cneGdF4fTvsPOtXshrQn0zmxUtLP5AjgF_qSnulTiQD_eFznZUg/exec';
+
+    let checklistPlacaActual   = '';   // placa para la que está abierto el modal
+    let checklistCompletadoHoy = false; // true si ya se guardó un checklist hoy para esta placa/sesión
+    let guardandoChecklist      = false;
+
+    // Canvas de firma dentro del modal de checklist (independiente del
+    // canvas de "Firma de Responsable" del formulario principal)
+    const canvasChk = document.getElementById('canvas-chk');
+    const ctxChk    = canvasChk.getContext('2d');
+    let dibujandoChk = false;
+
+    const canvas = document.getElementById('canvas');
+    const ctx    = canvas.getContext('2d');
+    let dibujando = false;
+
+    // ── NORMALIZAR TEXTO para comparaciones robustas ──
+    // Elimina tildes, convierte a minúsculas y recorta espacios
+    function normalizar(str) {
+        const s = String(str || '');
+        return s
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .trim();
+    }
+
+    // 🆕 Preselección robusta de la regional del conductor.
+    // Antes se hacía "select.value = user.regional", que exige una
+    // coincidencia EXACTA (letra por letra, con tildes y mayúsculas)
+    // contra el atributo "value" de las <option> del selector. El
+    // problema: varias opciones usan un código interno distinto al
+    // nombre de la regional (Cundinamarca → value="C/ Marca",
+    // Fusagasugá → value="FUSA", Popayán → value="POPAYAN" sin tilde,
+    // Medellín → "MEDELLIN", Tuluá → "TULUA", Líbano → "LIBANO",
+    // Garzón → "GARZON"). Si el dato guardado para el conductor no
+    // calzaba letra por letra con ese "value", la preselección fallaba
+    // en silencio (el selector se quedaba en su primera opción,
+    // "Risaralda") y el conductor tenía que abrir el desplegable y
+    // elegir manualmente su propia regional para que le aparecieran
+    // sus placas — el bug reportado de "tener que seleccionar otra
+    // regional". Ahora se busca la opción comparando de forma
+    // normalizada (sin tildes/mayúsculas) tanto contra el "value" como
+    // contra el texto visible de la opción, así que calza sin importar
+    // si el dato guardado es el código interno o el nombre legible.
+    function preseleccionarRegional(regionalGuardada) {
+        const select = document.getElementById('regional');
+        if (!regionalGuardada) return;
+        const objetivo = normalizar(regionalGuardada);
+        const opcion = Array.from(select.options).find(o =>
+            normalizar(o.value) === objetivo || normalizar(o.textContent) === objetivo
+        );
+        if (opcion) {
+            select.value = opcion.value;
+        } else {
+            console.warn('La regional guardada para este conductor ("' + regionalGuardada + '") no coincide con ninguna opción del selector — revisa el dato en la hoja "usuarios".');
+        }
+    }
+
+    // 🆕 Fecha de hoy en formato DD/MM/AAAA (igual que fechaHoy() de db.js)
+    // Se usa para distinguir un traslado "duplicado de hoy" (que ya maneja
+    // el flujo de banner-duplicado) de un traslado de un DÍA ANTERIOR que
+    // nunca se cerró (que es lo que bloqueamos aquí como "servicio sin cerrar").
+    function fechaHoyStr() {
+        const h = new Date();
+        return h.getDate().toString().padStart(2,'0') + '/' +
+               (h.getMonth()+1).toString().padStart(2,'0') + '/' +
+               h.getFullYear();
+    }
+
+    // 🆕 FORMATEAR FECHA/HORA "SUCIAS" QUE VIENEN DEL BACKEND
+    // ──────────────────────────────────────────────────────
+    // Cuando Google Sheets detecta que una celda "parece" fecha u hora,
+    // la convierte internamente a una celda de tipo Fecha/Hora. Al leerla,
+    // Apps Script entrega un objeto Date real, y el backend lo serializa
+    // con su .toString() completo — por eso a veces llega algo como:
+    //   "Sun Jul 12 2026 02:00:00 GMT-0500 (hora estándar de Colombia)"
+    // o, para celdas de solo-hora (que Sheets guarda con fecha base
+    // 30/12/1899, arrastrando además el desfase histórico de la zona
+    // horaria de Bogotá de esa época):
+    //   "Sat Dec 30 1899 12:58:44 GMT-0456 (hora estándar de Colombia)"
+    // Estas funciones detectan ese caso y lo reformatean de forma limpia,
+    // dejando pasar sin cambios los valores que ya vienen en el formato
+    // esperado ("DD/MM/AAAA" o "HH:MM").
+    function formatearFechaLimpia(valor) {
+        if (!valor) return '';
+        const str = String(valor).trim();
+        if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(str)) return str; // ya viene "DD/MM/AAAA"
+        const d = new Date(str);
+        if (isNaN(d.getTime())) return str;
+        // Se usa UTC para evitar el desfase histórico de zona horaria
+        return d.getUTCDate().toString().padStart(2, '0') + '/' +
+               (d.getUTCMonth() + 1).toString().padStart(2, '0') + '/' +
+               d.getUTCFullYear();
+    }
+
+    function formatearHoraLimpia(valor) {
+        if (!valor) return '';
+        const str = String(valor).trim();
+        if (/^\d{1,2}:\d{2}$/.test(str)) return str; // ya viene "HH:MM"
+        const d = new Date(str);
+        if (isNaN(d.getTime())) return str;
+        return d.getUTCHours().toString().padStart(2, '0') + ':' +
+               d.getUTCMinutes().toString().padStart(2, '0');
+    }
+
+    // 🆕 Verifica si la placa tiene un traslado ABIERTO (sin hora_de_ingreso)
+    // de un día DISTINTO a hoy — es decir, un servicio que el conductor
+    // nunca cerró con el Registro de Llegada correspondiente.
+    async function verificarSalidaPendiente(placa) {
+        try {
+            const { ok, data } = await DB.obtenerTrasladoActivoPorPlaca(placa);
+            if (!ok || !data) return null;
+            if (String(data.fecha || '').trim() === fechaHoyStr()) return null; // eso lo maneja el flujo de duplicado
+            return data;
+        } catch(e) {
+            console.warn('No se pudo verificar salida pendiente:', e);
+            return null;
+        }
+    }
+
+    // ── SEDES/REGIONALES VÁLIDAS (debe coincidir con flota.html) ──
+    const SEDES_VALIDAS = new Set([
+        'Risaralda','Antioquia','Caldas','Quindío','Valle Norte','Valle Centro',
+        'Valle Sur','C/ Marca','Tolima Norte','FUSA','COMODIN','CARTAGO',
+        'POPAYAN','GARZON','MEDELLIN','NEIVA','PALMIRA','TULUA',
+        'BARRANQUILLA','LIBANO','GIRARDOT'
+    ].map(normalizar));
+
+    // ══════════════════════════════════════════════
+    //  VERIFICAR PARÁMETROS URL (apoyo pre-cargado)
+    // ══════════════════════════════════════════════
+    function verificarParametrosURL() {
+        const params = new URLSearchParams(window.location.search);
+        idApoyoCapturado = params.get('id');
+
+        const editarId = params.get('editar');
+        if (editarId) {
+            registroExistenteId = editarId;
+            cargarRegistroParaEditar(editarId);
+        }
+
+        if (idApoyoCapturado) {
+            document.getElementById('banner-apoyo').style.display = 'block';
+            if (params.get('fallecido')) document.getElementById('fallecido').value = params.get('fallecido');
+            if (params.get('origen'))    document.getElementById('origen').value    = params.get('origen');
+            if (params.get('destino'))   document.getElementById('destino').value   = params.get('destino');
+            if (params.get('recogida'))  document.getElementById('clinica').value   = params.get('recogida');
+            if (params.get('motivo'))    document.getElementById('motivo').value    = params.get('motivo');
+        }
+
+        // 🆕 Viene de haber cerrado manualmente el servicio pendiente de
+        // otro conductor en registro_llegada.html (botón "🏁 Cerrar Yo
+        // Esta Llegada y Continuar"). El cierre ya quedó guardado de
+        // verdad en la base de datos, así que aquí solo se retoma la
+        // misma placa para no obligar a repetir la selección.
+        //
+        // La regional (si viene) se preselecciona AQUÍ, antes de que
+        // window.onload llame a cargarPlacas(), para que la lista de
+        // placas que se cargue ya corresponda a la regional correcta.
+        // La selección real de la placa se aplica después, en
+        // aplicarContinuarPlacaTrasCierre(), una vez que cargarPlacas()
+        // ya haya terminado (ver window.onload).
+        const continuarPlaca = params.get('continuar_placa');
+        if (continuarPlaca) {
+            window._continuarPlacaTrasCierre = continuarPlaca;
+            const regionalParam = params.get('regional');
+            if (regionalParam) preseleccionarRegional(regionalParam);
+        }
+    }
+
+    // 🆕 Aplica la placa pendiente de continuar_placa (ver
+    // verificarParametrosURL) una vez que cargarPlacas() ya terminó de
+    // traer las opciones del select — así la placa buscada sí existe
+    // como <option> en el momento de asignarla.
+    async function aplicarContinuarPlacaTrasCierre() {
+        const placa = window._continuarPlacaTrasCierre;
+        window._continuarPlacaTrasCierre = null;
+        if (!placa) return;
+
+        const select = document.getElementById('placa');
+        const opcion = Array.from(select.options).find(o => normalizar(o.value) === normalizar(placa));
+
+        if (opcion) {
+            select.value = opcion.value;
+            await alSeleccionarPlaca();
+            Swal.fire('Servicio cerrado', 'El servicio anterior de esta carroza quedó cerrado correctamente. Ya puedes continuar con tu salida.', 'success');
+        } else {
+            console.warn('No se encontró la placa "' + placa + '" en el selector tras el cierre — puede que ya no esté disponible en esta regional.');
+        }
+    }
+
+    // ══════════════════════════════════════════════
+    //  CARGAR REGISTRO EXISTENTE PARA EDITAR
+    // ══════════════════════════════════════════════
+    async function cargarRegistroParaEditar(idSalida) {
+        try {
+            const { ok, data } = await DB.obtenerTrasladosRecientes(500);
+            if (!ok || !data) return;
+
+            const reg = data.find(r => String(r.id_salida || '').trim() === String(idSalida).trim());
+            if (!reg) { console.warn('No se encontró el registro:', idSalida); return; }
+
+            if (reg.placa)                  { document.getElementById('placa').value          = reg.placa;                  await alSeleccionarPlaca(); }
+            if (reg.motivo_de_salida)         document.getElementById('motivo').value          = reg.motivo_de_salida;
+            if (reg.nombre_del_fallecido)     document.getElementById('fallecido').value       = reg.nombre_del_fallecido;
+            if (reg.clinica_hospital_o_rsd)   document.getElementById('clinica').value         = reg.clinica_hospital_o_rsd;
+            if (reg.numero_prestacion)        document.getElementById('prestacion').value      = reg.numero_prestacion;
+            if (reg.origen)                   document.getElementById('origen').value          = reg.origen;
+            if (reg.destino)                  document.getElementById('destino').value         = reg.destino;
+            if (reg.hora_de_salida)           document.getElementById('hora_salida').value     = reg.hora_de_salida;
+            if (reg.km__salida)               document.getElementById('km_s').value            = reg.km__salida;
+            if (reg.observaciones)            document.getElementById('observaciones').value   = reg.observaciones;
+            if (reg.coordinador_en_turno)     document.getElementById('nombre-coordinador').value = reg.coordinador_en_turno;
+            if (reg.kit_carretera)            seleccionarKit(reg.kit_carretera);
+
+            activarModoEdicionConId(idSalida, reg.placa);
+
+        } catch(e) {
+            console.error('Error cargando registro para editar:', e);
+        }
+    }
+
+    // ══════════════════════════════════════════════
+    //  ACTIVAR MODO EDICIÓN
+    // ══════════════════════════════════════════════
+    function activarModoEdicion() {
+        if (registroDuplicadoId) {
+            activarModoEdicionConId(registroDuplicadoId, document.getElementById('placa').value);
+            cargarRegistroParaEditar(registroDuplicadoId);
+        }
+    }
+
+    function activarModoEdicionConId(id, placa) {
+        modoEdicion          = true;
+        registroExistenteId  = id;
+        registroDuplicadoId  = null;
+        salidaBloqueada      = false; // en modo edición no aplican los bloqueos de nueva salida
+
+        document.getElementById('banner-duplicado').style.display = 'none';
+        const bannerEdicion = document.getElementById('banner-edicion');
+        bannerEdicion.style.display = 'block';
+        document.getElementById('edit-id-info').textContent = '🔑 ID Registro: ' + id + (placa ? ' · Placa: ' + placa : '');
+
+        const btn = document.getElementById('btn-envio');
+        btn.classList.add('modo-edicion');
+        document.getElementById('btn-icono').textContent = '✏️';
+        document.getElementById('btn-texto').textContent = 'ACTUALIZAR REGISTRO';
+    }
+
+    // ══════════════════════════════════════════════
+    //  CARGAR PLACAS FILTRADAS POR REGIONAL
+    //  *** FIX PRINCIPAL: normalización en ambos lados ***
+    // ══════════════════════════════════════════════
+    async function cargarPlacas() {
+        const select = document.getElementById('placa');
+        const regionalActual = document.getElementById('regional').value;
+        const regionalNorm   = normalizar(regionalActual);
+
+        select.innerHTML = '<option value="">Cargando flota...</option>';
+
+        try {
+            // 🆕 Se agrega estado_parque_automotor a la consulta: es el campo
+            // que indica si el vehículo está en el Parque Automotor / Taller.
+            const { data, error } = await DB.supabase
+                .from('carrozas')
+                .select('placa, modelo, estado, estado_parque_automotor, kilometraje_actual, proximo_mantenimiento, tipo_vehiculo, sede_asignada, sede_intercambio')
+                .order('placa');
+
+            if (error) throw error;
+            flotaCompleta = data || [];
+
+            const flotaFiltrada = flotaCompleta.filter(c => {
+                // sede_intercambio tiene prioridad solo si está rellena Y es una sede/regional
+                // válida. Algunas filas antiguas tienen ahí nombres de talleres
+                // (p.ej. "TECNIGARAGE", "RENDON") en vez de una sede real — eso
+                // ocultaba la carroza de TODAS las regionales. Si no es una sede
+                // reconocida, se ignora y se usa sede_asignada.
+                const sedeIntercambio = (c.sede_intercambio || '').trim();
+                const sedeAsignada    = (c.sede_asignada    || '').trim();
+                const intercambioValido = sedeIntercambio !== '' && SEDES_VALIDAS.has(normalizar(sedeIntercambio));
+                const ubicacion = intercambioValido ? sedeIntercambio : sedeAsignada;
+
+                // Comparación normalizada: sin tildes, sin distinción de mayúsculas/espacios
+                return normalizar(ubicacion) === regionalNorm;
+            });
+
+            if (flotaFiltrada.length > 0) {
+                select.innerHTML = '<option value="">Seleccione placa...</option>' +
+                    flotaFiltrada.map(c => {
+                        const enTaller = (c.estado || '').includes('Taller');
+                        return `<option value="${c.placa}" data-tipo="${c.tipo_vehiculo || ''}" ${enTaller ? 'style="color:#ef4444;"' : ''}>` +
+                            `${c.placa} — ${c.modelo || 'S/M'} (${c.tipo_vehiculo || 'S/T'})${enTaller ? ' 🔧 EN TALLER' : ''}` +
+                        `</option>`;
+                    }).join('');
+            } else {
+                select.innerHTML = '<option value="">Sin vehículos en esta regional</option>';
+            }
+        } catch(e) {
+            console.error('Error cargando placas:', e);
+            select.innerHTML = '<option>Error al cargar placas</option>';
+        }
+    }
+
+    // ══════════════════════════════════════════════
+    //  VALIDACIÓN COMPATIBILIDAD VEHÍCULO/MOTIVO
+    // ══════════════════════════════════════════════
+    function validarCompatibilidad() {
+        const motivo = document.getElementById('motivo').value;
+        const placaSelect = document.getElementById('placa');
+        const optionSel = placaSelect.options[placaSelect.selectedIndex];
+        if (!optionSel || !optionSel.value) return;
+
+        const tipoVehiculo = (optionSel.getAttribute('data-tipo') || '').toUpperCase();
+        let mensajeAlerta = '';
+
+        if (tipoVehiculo.includes('DESTINO FINAL')) {
+            if (motivo.includes('Recogida') || motivo === 'Traslado Nacional') {
+                mensajeAlerta = `⚠️ <b>RIESGO DE DAÑO AL ACTIVO</b><br><br>` +
+                                `La carroza <b>${optionSel.value}</b> es de tipo <b>DESTINO FINAL</b> (Perfil Bajo).<br><br>` +
+                                `Usarla para <b>${motivo}</b> puede causar daños en el chasis o desajustes por baches en rutas no urbanas.`;
+            }
+        }
+
+        if (mensajeAlerta !== '') {
+            Swal.fire({
+                title: '¿ESTÁ SEGURO?',
+                html: mensajeAlerta,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#004a99',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Sí, continuar',
+                cancelButtonText: 'Cambiar vehículo'
+            }).then((result) => {
+                if (!result.isConfirmed) {
+                    placaSelect.value = '';
+                    document.getElementById('alerta-vehiculo').style.display = 'none';
+                }
+            });
+        }
+    }
+
+    // ══════════════════════════════════════════════
+    //  NOTIFICAR AL COORDINADOR PARA QUE CIERRE EL SERVICIO
+    //  Inserta un registro en 'notificaciones_apoyo', el mismo canal
+    //  que panel_coordinador.html ya escucha en tiempo real (activarRealtime).
+    //
+    //  🆕 FIX: se agrega un "id" determinístico (placa + id_salida del
+    //  traslado pendiente) al payload. Antes el insert no llevaba id,
+    //  así que si el guardado (gasWrite) tenía timeout y reintentaba,
+    //  no había forma de detectar "esto ya se insertó" y podía crear
+    //  una notificación duplicada. Con el id fijo, el mecanismo
+    //  anti-duplicado de gasWrite/existeFila ya funciona también aquí.
+    //
+    //  🆕 v2: se agrega el campo "tipo: 'cierre_pendiente'" más los
+    //  campos sueltos placa / id_salida_ref / conductor / hora_salida /
+    //  fecha_salida. Esto le permite a panel_coordinador.html:
+    //    a) Distinguir estas notificaciones de las de solicitud_apoyo
+    //       (antes todo llegaba mezclado por el mismo canal, sin forma
+    //       de diferenciarlas más que parseando el texto libre).
+    //    b) Saber a qué placa/traslado exacto corresponde cada una, sin
+    //       tener que parsear el id (que antes mezclaba placa + id_salida
+    //       en un solo string separado por guiones — ambiguo si la placa
+    //       trae espacios, p.ej. "HWT 515").
+    //    c) Armar el enlace directo a registro_llegada.html?placa=XXX.
+    // ══════════════════════════════════════════════
+    async function notificarCoordinadorCierre() {
+        if (!pendienteActual) return;
+        const btn = document.getElementById('btn-notificar-cierre');
+        const regional = document.getElementById('regional').value;
+        const placa     = document.getElementById('placa').value;
+
+        if (btn) {
+            btn.disabled = true;
+            btn.innerText = '⏳ Enviando notificación...';
+        }
+
+        try {
+            const idNotificacion = 'NOTCIERRE-' + placa + '-' + (pendienteActual.id_salida || Date.now());
+
+            const { error } = await DB.supabase.from('notificaciones_apoyo').insert({
+                id: idNotificacion,
+                tipo: 'cierre_pendiente',
+                titulo: `⚠️ Servicio sin cerrar — ${placa}`,
+                cuerpo: `La carroza ${placa} tiene un servicio sin cerrar del conductor ` +
+                        `${pendienteActual.conductor || 'N/A'} (salida del ${formatearFechaLimpia(pendienteActual.fecha)}` +
+                        `${pendienteActual.hora_de_salida ? ' a las ' + formatearHoraLimpia(pendienteActual.hora_de_salida) : ''}). ` +
+                        `Se requiere registrar la llegada para poder liberar el vehículo para una nueva salida.`,
+                alcance: 'regional',
+                regional: regional,
+                placa: placa,
+                id_salida_ref: pendienteActual.id_salida || '',
+                conductor: pendienteActual.conductor || '',
+                hora_salida: pendienteActual.hora_de_salida || '',
+                fecha_salida: pendienteActual.fecha || ''
+            });
+
+            if (error) throw error;
+
+            if (btn) {
+                btn.innerText = '✅ Coordinador notificado';
+                btn.style.background = '#25D366';
+            }
+            Swal.fire('Notificación enviada', `Se avisó al coordinador de ${regional} para que gestione el cierre de este servicio.`, 'success');
+
+        } catch (e) {
+            console.error('Error notificando al coordinador:', e);
+            if (btn) {
+                btn.disabled = false;
+                btn.innerText = '🚫 Reintentar notificación';
+            }
+            Swal.fire('Error', 'No se pudo enviar la notificación. Intenta de nuevo.', 'error');
+        }
+    }
+
+
+    // ══════════════════════════════════════════════
+    // 🆕 CERRAR YO ESTA LLEGADA Y CONTINUAR
+    //
+    //  Cierra de verdad el servicio anterior (no lo justifica ni lo deja
+    //  pendiente): lleva al conductor/coordinador a registro_llegada.html con:
+    //    - La placa ya preseleccionada.
+    //    - Una observación pre-escrita explicando el motivo del cierre
+    //      (quién lo hace y por qué el conductor original no lo cerró).
+    //    - Una bandera "retorno_salida=1" (+ la regional actual) para que,
+    //      una vez guardada esa llegada, aparezca un botón que regresa
+    //      directo aquí con la misma placa ya seleccionada — sin volver a
+    //      bloquear, porque el servicio anterior ya quedó cerrado en la
+    //      base de datos (no es una excepción, es un cierre real).
+    // ══════════════════════════════════════════════
+    function irACerrarLlegada() {
+        const placaActual    = document.getElementById('placa').value;
+        const regionalActual = document.getElementById('regional').value;
+        const miNombre       = document.getElementById('conductor').value;
+        const pendienteRef   = pendienteActual;
+
+        const nota = `Cierre realizado por ${miNombre} porque el conductor ${pendienteRef?.conductor || 'N/A'} ` +
+                     `no registró la llegada. Salida original del ${formatearFechaLimpia(pendienteRef?.fecha) || 'N/A'}` +
+                     `${pendienteRef?.hora_de_salida ? ' a las ' + formatearHoraLimpia(pendienteRef.hora_de_salida) : ''}.`;
+
+        const params = new URLSearchParams({
+            placa: placaActual,
+            nota: nota,
+            retorno_salida: '1',
+            regional: regionalActual
+        });
+
+        window.location.href = 'registro_llegada.html?' + params.toString();
+    }
+
+    // ══════════════════════════════════════════════
+    //  AL SELECCIONAR PLACA
+    // ══════════════════════════════════════════════
+    async function alSeleccionarPlaca() {
+        const placaSeleccionada = document.getElementById('placa').value;
+        const alertaEl = document.getElementById('alerta-vehiculo');
+
+        if (!modoEdicion) {
+            document.getElementById('banner-duplicado').style.display = 'none';
+            document.getElementById('banner-edicion').style.display   = 'none';
+            registroDuplicadoId = null;
+        }
+
+        if (!placaSeleccionada) {
+            alertaEl.style.display = 'none';
+            document.getElementById('alerta-combustible').style.display = 'none';
+            salidaBloqueada = false;
+            pendienteActual = null;
+            ocultarBotonChecklist();
+            return;
+        }
+
+        const veh = flotaCompleta.find(c => c.placa === placaSeleccionada);
+        if (!veh) {
+            alertaEl.style.display = 'none';
+            document.getElementById('alerta-combustible').style.display = 'none';
+            salidaBloqueada = false;
+            pendienteActual = null;
+            ocultarBotonChecklist();
+            return;
+        }
+
+        // 🆕 Se resetea el bloqueo cada vez que se selecciona una placa nueva
+        salidaBloqueada = false;
+        pendienteActual = null;
+
+        const estado   = (veh.estado || '').trim();
+        const kmActual = parseInt(veh.kilometraje_actual) || 0;
+        document.getElementById('km_s').value = kmActual;
+
+        validarCompatibilidad();
+
+        // 🆕 FIX VELOCIDAD: antes "verificarSalidaPendiente" y
+        // "verificarDuplicadoSalida" se esperaban una detrás de otra
+        // (await ... luego await ...), sumando sus tiempos de red.
+        // Como son independientes entre sí, se lanzan juntas con
+        // Promise.all para que corran en paralelo y el resultado esté
+        // listo en el tiempo del más lento de los dos, no de la suma.
+        // El orden de evaluación de los resultados (qué alerta se
+        // muestra primero) se mantiene exactamente igual que antes.
+        let pendienteResult = null;
+        let dupResult = null;
+        if (!modoEdicion) {
+            [pendienteResult, dupResult] = await Promise.all([
+                verificarSalidaPendiente(placaSeleccionada).catch(e => { console.warn('No se pudo verificar servicio sin cerrar:', e); return null; }),
+                DB.verificarDuplicadoSalida(placaSeleccionada).catch(e => { console.warn('No se pudo verificar duplicados:', e); return null; })
+            ]);
+        }
+
+        // ══════════════════════════════════════════════
+        // 🆕 1) SERVICIO SIN CERRAR (salida abierta de un día anterior)
+        //    Se le informa al usuario que el conductor de esa salida no
+        //    hizo el Registro de Llegada, y se bloquea la nueva salida
+        //    hasta que se notifique y se cierre ese servicio de verdad.
+        //
+        //    Flujo de recuperación sin depender de que el conductor
+        //    anterior esté disponible:
+        //      a) "🔔 Notificar al Coordinador" → inserta en
+        //         notificaciones_apoyo (tiempo real en panel_coordinador).
+        //      b) El coordinador entra a registro_llegada.html y cierra
+        //         el servicio en nombre del conductor.
+        //      c) "🔄 Ya se cerró, verificar de nuevo" → vuelve a llamar
+        //         alSeleccionarPlaca(), que relee obtenerTrasladoActivoPorPlaca;
+        //         en cuanto exista hora_de_ingreso ya no se considera
+        //         pendiente y el bloqueo desaparece solo, sin recargar
+        //         toda la página.
+        //      d) "🏁 Cerrar Yo Esta Llegada y Continuar" → lleva a
+        //         registro_llegada.html con la placa y una observación
+        //         pre-escritas; al guardar esa llegada, el servicio queda
+        //         REALMENTE cerrado (no una excepción) y se regresa aquí
+        //         mismo con la placa ya lista para continuar la salida.
+        // ══════════════════════════════════════════════
+        if (!modoEdicion) {
+            const pendiente = pendienteResult;
+
+            if (pendiente) {
+                salidaBloqueada = true;
+                pendienteActual = pendiente;
+                alertaEl.className = 'alerta-vehiculo en-taller';
+                alertaEl.style.display = 'block';
+                alertaEl.innerHTML = `
+                    <div style="text-align:center;">
+                        <div class="av-titulo">⚠️ SERVICIO SIN CERRAR</div>
+                        <div class="av-msg">
+                            El conductor <b>${pendiente.conductor || 'N/A'}</b> no realizó el
+                            <b>cierre del servicio</b> (Registro de Llegada) de esta carroza,
+                            correspondiente a la salida del <b>${formatearFechaLimpia(pendiente.fecha) || 'N/A'}</b>
+                            ${pendiente.hora_de_salida ? ' a las <b>' + formatearHoraLimpia(pendiente.hora_de_salida) + '</b>' : ''}.
+                        </div>
+                        <div class="av-bloqueo">🚫 SE REQUIERE CERRAR EL SERVICIO ANTERIOR ANTES DE UNA NUEVA SALIDA</div>
+
+                        <button id="btn-notificar-cierre" onclick="notificarCoordinadorCierre()"
+                            style="width:100%; margin-top:10px; background:#004a99; color:white; border:none;
+                                   border-radius:10px; padding:12px; font-weight:800; font-size:13px; cursor:pointer;">
+                            🔔 Notificar al Coordinador para que cierre el servicio
+                        </button>
+
+                        <div style="font-size:11px; color:#7f1d1d; margin-top:8px; line-height:1.5;">
+                            Si el conductor ya está descansando, el coordinador puede registrar la llegada
+                            por él desde su panel. En cuanto quede cerrado, verifica de nuevo aquí 👇
+                        </div>
+
+                        <button onclick="alSeleccionarPlaca()"
+                            style="width:100%; margin-top:8px; background:transparent; border:1.5px solid #ef4444;
+                                   color:#ef4444; border-radius:10px; padding:10px; font-weight:700; font-size:12px; cursor:pointer;">
+                            🔄 Ya se cerró, verificar de nuevo
+                        </button>
+
+                        <button onclick="irACerrarLlegada()"
+                            style="width:100%; margin-top:8px; background:#004a99; border:1.5px solid #004a99;
+                                   color:white; border-radius:10px; padding:10px; font-weight:800; font-size:12px; cursor:pointer;">
+                            🏁 Cerrar Yo Esta Llegada y Continuar
+                        </button>
+                        <div style="font-size:10.5px; color:#7f1d1d; margin-top:6px; line-height:1.5;">
+                            Te lleva al Registro de Llegada con esta placa y la observación ya escritas.
+                            Al guardar, el servicio queda <b>realmente cerrado</b> (no solo justificado) y
+                            regresas aquí mismo para continuar tu salida.
+                        </div>
+                    </div>`;
+                document.getElementById('km_s').value = '';
+                document.getElementById('alerta-combustible').style.display = 'none';
+                ocultarBotonChecklist();
+                return;
+            }
+
+        }
+
+        // ══════════════════════════════════════════════
+        // 🆕 2) VEHÍCULO EN TALLER (Parque Automotor)
+        //    Se consulta el campo estado_parque_automotor de la hoja
+        //    "carrozas". Si contiene "taller", se bloquea la salida.
+        // ══════════════════════════════════════════════
+        if (!modoEdicion && normalizar(veh.estado_parque_automotor || '').includes('taller')) {
+            salidaBloqueada = true;
+            alertaEl.className = 'alerta-vehiculo en-taller';
+            alertaEl.style.display = 'block';
+            alertaEl.innerHTML = `
+                <div style="text-align:center;">
+                    <div class="av-titulo">🔧 VEHÍCULO EN TALLER</div>
+                    <div class="av-msg">
+                        Este vehículo se encuentra actualmente en el <b>Parque Automotor / Taller</b>.
+                    </div>
+                    <div class="av-bloqueo">🚫 COMUNÍCATE CON EL PARQUE AUTOMOTOR PARA QUE LIBEREN EL VEHÍCULO</div>
+                </div>`;
+            document.getElementById('km_s').value = '';
+            document.getElementById('alerta-combustible').style.display = 'none';
+            ocultarBotonChecklist();
+            return;
+        }
+
+        // ── VERIFICACIÓN DE DUPLICIDAD (placa con salida activa hoy, sin regreso aún) ──
+        if (!modoEdicion) {
+            const dup = dupResult;
+            if (dup && dup.existe) {
+                registroDuplicadoId = dup.id_salida;
+                document.getElementById('dup-desc').innerHTML = `
+                    Ya existe un registro de salida activo hoy para esta placa (ID: <b>${dup.id_salida}</b>).<br>
+                    Conductor: ${(dup.detalle && dup.detalle.conductor) || 'N/A'}`;
+                document.getElementById('banner-duplicado').style.display = 'block';
+                return;
+            }
+        }
+
+        // ── BLOQUEO POR TALLER O SERVICIO ACTIVO (campo "estado" clásico) ──
+        if (estado === 'En Taller' || estado === 'En Servicio') {
+            salidaBloqueada = true;
+            alertaEl.className = 'alerta-vehiculo en-taller';
+            alertaEl.style.display = 'block';
+            alertaEl.innerHTML = `
+                <div style="text-align:center;">
+                    <div class="av-titulo">⚠️ VEHÍCULO NO DISPONIBLE</div>
+                    <div class="av-msg">Estado actual: <b>${estado}</b>.</div>
+                    <div class="av-bloqueo">🚫 RESTRICCIÓN DE SALIDA</div>
+                </div>`;
+            document.getElementById('km_s').value = '';
+            document.getElementById('alerta-combustible').style.display = 'none';
+            ocultarBotonChecklist();
+            return;
+        }
+
+        // 🆕 Llegados hasta aquí, el vehículo está disponible para salir:
+        // se muestra el botón de checklist para esta placa.
+        mostrarBotonChecklist(placaSeleccionada);
+
+        // ── ANÁLISIS DE ACEITE ──
+        try {
+            const respuesta = await DB.obtenerMantenimientos();
+            if (!respuesta.ok) throw new Error('Error en Google Sheets');
+
+            const todosLosMants = respuesta.data;
+            const norm = (p) => p.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+            const placaBusqueda = norm(placaSeleccionada);
+
+            const historialAceite = todosLosMants.filter(m => {
+                const tipo = String(m.tipo_servicio || m.TIPO_SERVICIO || m.tipo_de_servicio || '').toLowerCase();
+                const pl = norm(m.placa || m.PLACA || '');
+                return (tipo.includes('aceite') || tipo.includes('motor')) && pl === placaBusqueda;
+            });
+
+            historialAceite.sort((a, b) => {
+                const fA = new Date(a.fecha || a.FECHA || a.created_at || 0);
+                const fB = new Date(b.fecha || b.FECHA || b.created_at || 0);
+                if (!isNaN(fA.getTime()) && !isNaN(fB.getTime()) && fB - fA !== 0) return fB - fA;
+                const idA = String(a.id || a.ID || '');
+                const idB = String(b.id || b.ID || '');
+                return idB.localeCompare(idA);
+            });
+
+            const ultimoCambio = historialAceite[0];
+            const kmProximoVal = ultimoCambio ? (parseInt(ultimoCambio.km_proximo_cambio || ultimoCambio.KM_PROXIMO_CAMBIO || ultimoCambio.proximo_cambio) || 0) : 0;
+            const kmServicioVal = ultimoCambio ? (parseInt(ultimoCambio.kilometraje_servicio || ultimoCambio.KILOMETRAJE_SERVICIO || ultimoCambio.km_servicio) || 0) : 0;
+
+            if (ultimoCambio && kmProximoVal > 0) {
+                const kmProximo  = kmProximoVal;
+                const kmFaltante = kmProximo - kmActual;
+                const kmRealizado = kmActual - kmServicioVal;
+                const intervalo   = kmProximo - kmServicioVal;
+                const porcentaje  = Math.min(100, Math.round((kmRealizado / Math.max(intervalo, 1)) * 100));
+
+                let clase = 'al-dia';
+                let titulo = '✅ ACEITE AL DÍA';
+                if (kmFaltante <= 0) {
+                    clase = 'mant-vencido'; titulo = '🚨 ACEITE VENCIDO';
+                } else if (kmFaltante <= 500) {
+                    clase = 'mant-proximo'; titulo = '⚠️ ACEITE PRÓXIMO';
+                }
+
+                alertaEl.className = `alerta-vehiculo ${clase}`;
+                alertaEl.innerHTML = `
+                    <div class="av-titulo">${titulo}</div>
+                    <div class="av-msg">KM actual: ${kmActual.toLocaleString()}. Próximo cambio: ${kmProximo.toLocaleString()}.</div>
+                    <div class="km-badge">🚗 Faltan: ${kmFaltante.toLocaleString()} KM</div>
+                    <div class="km-progreso-wrap">
+                        <div class="km-progreso-bar" style="width: ${porcentaje}%; background: ${porcentaje > 90 ? '#ef4444' : '#10b981'};"></div>
+                    </div>`;
+                alertaEl.style.display = 'block';
+            } else {
+                alertaEl.className = 'alerta-vehiculo al-dia';
+                alertaEl.innerHTML = `<div class="av-titulo">ℹ️ SIN DATOS DE ACEITE</div><div class="av-msg">No hay registros de aceite para ${placaSeleccionada}.</div>`;
+                alertaEl.style.display = 'block';
+            }
+
+        } catch(e) {
+            console.error('Error analizando aceite:', e);
+        }
+
+        // ── ESTADO AUTOMÁTICO DE COMBUSTIBLE ──
+        // Se calcula solo (igual que el aceite): sube al 100% cuando se
+        // registra un Tanqueo y baja según los KM recorridos en cada viaje
+        // (guardarLlegada lo descuenta automáticamente). Aquí solo se muestra.
+        const combEl = document.getElementById('alerta-combustible');
+        try {
+            const est = await DB.obtenerEstadoCarroza(placaSeleccionada);
+            if (est.ok) {
+                let clase = 'al-dia', titulo = est.nivel_combustible + ' COMBUSTIBLE OK';
+                if (est.porcentaje_combustible <= 20) { clase = 'mant-vencido'; titulo = est.nivel_combustible + ' COMBUSTIBLE BAJO'; }
+                else if (est.porcentaje_combustible <= 50) { clase = 'mant-proximo'; titulo = est.nivel_combustible + ' COMBUSTIBLE MEDIO'; }
+
+                combEl.className = `alerta-vehiculo ${clase}`;
+                combEl.innerHTML = `
+                    <div class="av-titulo">${titulo}</div>
+                    <div class="av-msg">${est.combustible_galones} / ${est.capacidad_galones} gal (${est.porcentaje_combustible}%)</div>
+                    <div class="km-progreso-wrap">
+                        <div class="km-progreso-bar" style="width: ${est.porcentaje_combustible}%; background: ${est.porcentaje_combustible > 50 ? '#10b981' : est.porcentaje_combustible > 20 ? '#f59e0b' : '#ef4444'};"></div>
+                    </div>`;
+                combEl.style.display = 'block';
+            } else {
+                combEl.style.display = 'none';
+            }
+        } catch(e) {
+            console.error('Error consultando combustible:', e);
+            combEl.style.display = 'none';
+        }
+    }
+
+    // ══════════════════════════════════════════════
+    //  KIT DE CARRETERA
+    // ══════════════════════════════════════════════
+    function seleccionarKit(valor) {
+        kitSeleccionado = valor;
+        ['completo','incompleto','no-tiene'].forEach(v => {
+            const el  = document.getElementById('kit-' + v);
+            const chk = document.getElementById('check-' + v);
+            if (el)  el.classList.remove('sel-completo','sel-incompleto','sel-no-tiene');
+            if (chk) chk.innerHTML = '';
+        });
+        const el  = document.getElementById('kit-' + valor);
+        const chk = document.getElementById('check-' + valor);
+        if (el)  el.classList.add('sel-' + valor);
+
+        const alerta = document.getElementById('kit-alerta');
+        alerta.className = 'kit-alerta ' + (valor === 'incompleto' ? 'inc' : valor === 'no-tiene' ? 'no' : '');
+        alerta.innerText = valor === 'incompleto' ? '⚠️ Reporta faltantes al coordinador.' : valor === 'no-tiene' ? '🚨 Prohibido salir sin kit.' : '';
+    }
+
+    // ══════════════════════════════════════════════
+    //  FOTOS
+    // ══════════════════════════════════════════════
+    // 🆕 FIX BUG "Error al guardar con fotos pesadas":
+    // Antes se guardaba el archivo original (una foto de cámara moderna
+    // puede pesar 3-10 MB) directamente como base64 en fotosArray. Al
+    // enviar 4 fotos + firma en un solo POST hacia Google Sheets (vía
+    // gasWrite), el payload podía superar el límite de tamaño de POST
+    // de Apps Script y el límite de 50.000 caracteres por celda de
+    // Google Sheets, provocando que "GUARDAR EN SISTEMA" fallara sin
+    // explicación clara (o se quedara colgado sin avanzar).
+    //
+    // Solución: comprimir cada foto en el navegador antes de guardarla
+    // en fotosArray (misma estrategia que ya usa tanqueo.html): se
+    // reescala a un ancho máximo y se reexporta como JPEG con calidad
+    // reducida. Si aun así queda muy pesada, se comprime un poco más.
+    // Esto reduce el peso típico de una foto de 5-8 MB a ~150-400 KB.
+    // 🆕 Compresión más agresiva (antes 1280px/0.72/700KB) para que las
+    // fotos suban más rápido, sobre todo con señal débil en carretera.
+    // A 1000px/0.60 el archivo pesa ~40-50% menos y sigue siendo legible.
+    const FOTO_MAX_ANCHO = 1000;    // px
+    const FOTO_CALIDAD   = 0.60;    // 0-1 (jpeg)
+    const FOTO_MAX_CHARS = 400000;  // ~400 KB en base64: margen seguro
+
+    function comprimirImagen(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onerror = () => reject(new Error('No se pudo leer la imagen ' + file.name));
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onerror = () => reject(new Error('Imagen inválida: ' + file.name));
+                img.onload = () => {
+                    const escala  = Math.min(1, FOTO_MAX_ANCHO / img.width);
+                    const canvas  = document.createElement('canvas');
+                    canvas.width  = Math.max(1, Math.round(img.width  * escala));
+                    canvas.height = Math.max(1, Math.round(img.height * escala));
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                    let calidad = FOTO_CALIDAD;
+                    let dataUrl = canvas.toDataURL('image/jpeg', calidad);
+
+                    // Si sigue muy pesada (foto de altísima resolución), se
+                    // reduce la calidad de forma progresiva hasta 3 intentos.
+                    let intentos = 0;
+                    while (dataUrl.length > FOTO_MAX_CHARS && intentos < 3) {
+                        calidad = Math.max(0.30, calidad - 0.15);
+                        dataUrl = canvas.toDataURL('image/jpeg', calidad);
+                        intentos++;
+                    }
+                    resolve(dataUrl);
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    async function procesarFotos(input) {
+        const archivos = Array.from(input.files).slice(0, 4 - fotosArray.length);
+        if (archivos.length === 0) return;
+
+        document.getElementById('upload-text').innerText = '⏳ Procesando fotos...';
+
+        for (const f of archivos) {
+            try {
+                const comprimida = await comprimirImagen(f);
+                if (comprimida.length > FOTO_MAX_CHARS) {
+                    Swal.fire('Foto muy pesada', 'La foto "' + f.name + '" sigue siendo muy pesada incluso después de comprimirla. Prueba con otra foto o con menor resolución de cámara.', 'warning');
+                    continue;
+                }
+                fotosArray.push(comprimida);
+            } catch (err) {
+                console.error('Error comprimiendo foto:', err);
+                Swal.fire('Error', 'No se pudo procesar la foto "' + f.name + '". Intenta con otra imagen.', 'error');
+            }
+        }
+        renderGaleria();
+        input.value = ''; // permite volver a elegir el mismo archivo si se elimina y se reintenta
+    }
+    function renderGaleria() {
+        document.getElementById('galeria').innerHTML = fotosArray.map((img, i) =>
+            `<div class="thumb-wrap"><img src="${img}"><button class="btn-del" onclick="eliminarFoto(${i})">×</button></div>`
+        ).join('');
+        document.getElementById('upload-text').innerText = '📸 ' + fotosArray.length + ' de 4 fotos';
+    }
+    function eliminarFoto(i) { fotosArray.splice(i, 1); renderGaleria(); }
+
+    // ══════════════════════════════════════════════
+    //  FIRMA
+    // ══════════════════════════════════════════════
+    const obtenerPos = e => {
+        const r = canvas.getBoundingClientRect();
+        const scaleX = canvas.width  / r.width;
+        const scaleY = canvas.height / r.height;
+        return {
+            x: ((e.clientX || e.touches[0].clientX) - r.left) * scaleX,
+            y: ((e.clientY || e.touches[0].clientY) - r.top)  * scaleY
+        };
+    };
+    const iniciar = e => { dibujando = true; ctx.beginPath(); const p = obtenerPos(e); ctx.moveTo(p.x, p.y); };
+    const mover   = e => { if (!dibujando) return; e.preventDefault(); const p = obtenerPos(e); ctx.lineTo(p.x, p.y); ctx.strokeStyle = '#004a99'; ctx.lineWidth = 2; ctx.stroke(); };
+    canvas.addEventListener('mousedown', iniciar); canvas.addEventListener('mousemove', mover);
+    window.addEventListener('mouseup', () => dibujando = false);
+    canvas.addEventListener('touchstart', iniciar, { passive: false });
+    canvas.addEventListener('touchmove',  mover,   { passive: false });
+
+    function borrarFirma() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
+
+    // ══════════════════════════════════════════════
+    // 🆕 CHECKLIST DE CARROZA
+    // ══════════════════════════════════════════════
+    function mostrarBotonChecklist(placa) {
+        checklistPlacaActual = placa;
+        checklistCompletadoHoy = false;
+        document.getElementById('bloque-checklist').style.display = 'block';
+        document.getElementById('btn-checklist').classList.remove('hecho');
+        document.getElementById('checklist-icono').textContent = '📋';
+        document.getElementById('checklist-texto').textContent = 'Hacer Checklist de la Carroza';
+        document.getElementById('checklist-estado').textContent = '';
+    }
+
+    function ocultarBotonChecklist() {
+        checklistPlacaActual = '';
+        document.getElementById('bloque-checklist').style.display = 'none';
+    }
+
+    function marcarChecklistHecho() {
+        checklistCompletadoHoy = true;
+        const btn = document.getElementById('btn-checklist');
+        btn.classList.add('hecho');
+        document.getElementById('checklist-icono').textContent = '✅';
+        document.getElementById('checklist-texto').textContent = 'Checklist Realizado — Editar';
+        document.getElementById('checklist-estado').textContent = 'Guardado correctamente. Puedes volver a abrirlo si necesitas corregir algo.';
+    }
+
+    // Ajusta el tamaño real del canvas de firma del checklist (se hace
+    // cada vez que se abre el modal porque, al estar oculto con
+    // display:none, offsetWidth es 0 mientras no es visible).
+    function resizeCanvasChk() {
+        canvasChk.width  = canvasChk.offsetWidth;
+        canvasChk.height = canvasChk.offsetHeight;
+    }
+    function borrarFirmaChk() { ctxChk.clearRect(0, 0, canvasChk.width, canvasChk.height); }
+
+    const obtenerPosChk = e => {
+        const r = canvasChk.getBoundingClientRect();
+        const scaleX = canvasChk.width  / r.width;
+        const scaleY = canvasChk.height / r.height;
+        return {
+            x: ((e.clientX || e.touches[0].clientX) - r.left) * scaleX,
+            y: ((e.clientY || e.touches[0].clientY) - r.top)  * scaleY
+        };
+    };
+    const iniciarChk = e => { dibujandoChk = true; ctxChk.beginPath(); const p = obtenerPosChk(e); ctxChk.moveTo(p.x, p.y); };
+    const moverChk   = e => { if (!dibujandoChk) return; e.preventDefault(); const p = obtenerPosChk(e); ctxChk.lineTo(p.x, p.y); ctxChk.strokeStyle = '#004a99'; ctxChk.lineWidth = 2; ctxChk.stroke(); };
+    canvasChk.addEventListener('mousedown', iniciarChk); canvasChk.addEventListener('mousemove', moverChk);
+    window.addEventListener('mouseup', () => dibujandoChk = false);
+    canvasChk.addEventListener('touchstart', iniciarChk, { passive: false });
+    canvasChk.addEventListener('touchmove',  moverChk,   { passive: false });
+
+    // Restaura los selects del modal a sus valores por defecto
+    function resetearFormChecklist() {
+        // 🆕 "Tipo de Servicio" ya no se resetea como select independiente:
+        // se muestra (solo lectura) igual al Motivo Salida del formulario
+        // principal — ver actualizarMotivoMostradoChecklist().
+        document.getElementById('chk_estado_vehiculo').value = 'Bueno';
+        document.getElementById('chk_luces').value    = 'Bueno';
+        document.getElementById('chk_frenos').value   = 'Bueno';
+        document.getElementById('chk_agua').value     = 'Bueno';
+        document.getElementById('chk_aceite').value   = 'Bueno';
+        document.getElementById('chk_gasolina').value = 'Lleno';
+        document.getElementById('chk_llanta_repuesto').value = 'Sí';
+        document.getElementById('chk_soat').value      = 'Sí';
+        document.getElementById('chk_tecno').value     = 'Sí';
+        document.getElementById('chk_botiquin').value  = 'Sí';
+        document.getElementById('chk_extintor').value  = 'Sí';
+        document.getElementById('chk_cinturon').value  = 'Sí';
+        document.getElementById('chk_gato').value      = 'Sí';
+        document.getElementById('chk_llave_ruedas').value = 'Sí';
+        document.getElementById('chk_triangulos').value   = 'Sí';
+        document.getElementById('chk_observaciones').value = '';
+        borrarFirmaChk();
+    }
+
+    // 🆕 Muestra en el modal, en modo solo lectura, el mismo Motivo Salida
+    // elegido en el formulario principal — es lo que se guardará como
+    // TIPO_DE_SERVICIO en la hoja Checklist_Salida, para que quede
+    // registrado igual que motivo_de_salida en la hoja de Traslados.
+    function actualizarMotivoMostradoChecklist() {
+        const motivo = document.getElementById('motivo').value || '—';
+        const span = document.getElementById('checklist-motivo-mostrado');
+        if (span) span.textContent = motivo;
+    }
+
+    async function abrirChecklist() {
+        if (!checklistPlacaActual) { Swal.fire('Selecciona una placa', 'Primero elige la carroza para hacer el checklist.', 'info'); return; }
+
+        document.getElementById('modal-checklist-titulo').textContent = '📋 Checklist — ' + checklistPlacaActual;
+        resetearFormChecklist();
+        actualizarMotivoMostradoChecklist();
+        document.getElementById('checklist-previo-aviso').style.display = 'none';
+
+        document.getElementById('modal-checklist-overlay').classList.add('visible');
+        // El canvas necesita medirse cuando YA es visible en pantalla
+        requestAnimationFrame(resizeCanvasChk);
+
+        await cargarUltimoChecklist(checklistPlacaActual);
+    }
+
+    function cerrarChecklist(event) {
+        // Si el clic vino del overlay (fondo), o se llamó sin evento
+        // (botón ✕), se cierra. Si vino de dentro del modal, no hace nada
+        // (el stopPropagation del contenedor ya filtra la mayoría de casos).
+        document.getElementById('modal-checklist-overlay').classList.remove('visible');
+    }
+
+    // Busca el último checklist guardado para esta placa en la hoja de
+    // Google Sheets "Checklist_Salida" y precarga el formulario con esos
+    // datos, para agilizar el registro (el conductor solo corrige lo que
+    // cambió en vez de llenar todo desde cero).
+    async function cargarUltimoChecklist(placa) {
+        const aviso = document.getElementById('checklist-previo-aviso');
+        aviso.style.display = 'block';
+        aviso.innerHTML = '🔄 Buscando el último checklist guardado de esta carroza...';
+
+        try {
+            // v12.23 — usa DB.obtenerHoja() con caché persistente de 6h
+            // en lugar de fetch() directo. Hereda el limitador de concurrencia
+            // y el saneamiento de fechas/horas de db.js.
+            const resultado = await DB.obtenerHoja('Checklist_Salida');
+            if (!resultado.ok) throw new Error(resultado.error || 'Error al leer checklist');
+            const filas = resultado.data;
+
+            if (!Array.isArray(filas)) throw new Error('Respuesta inesperada del backend');
+
+            const deEstaPlaca = filas.filter(f => normalizar(f.PLACA || '') === normalizar(placa));
+            if (deEstaPlaca.length === 0) {
+                aviso.innerHTML = 'ℹ️ Sin checklist previo para esta carroza. Complétalo desde cero.';
+                return;
+            }
+
+            // El ID es consecutivo (CHK-00001, CHK-00002...), así que el
+            // de mayor número es el más reciente.
+            deEstaPlaca.sort((a, b) => String(b.ID || '').localeCompare(String(a.ID || '')));
+            const ultimo = deEstaPlaca[0];
+
+            const setSel = (id, val) => { if (val) document.getElementById(id).value = val; };
+            setSel('chk_estado_vehiculo', ultimo.ESTADO_VEHICULO);
+            setSel('chk_luces',    ultimo.SISTEMA_DE_LUCES);
+            setSel('chk_frenos',   ultimo.SISTEMA_DE_FRENOS);
+            setSel('chk_agua',     ultimo.NIVEL_AGUA);
+            setSel('chk_aceite',   ultimo.NIVEL_ACEITE);
+            setSel('chk_gasolina', ultimo.NIVEL_GASOLINA);
+            setSel('chk_llanta_repuesto', ultimo.LLANTA_DE_REPUESTO);
+            setSel('chk_soat',      ultimo.SOAT);
+            setSel('chk_tecno',     ultimo.TECNOMECANICA);
+            setSel('chk_botiquin',  ultimo.BOTIQUIN);
+            setSel('chk_extintor',  ultimo.EXTINTOR);
+            setSel('chk_cinturon',  ultimo.CINTURON_DE_SEGURIDAD);
+            setSel('chk_gato',      ultimo.GATO);
+            setSel('chk_llave_ruedas', ultimo.LLAVE_DE_RUEDAS);
+            setSel('chk_triangulos',   ultimo.TRIANGULOS);
+
+            aviso.innerHTML = '✅ Se precargaron los datos del checklist del <b>' + (formatearFechaLimpia(ultimo.FECHA) || 'último registro') + '</b>. Revisa y corrige lo que haya cambiado.';
+        } catch(e) {
+            console.warn('No se pudo cargar el checklist anterior:', e);
+            aviso.innerHTML = '⚠️ No se pudo consultar el historial (revisa la conexión). Puedes llenar el checklist igualmente.';
+        }
+    }
+
+    async function guardarChecklist() {
+        if (guardandoChecklist) return;
+        if (!checklistPlacaActual) { Swal.fire('Error', 'No hay una placa seleccionada.', 'error'); return; }
+
+        const sesionUser = JSON.parse(localStorage.getItem('usuario_sesion') || '{}');
+        const btn = document.getElementById('btn-guardar-checklist');
+        guardandoChecklist = true;
+        btn.disabled = true;
+        btn.textContent = '⏳ Guardando...';
+
+        try {
+            const ahora = new Date();
+        const horaActual = ahora.getHours().toString().padStart(2,'0') + ':' + ahora.getMinutes().toString().padStart(2,'0');
+
+        // 🆕 CAMBIOS SOLICITADOS:
+        // 1) TIPO_DE_SERVICIO ahora guarda lo mismo que motivo_de_salida
+        //    (el select "Motivo Salida" del formulario principal), en vez
+        //    del antiguo "Salida"/"Entrada", para que quede registrado
+        //    igual en la hoja de Traslados y en Checklist_Salida.
+        //    Como este formulario es siempre de Registro de Salida, la
+        //    hora se guarda en HORA_SALIDA (HORA_ENTRADA queda vacía).
+        // 2) Se elimina la columna duplicada CARROZA: solo se envía PLACA.
+        const motivoSalida = document.getElementById('motivo').value;
+
+        const payload = {
+            FECHA:  fechaHoyStr(),
+            PLACA:  checklistPlacaActual,
+            REGIONAL: document.getElementById('regional').value,
+            CONDUCTOR: sesionUser.nombre || document.getElementById('conductor').value,
+            TIPO_DE_SERVICIO: motivoSalida,
+            HORA_SALIDA: horaActual,
+            HORA_ENTRADA: '',
+            KM_SALIDA: document.getElementById('km_s').value || '',
+            KM_ENTRADA: '',
+            KM_RECORRIDOS: '',
+            SISTEMA_DE_LUCES: document.getElementById('chk_luces').value,
+            SISTEMA_DE_FRENOS: document.getElementById('chk_frenos').value,
+            LLANTA_DE_REPUESTO: document.getElementById('chk_llanta_repuesto').value,
+            NIVEL_AGUA: document.getElementById('chk_agua').value,
+            NIVEL_ACEITE: document.getElementById('chk_aceite').value,
+            NIVEL_GASOLINA: document.getElementById('chk_gasolina').value,
+            SOAT: document.getElementById('chk_soat').value,
+            TECNOMECANICA: document.getElementById('chk_tecno').value,
+            BOTIQUIN: document.getElementById('chk_botiquin').value,
+            EXTINTOR: document.getElementById('chk_extintor').value,
+            CINTURON_DE_SEGURIDAD: document.getElementById('chk_cinturon').value,
+            GATO: document.getElementById('chk_gato').value,
+            LLAVE_DE_RUEDAS: document.getElementById('chk_llave_ruedas').value,
+            TRIANGULOS: document.getElementById('chk_triangulos').value,
+            OBSERVACIONES: document.getElementById('chk_observaciones').value,
+            FIRMA_CONDUCTOR: canvasChk.toDataURL(),
+            ESTADO_VEHICULO: document.getElementById('chk_estado_vehiculo').value
+        };
+
+            // v12.23 — guarda en Google Sheets via DB.guardar()
+            // (gasWrite con cola de concurrencia y reintento automático)
+            const resChk = await DB.guardar('Checklist_Salida', payload, 'insert');
+            if (!resChk.ok) throw new Error(resChk.error || 'Error desconocido al guardar');
+
+            // Invalidar caché para que el próximo cargarUltimoChecklist
+            // vea este checklist recién guardado.
+            DB.invalidarCache('Checklist_Salida');
+
+            marcarChecklistHecho();
+            cerrarChecklist();
+            Swal.fire('✅ Checklist Guardado', 'El estado de la carroza quedó registrado correctamente.', 'success');
+
+        } catch(e) {
+            console.error('Error guardando checklist:', e);
+            Swal.fire('Error', 'No se pudo guardar el checklist: ' + e.message, 'error');
+        } finally {
+            guardandoChecklist = false;
+            btn.disabled = false;
+            btn.textContent = '💾 Guardar Checklist';
+        }
+    }
+
+    function setStep(id, estado, texto) {
+        const el = document.getElementById(id);
+        if (el) { el.style.display = 'block'; el.className = estado; el.innerText = texto; }
+    }
+
+    // ══════════════════════════════════════════════
+    //  GUARDAR TODO — MODO INSERT O UPDATE
+    // ══════════════════════════════════════════════
+    async function guardarTodo() {
+        const btn = document.getElementById('btn-envio');
+        const sesionUser = JSON.parse(localStorage.getItem('usuario_sesion'));
+
+        if (guardandoActualmente) return;
+
+        // 🆕 Bloqueo duro: no se permite guardar si hay un servicio sin cerrar
+        // o el vehículo está en el Parque Automotor / Taller.
+        if (salidaBloqueada) {
+            Swal.fire(
+                'Salida Bloqueada',
+                'No es posible registrar la salida: el vehículo tiene un servicio anterior sin cerrar o se encuentra en el Parque Automotor / Taller.',
+                'error'
+            );
+            return;
+        }
+
+        if (!document.getElementById('placa').value) { Swal.fire('Error', 'Selecciona una placa', 'error'); return; }
+        if (!kitSeleccionado) { Swal.fire('Error', 'Selecciona estado del kit', 'error'); return; }
+
+        // 🆕 CHECKLIST OBLIGATORIO: no se permite guardar la salida si no se
+        // ha completado el Checklist de la Carroza para la placa seleccionada.
+        // No aplica en modo edición (registros antiguos que no pasaron por
+        // este flujo no deben quedar bloqueados al corregirlos).
+        if (!modoEdicion && !checklistCompletadoHoy) {
+            Swal.fire(
+                'Checklist Requerido',
+                'Antes de registrar la salida debes completar el <b>Checklist de la Carroza</b>. Toca el botón "📋 Hacer Checklist de la Carroza" para hacerlo.',
+                'warning'
+            );
+            return;
+        }
+
+        if (!sesionUser) { alert('Sesión expirada'); return; }
+
+        if (registroDuplicadoId && !modoEdicion) {
+            const result = await Swal.fire({
+                title: '⚠️ Registro Duplicado',
+                html: `Ya existe un registro activo para esta placa hoy.<br><br>¿Deseas <b>editar el registro existente</b> o <b>cancelar</b>?`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d97706',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: '✏️ Editar existente',
+                cancelButtonText: 'Cancelar'
+            });
+            if (result.isConfirmed) {
+                activarModoEdicion();
+                await cargarRegistroParaEditar(registroDuplicadoId);
+            }
+            return;
+        }
+
+        guardandoActualmente = true;
+        btn.disabled = true;
+        document.getElementById('btn-texto').textContent = modoEdicion ? '⏳ ACTUALIZANDO...' : '⏳ GUARDANDO...';
+        document.getElementById('progreso-steps').style.display = 'block';
+
+        datosFinales = {
+            regional:      document.getElementById('regional').value,
+            conductor:     document.getElementById('conductor').value,
+            nnum_telefono: sesionUser.telefono || '',
+            placa:         document.getElementById('placa').value,
+            motivo:        document.getElementById('motivo').value,
+            fallecido:     document.getElementById('fallecido').value,
+            clinica:       document.getElementById('clinica').value,
+            prestacion:    document.getElementById('prestacion').value,
+            origen:        document.getElementById('origen').value,
+            destino:       document.getElementById('destino').value,
+            hora_salida:   document.getElementById('hora_salida').value,
+            km_salida:     document.getElementById('km_s').value,
+            kit_carretera: kitSeleccionado,
+            coordinador:   document.getElementById('nombre-coordinador').value || 'Coordinador',
+            observaciones: document.getElementById('observaciones').value,
+            imagen1: fotosArray[0] || '', imagen2: fotosArray[1] || '',
+            imagen3: fotosArray[2] || '', imagen4: fotosArray[3] || '',
+            firma:   canvas.toDataURL()
+        };
+
+        try {
+            setStep('step-carroza', 'act', '⏳ Actualizando estado de carroza...');
+            setStep('step-carroza', 'ok',  '✅ Carroza actualizada');
+            setStep('step-traslado', 'act', modoEdicion ? '⏳ Actualizando traslado...' : '⏳ Guardando traslado...');
+
+            let res;
+            if (modoEdicion && registroExistenteId) {
+                res = await DB.actualizarTraslado(registroExistenteId, datosFinales);
+            } else {
+                // Re-verificación final justo antes de insertar (evita duplicados si
+                // el usuario cambió de placa muy rápido o hay otra pestaña abierta)
+                const dupFinal = await DB.verificarDuplicadoSalida(datosFinales.placa);
+                if (dupFinal && dupFinal.existe) {
+                    throw new Error('Ya existe un registro de salida activo hoy para esta placa (ID: ' + dupFinal.id_salida + '). Recarga la página e intenta editar ese registro.');
+                }
+                res = await DB.guardarTraslado(datosFinales);
+                if (res && res.ok) {
+                    registroExistenteId = datosFinales.placa + '_' + new Date().toISOString().slice(0,10);
+                }
+            }
+
+            if (!res || !res.ok) throw new Error(res ? res.error : 'Error desconocido');
+
+            setStep('step-traslado', 'ok', modoEdicion ? '✅ Registro actualizado' : '✅ Registro guardado');
+
+            // 🆕 Vincula de verdad la solicitud de apoyo aceptada con esta salida:
+            // marca la solicitud como "en_curso" y guarda la placa que salió a atenderla.
+            // No es crítico: si falla, no bloquea el registro de salida ya guardado.
+            if (idApoyoCapturado) {
+                try {
+                    await DB.actualizar(
+                        'solicitud_apoyo',
+                        { estado: 'en_curso', placa_asignada: datosFinales.placa },
+                        'id',
+                        String(idApoyoCapturado)
+                    );
+                } catch (eApoyo) {
+                    console.warn('No se pudo vincular la solicitud de apoyo:', eApoyo.message);
+                }
+                setStep('step-apoyo', 'ok', '✅ Solicitud vinculada');
+            }
+
+            document.getElementById('btn-texto').textContent = modoEdicion ? '✓ ACTUALIZADO EXITOSO' : '✓ GUARDADO EXITOSO';
+            btn.style.background = '#25D366';
+
+            if (modoEdicion) document.getElementById('banner-edicion').style.display = 'none';
+            document.getElementById('bloque-wa').style.display = 'flex';
+
+        } catch(e) {
+            // 🆕 Mensaje más claro cuando el error es por tamaño de payload o
+            // timeout de red (típico de fotos pesadas o señal débil), en vez
+            // de mostrar solo el error técnico crudo.
+            let mensajeAmigable = e.message || 'Error desconocido';
+            const msgLower = mensajeAmigable.toLowerCase();
+            if (msgLower.includes('timeout') || msgLower.includes('fetch') || msgLower.includes('network') || msgLower.includes('failed')) {
+                mensajeAmigable = 'No se pudo guardar por un problema de conexión o porque el envío tardó demasiado (posiblemente por fotos muy pesadas). Verifica tu señal e intenta de nuevo con "REINTENTAR".';
+            }
+            setStep('step-traslado', 'err', '❌ Error: ' + mensajeAmigable);
+            btn.disabled = false;
+            guardandoActualmente = false;
+            document.getElementById('btn-texto').textContent = modoEdicion ? '✏️ REINTENTAR ACTUALIZACIÓN' : '💾 REINTENTAR';
+            btn.style.background = '';
+        }
+    }
+
+    // ══════════════════════════════════════════════
+    //  WHATSAPP
+    // ══════════════════════════════════════════════
+    function enviarWA() {
+        const hora = new Date().getHours();
+        const saludo = hora < 12 ? '*Buenos Días* ☀️' : hora < 18 ? '*Buenas Tardes* 🌤️' : '*Buenas Noches* 🌙';
+
+        let estadoCarroza = '✅ Todo En Orden';
+        if (datosFinales.kit_carretera === 'incompleto') estadoCarroza = '⚠️ Pendientes en Kit';
+        else if (datosFinales.kit_carretera === 'no-tiene') estadoCarroza = '🚨 Sin Kit de Carretera';
+
+        const esEdicion = modoEdicion ? '\n*🔄 REGISTRO ACTUALIZADO/CORREGIDO*\n' : '';
+
+        const msg = saludo + '\n\n' +
+            '*REPORTES DE SALIDA DE CARROZA* 🚗💨\n' +
+            esEdicion +
+            '───────────────────\n' +
+            '*Regional:* ' + datosFinales.regional + '\n' +
+            '*Fecha:* ' + new Date().toLocaleDateString('es-CO', {day:'2-digit', month:'2-digit', year:'numeric'}) + '\n' +
+            '*Coordinador:* ' + datosFinales.coordinador + '\n' +
+            '*Hora Salida:* ' + datosFinales.hora_salida + '\n' +
+            '*Placa:* ' + datosFinales.placa + '\n' +
+            '*Motivo:* ' + datosFinales.motivo + '\n' +
+            '*Fallecido:* ' + (datosFinales.fallecido || '---') + '\n' +
+            '*Recogida:* ' + (datosFinales.clinica || '---') + '\n' +
+            '*Origen:* ' + (datosFinales.origen || '---') + '\n' +
+            '*Destino:* ' + (datosFinales.destino || '---') + '\n' +
+            '*KM Salida:* ' + datosFinales.km_salida + '\n' +
+            '*Kit Carretera:* ' + datosFinales.kit_carretera + '\n' +
+            '*Conductor:* ' + datosFinales.conductor + '\n' +
+            '*Teléfono:* ' + (datosFinales.nnum_telefono || '---') + '\n' +
+            '───────────────────\n' +
+            '*📝 Observaciones:* ' + (datosFinales.observaciones || 'Sin novedades') + '\n\n' +
+            '*Estado del Vehículo:* ' + estadoCarroza;
+
+        window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+    }
+
+    function compartirFotos() {
+        if (fotosArray.length === 0) { alert('No hay fotos para compartir.'); return; }
+        Promise.all(fotosArray.map((url, i) =>
+            fetch(url).then(r => r.blob()).then(b => new File([b], `img_${i}.jpg`, {type: 'image/jpeg'}))
+        )).then(files => {
+            if (navigator.share) navigator.share({files, title: 'Evidencias'}).catch(descargarFotos);
+            else descargarFotos();
+        }).catch(descargarFotos);
+    }
+
+    function descargarFotos() {
+        fotosArray.forEach((url, i) => {
+            const a = document.createElement('a'); a.href = url; a.download = `foto_${i}.jpg`; a.click();
+        });
+        document.getElementById('instruccion-fotos').style.display = 'block';
+    }
+
+    function irAtras() { window.history.back(); }
+
+    // ══════════════════════════════════════════════
+    //  INIT
+    // ══════════════════════════════════════════════
+    window.onload = async () => {
+        const sesionData = localStorage.getItem('usuario_sesion');
+        if (!sesionData) { window.location.href = 'index.html'; return; }
+        const user = JSON.parse(sesionData);
+        document.getElementById('conductor').value = user.nombre;
+        document.getElementById('saludo').innerText = '¡HOLA, ' + user.nombre.split(' ')[0].toUpperCase() + '!';
+        if (user.regional) preseleccionarRegional(user.regional);
+
+        verificarParametrosURL();
+        await cargarPlacas();
+
+        // 🆕 Si se venía de cerrar el servicio de otro conductor en
+        // registro_llegada.html, retomar aquí esa misma placa ahora que
+        // el selector ya tiene sus opciones cargadas.
+        if (window._continuarPlacaTrasCierre) {
+            await aplicarContinuarPlacaTrasCierre();
+        }
+
+        const now = new Date();
+        document.getElementById('hora_salida').value =
+            now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+
+        // Ajustar canvas al tamaño real renderizado
+        const resizeCanvas = () => {
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            canvas.width  = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            ctx.putImageData(imgData, 0, 0);
+        };
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+    };
+</script>
+
+</body>
+</html>

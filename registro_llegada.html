@@ -1,0 +1,1299 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J.R. — Registro de Llegada</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --verde: #15803d; --verde-claro: #f0fdf4; --verde-borde: #86efac;
+            --azul: #004a99; --azul-cielo: #e3f2fd;
+            --blanco: #ffffff; --gris: #546e7a;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--verde-claro); font-family: 'DM Sans', sans-serif; color: #14532d; padding: 10px; }
+        .container { max-width: 650px; margin: 0 auto; background: var(--blanco); border-radius: 20px; box-shadow: 0 10px 25px rgba(21,128,61,0.12); overflow: hidden; }
+        .header { background: var(--verde); color: var(--blanco); padding: 20px; text-align: center; }
+        .header h2 { font-size: 18px; }
+        .header p  { font-size: 11px; opacity: 0.8; font-weight: bold; margin-top: 4px; }
+        .content { padding: 20px; }
+        .section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--gris); margin: 20px 0 10px; padding-bottom: 5px; font-weight: 700; display: flex; align-items: center; gap: 8px; border-bottom: 2px solid #dcfce7; }
+        label { display: block; font-size: 12px; font-weight: 700; margin-bottom: 5px; color: var(--verde); text-transform: uppercase; }
+        input, select, textarea { width: 100%; padding: 10px; margin-bottom: 12px; border: 2px solid #dcfce7; border-radius: 10px; font-family: inherit; color: #14532d; background: #f9fef9; font-size: 14px; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--verde); }
+        input[readonly] { background: #eefff4; font-weight: bold; color: var(--verde); }
+        /* 🔧 FIX: estado visual claro mientras el selector de placas está deshabilitado (cargando) */
+        select:disabled { background: #f1f5f9; color: #94a3b8; cursor: not-allowed; border-color: #e2e8f0; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+        /* ── CARD TOTAL KM ── */
+        .total-km-card {
+            border-radius: 14px; padding: 14px 18px;
+            display: flex; align-items: center; gap: 14px;
+            margin-bottom: 12px; border: 2px solid #86efac;
+            background: #f0fdf4; transition: border-color 0.3s, background 0.3s;
+        }
+        .total-km-card.cargando { background: #fffbeb; border-color: #fcd34d; }
+        .total-km-card.error    { background: #fef2f2; border-color: #fca5a5; }
+        .total-km-card.listo    { background: #f0fdf4; border-color: #16a34a; }
+        .km-icon { font-size: 28px; flex-shrink: 0; }
+        .km-info { flex: 1; }
+        .km-label { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--gris); letter-spacing: 1px; }
+        .km-valor { font-size: 28px; font-weight: 700; color: var(--verde); line-height: 1.2; }
+        .km-sub   { font-size: 11px; color: #4ade80; margin-top: 2px; }
+        .km-sub.warn  { color: #d97706; }
+        .km-sub.err   { color: #dc2626; }
+
+        /* ── KM SALIDA EDITABLE ── */
+        #km_salida_display.editado {
+            background: #fff7ed !important;
+            border-color: #fb923c !important;
+            color: #c2410c !important;
+        }
+        .km-salida-hint {
+            font-size: 10px; color: #94a3b8; margin: -8px 0 12px; line-height: 1.4;
+        }
+
+        /* ── BANNER ESPERAR ── */
+        #banner-esperar {
+            display: none;
+            background: #fffbeb;
+            border: 2px solid #fcd34d;
+            border-radius: 14px;
+            padding: 14px 16px;
+            margin-bottom: 14px;
+            animation: pulso 1.5s ease-in-out infinite;
+        }
+        @keyframes pulso { 0%,100%{opacity:1} 50%{opacity:0.7} }
+        #banner-esperar .esp-titulo {
+            font-size: 13px; font-weight: 800; color: #92400e;
+            display: flex; align-items: center; gap: 8px;
+        }
+        #banner-esperar .esp-desc {
+            font-size: 11px; color: #a16207; margin-top: 5px; line-height: 1.5;
+        }
+
+        /* ── ESTADOS ── */
+        .estado-selector { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+        .estado-opcion {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 14px; border-radius: 12px;
+            border: 2px solid #dcfce7; cursor: pointer;
+            transition: all 0.2s ease; background: #f9fef9;
+        }
+        .estado-opcion:hover { border-color: #86efac; background: #f0fdf4; }
+        .estado-opcion input[type="radio"] { display: none; }
+        .estado-opcion .est-icono { font-size: 22px; flex-shrink: 0; }
+        .estado-opcion .est-texto { flex: 1; }
+        .estado-opcion .est-titulo { font-size: 13px; font-weight: 700; color: #14532d; }
+        .estado-opcion .est-desc   { font-size: 11px; color: var(--gris); margin-top: 2px; }
+        .estado-opcion .est-check  { width: 20px; height: 20px; border-radius: 50%; border: 2px solid #86efac; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+        .estado-opcion.sel-orden   { border-color: #16a34a; background: #f0fdf4; }
+        .estado-opcion.sel-orden   .est-check { background: #16a34a; border-color: #16a34a; }
+        .estado-opcion.sel-orden   .est-check::after { content: '✓'; color: white; font-size: 11px; font-weight: 900; }
+        .estado-opcion.sel-novedad { border-color: #d97706; background: #fffbeb; }
+        .estado-opcion.sel-novedad .est-check { background: #d97706; border-color: #d97706; }
+        .estado-opcion.sel-novedad .est-check::after { content: '!'; color: white; font-size: 11px; font-weight: 900; }
+        .estado-opcion.sel-averia  { border-color: #dc2626; background: #fef2f2; }
+        .estado-opcion.sel-averia  .est-check { background: #dc2626; border-color: #dc2626; }
+        .estado-opcion.sel-averia  .est-check::after { content: '✗'; color: white; font-size: 11px; font-weight: 900; }
+
+        /* ── BOTONES ── */
+        .acciones { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+        .btn-finalizar {
+            width: 100%; padding: 18px; border: none; border-radius: 14px;
+            font-weight: 800; font-size: 16px; cursor: pointer;
+            background: var(--verde); color: white;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            box-shadow: 0 4px 16px rgba(21,128,61,0.3); transition: 0.2s; font-family: inherit;
+        }
+        .btn-finalizar:active   { transform: scale(0.98); }
+        .btn-finalizar:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; background: #6b7280; }
+        .btn-finalizar.bloqueado-km { background: #d97706; box-shadow: 0 4px 16px rgba(217,119,6,0.3); }
+        .btn-wa    { width: 100%; padding: 16px; border: none; border-radius: 14px; font-weight: 800; font-size: 15px; cursor: pointer; background: #25D366; color: white; display: flex; align-items: center; justify-content: center; gap: 10px; transition: 0.2s; font-family: inherit; }
+        .btn-continuar-salida { width: 100%; padding: 16px; border: none; border-radius: 14px; font-weight: 800; font-size: 15px; cursor: pointer; background: var(--azul); color: white; display: flex; align-items: center; justify-content: center; gap: 10px; transition: 0.2s; font-family: inherit; box-shadow: 0 4px 14px rgba(0,74,153,0.25); }
+        .btn-volver { width: 100%; padding: 13px; border: 1.5px solid #e2e8f0; border-radius: 14px; font-weight: 600; font-size: 14px; cursor: pointer; background: transparent; color: #94a3b8; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s; font-family: inherit; }
+
+        #progreso-steps { display:none; background:#f0fdf4; border:1px solid #86efac; border-radius:12px; padding:12px 15px; margin-bottom:14px; font-size:12px; }
+        #progreso-steps div { padding: 3px 0; color: #546e7a; }
+        #progreso-steps div.ok  { color: #15803d; font-weight: 700; }
+        #progreso-steps div.err { color: #dc2626; font-weight: 700; }
+        #progreso-steps div.act { color: #004a99; font-weight: 700; }
+
+        /* ── CARD COMBUSTIBLE TRAS EL CIERRE ── */
+        .combustible-card {
+            display: none;
+            border-radius: 14px; padding: 16px 18px;
+            margin: 4px 0 14px; border: 2px solid #93c5fd;
+            background: #eff6ff;
+        }
+        .combustible-card.show { display: block; }
+        .combustible-card .cc-titulo {
+            font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
+            color: #1d4ed8; display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+        }
+        .combustible-card .cc-comparativa {
+            display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+        }
+        .combustible-card .cc-bloque { text-align: center; }
+        .combustible-card .cc-bloque .cc-lbl { font-size: 10px; color: #64748b; text-transform: uppercase; font-weight: 700; }
+        .combustible-card .cc-bloque .cc-val { font-size: 22px; font-weight: 800; color: #1e3a8a; line-height: 1.15; }
+        .combustible-card .cc-bloque .cc-sub { font-size: 10.5px; color: #64748b; }
+        .combustible-card .cc-flecha { font-size: 20px; color: #93c5fd; }
+        .combustible-card .cc-detalle {
+            margin-top: 10px; font-size: 12px; color: #1d4ed8; background: #dbeafe;
+            border-radius: 10px; padding: 8px 10px; font-weight: 600;
+        }
+        .combustible-card.cc-error { border-color: #fca5a5; background: #fef2f2; }
+        .combustible-card.cc-error .cc-titulo { color: #b91c1c; }
+
+        /* ── BANNER LLEGADA DIRIGIDA (desde la campana del coordinador o desde un cierre por incidencia) ── */
+        #banner-dirigido {
+            display: none;
+            background: #eff6ff;
+            border: 2px solid #93c5fd;
+            border-radius: 14px;
+            padding: 12px 16px;
+            margin-bottom: 14px;
+            font-size: 12px;
+            color: #1d4ed8;
+            font-weight: 700;
+        }
+        /* 🆕 Variante para cuando se llega a cerrar el servicio de OTRO conductor
+           (desde el botón "Cerrar yo esta llegada y continuar" de registro_salida.html) */
+        #banner-dirigido.tercero {
+            background: #fffbeb;
+            border-color: #fcd34d;
+            color: #92400e;
+        }
+
+        /* 🆕 BOTÓN "VER TODAS LAS PLACAS" (respaldo del filtro por conductor) */
+        #btn-ver-todas {
+            display: none;
+            width: 100%;
+            text-align: center;
+            background: none;
+            border: none;
+            color: #2563eb;
+            font-size: 11.5px;
+            font-weight: 700;
+            text-decoration: underline;
+            cursor: pointer;
+            padding: 2px 0 14px;
+            font-family: inherit;
+        }
+        #btn-ver-todas:hover { color: #1d4ed8; }
+
+        /* 🆕 Aviso cuando el conductor no tiene servicios propios abiertos */
+        #aviso-sin-placas-propias {
+            display: none;
+            background: #fffbeb;
+            border: 2px solid #fcd34d;
+            border-radius: 12px;
+            padding: 10px 14px;
+            margin: -6px 0 12px;
+            font-size: 12px;
+            color: #92400e;
+            font-weight: 600;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h2>🏁 REGISTRO DE LLEGADA</h2>
+        <p id="conductor-header">CARGANDO...</p>
+    </div>
+
+    <div class="content">
+
+        <!-- 🆕 BANNER: llegada abierta directamente desde la campana del coordinador,
+             o desde el cierre manual de un servicio de otro conductor -->
+        <div id="banner-dirigido"></div>
+
+        <div class="section-title">Vehículo que Regresa</div>
+        <div class="grid-2">
+            <div>
+                <label>Placa de la Carroza</label>
+                <!-- 🔧 FIX: el selector arranca DESHABILITADO y con texto de
+                     "Cargando..." para que el conductor no le dé clic antes
+                     de tiempo y crea que no hay placas disponibles. Se
+                     habilita solo cuando cargarPlacas() termina de traer
+                     los datos reales (ver script). -->
+                <select id="placa" onchange="alSeleccionarPlaca()" disabled>
+                    <option value="">⏳ Cargando placas...</option>
+                </select>
+            </div>
+            <div>
+                <label>Recibido Por</label>
+                <input type="text" id="recibido_por" readonly style="background:#eefff4; font-weight:bold;">
+            </div>
+        </div>
+
+        <!-- 🆕 Aviso: el conductor no tiene ninguna salida propia sin cerrar -->
+        <div id="aviso-sin-placas-propias">
+            🚫 No tienes ningún servicio sin cerrar a tu nombre.
+        </div>
+
+        <!-- 🆕 Respaldo: permite ver todas las placas con salida abierta,
+             por si el nombre de la sesión no coincide exactamente con el
+             registrado en el Traslado, o si necesitas cerrar un servicio
+             que no salió a tu nombre. -->
+        <button type="button" id="btn-ver-todas" onclick="toggleVerTodas()">👁️ ¿No ves tu placa? Ver todos los servicios abiertos</button>
+
+        <div class="section-title">📍 Kilometraje y Hora de Llegada</div>
+        <div class="grid-2">
+            <div>
+                <label>Hora de Entrada</label>
+                <input type="time" id="hora_ingreso">
+            </div>
+            <div>
+                <label>KM de Salida (automático — editable)</label>
+                <input type="number" id="km_salida_display"
+                    placeholder="— se carga al elegir placa"
+                    oninput="corregirKmSalida()"
+                    style="background:#eefff4; font-weight:bold; color:#15803d;">
+            </div>
+        </div>
+        <div class="km-salida-hint" id="km-salida-hint" style="display:none;">
+            ✏️ Puedes corregir este valor si el KM automático no es el correcto.
+        </div>
+        <div class="grid-2">
+            <div>
+                <label>KM al Llegar</label>
+                <input type="number" id="km_ingreso"
+                    placeholder="Selecciona la placa primero"
+                    oninput="calcularTotal()"
+                    disabled
+                    style="background:#f1f5f9; color:#94a3b8; cursor:not-allowed;">
+            </div>
+            <div></div>
+        </div>
+
+        <label>Total KM Recorridos</label>
+
+        <!-- BANNER: cargando datos de salida -->
+        <div id="banner-esperar">
+            <div class="esp-titulo">⏳ Cargando datos de salida...</div>
+            <div class="esp-desc">
+                Espera un momento. El sistema está consultando el KM de salida de esta placa.<br>
+                <strong>No guardes hasta que aparezca el total de KM calculado.</strong>
+            </div>
+        </div>
+
+        <div class="total-km-card" id="total-km-card">
+            <div class="km-icon">🛣️</div>
+            <div class="km-info">
+                <div class="km-label">Kilómetros del servicio</div>
+                <div class="km-valor" id="total-km-display">— KM</div>
+                <div class="km-sub" id="km-sub-info">Selecciona la placa para calcular</div>
+            </div>
+        </div>
+        <input type="number" id="total_km" readonly style="display:none;">
+
+        <div class="section-title">Estado de Entrega</div>
+        <div class="estado-selector">
+            <label class="estado-opcion" id="est-orden" onclick="seleccionarEstado('orden')">
+                <input type="radio" name="estado" value="Todo En Orden">
+                <div class="est-icono">✅</div>
+                <div class="est-texto">
+                    <div class="est-titulo">Todo en orden</div>
+                    <div class="est-desc">La carroza regresa en perfectas condiciones</div>
+                </div>
+                <div class="est-check" id="check-orden"></div>
+            </label>
+            <label class="estado-opcion" id="est-novedad" onclick="seleccionarEstado('novedad')">
+                <input type="radio" name="estado" value="Con Novedad">
+                <div class="est-icono">⚠️</div>
+                <div class="est-texto">
+                    <div class="est-titulo">Con novedad</div>
+                    <div class="est-desc">Algún detalle menor a reportar en observaciones</div>
+                </div>
+                <div class="est-check" id="check-novedad"></div>
+            </label>
+            <label class="estado-opcion" id="est-averia" onclick="seleccionarEstado('averia')">
+                <input type="radio" name="estado" value="Con Avería">
+                <div class="est-icono">🔧</div>
+                <div class="est-texto">
+                    <div class="est-titulo">Con avería</div>
+                    <div class="est-desc">Falla mecánica o daño — describe en observaciones</div>
+                </div>
+                <div class="est-check" id="check-averia"></div>
+            </label>
+        </div>
+
+        <label>Observaciones Finales</label>
+        <textarea id="observaciones" rows="3" placeholder="¿Alguna novedad en el servicio?"></textarea>
+
+        <div id="progreso-steps">
+            <div id="step-carroza">⏳ Actualizando estado de carroza...</div>
+            <div id="step-llegada">⏳ Guardando registro de llegada...</div>
+            <div id="step-combustible-registro">⏳ Anexando estado de combustible al registro...</div>
+        </div>
+
+        <!-- ── CARD: COMBUSTIBLE ANTES/DESPUÉS DEL CIERRE (transparencia) ── -->
+        <div class="combustible-card" id="combustible-card">
+            <div class="cc-titulo">⛽ Combustible — Confirmación del Cierre</div>
+            <div class="cc-comparativa">
+                <div class="cc-bloque">
+                    <div class="cc-lbl">Antes de cerrar</div>
+                    <div class="cc-val" id="cc-antes-val">—</div>
+                    <div class="cc-sub" id="cc-antes-sub">—</div>
+                </div>
+                <div class="cc-flecha">➔</div>
+                <div class="cc-bloque">
+                    <div class="cc-lbl">Después de cerrar</div>
+                    <div class="cc-val" id="cc-despues-val">—</div>
+                    <div class="cc-sub" id="cc-despues-sub">—</div>
+                </div>
+            </div>
+            <div class="cc-detalle" id="cc-detalle">Calculando el descuento real de combustible...</div>
+        </div>
+
+        <div class="acciones">
+            <button class="btn-finalizar" id="btn-finalizar" onclick="finalizarServicio()" disabled>
+                ⏳ ESPERANDO DATOS DE KM...
+            </button>
+            <div id="bloque-wa" style="display:none;">
+                <button class="btn-wa" onclick="enviarWA()">💬 ENVIAR REPORTE POR WHATSAPP</button>
+            </div>
+            <!-- 🆕 Solo aparece cuando se llegó desde "Cerrar yo esta llegada y
+                 continuar" en registro_salida.html (retorno_salida=1) y el
+                 cierre ya se guardó correctamente. Regresa a la salida propia
+                 con la misma placa ya seleccionada, sin bloqueo. -->
+            <div id="bloque-continuar-salida" style="display:none;">
+                <button class="btn-continuar-salida" onclick="continuarConSalida()">➡️ CONTINUAR CON MI REGISTRO DE SALIDA</button>
+            </div>
+            <button class="btn-volver" onclick="irAtras()">← Volver</button>
+        </div>
+
+    </div>
+</div>
+
+<script src="db.js"></script>
+<script>
+    let flotaCompleta      = [];
+    let estadoSeleccionado = '';
+    let datosFinales       = {};
+
+    // 🆕 Usuario de la sesión actual (se llena en window.onload y se usa
+    // en cargarPlacas() para filtrar por el campo "conductor" del Traslado).
+    let usuarioActual = null;
+
+    // 🆕 Caché SIN FILTRAR de los traslados activos que devolvió la última
+    // consulta a la base de datos (todas las placas con salida abierta,
+    // sin importar quién las sacó). Se guarda aparte de
+    // trasladosActivosCache para poder alternar entre "solo mis servicios"
+    // y "ver todas" sin volver a golpear la base de datos.
+    let trasladosActivosRaw = [];
+
+    // 🆕 true = el selector está mostrando TODAS las placas con salida
+    // abierta (modo respaldo). false = solo las del conductor actual.
+    let modoVerTodas = false;
+
+    // 🆕 Caché de los Traslados activos que se usaron para armar el
+    // selector de placas (clave = placa normalizada sin espacios/guiones,
+    // en mayúsculas). Al elegir una placa, se usa directamente este dato
+    // en vez de volver a consultar la base de datos — así lo que el
+    // conductor ve en el selector es exactamente lo que se usa para
+    // calcular el Total KM (nunca se desincronizan entre sí).
+    let trasladosActivosCache = {};
+
+    // Estado de carga de KM salida
+    // null = no iniciado, 'cargando' = en proceso, 'ok' = listo, 'sin-dato' = no encontrado
+    let estadoCargaKM = null;
+
+    // Bandera: true si el usuario corrigió manualmente el KM de salida
+    // (porque el automático estaba mal, en 0, o no se encontró)
+    window._kmSalidaCorregidoManual = false;
+
+    // 🆕 Umbral de sospecha para el Total KM de un servicio. Por encima de
+    // esto se exige confirmación explícita antes de guardar — así un KM
+    // mal digitado no daña silenciosamente el cálculo automático de
+    // aceite y combustible de la carroza.
+    const UMBRAL_KM_SOSPECHOSO = 800;
+    window._totalKmSospechoso = false;
+
+    // 🆕 Si se llegó con "retorno_salida=1" (desde el botón "Cerrar yo esta
+    // llegada y continuar" de registro_salida.html), se guarda aquí para
+    // saber si, tras finalizar, hay que ofrecer el botón de continuar y a
+    // qué regional volver.
+    window._retornoSalida     = false;
+    window._regionalRetorno   = '';
+
+    // ── NORMALIZACIÓN DE TEXTO ─────────────────────────────
+    // Minúsculas, sin tildes, espacios múltiples colapsados a uno solo y
+    // sin espacios al inicio/fin. Necesario porque en la hoja "Traslado"
+    // el mismo conductor aparece escrito de formas distintas, p.ej.:
+    // "Andres Bravo", "Andres  bravo " (doble espacio), "ANDRES  BRAVO".
+    function normalizarTexto(s) {
+        return String(s || '')
+            .toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    // ── INIT ──────────────────────────────────────────────
+    window.onload = async () => {
+        const sesionData = localStorage.getItem('usuario_sesion');
+        if (!sesionData) { window.location.href = "index.html"; return; }
+        usuarioActual = JSON.parse(sesionData);   // 🆕 guardado global para cargarPlacas()
+        document.getElementById('recibido_por').value = usuarioActual.nombre;
+        document.getElementById('conductor-header').innerText = 'BIENVENIDO, ' + usuarioActual.nombre.split(' ')[0].toUpperCase();
+
+        const now = new Date();
+        document.getElementById('hora_ingreso').value =
+            now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+
+        await cargarPlacas();
+
+        // ══════════════════════════════════════════════
+        // 🆕 PRESELECCIÓN DESDE LA CAMPANA DEL COORDINADOR
+        // O DESDE "CERRAR YO ESTA LLEGADA Y CONTINUAR"
+        // (registro_salida.html)
+        // ══════════════════════════════════════════════
+        // Si se llega desde panel_coordinador.html?placa=XXX (clic en un
+        // ítem de la campana "Servicios sin cerrar"), o desde el botón
+        // "🏁 Cerrar yo esta llegada y continuar" de registro_salida.html
+        // (mismo parámetro "placa", más "nota" y "retorno_salida"), se
+        // preselecciona esa placa en el desplegable y se dispara
+        // automáticamente alSeleccionarPlaca(), para no tener que
+        // buscarla manualmente.
+        //
+        // 🔧 FIX: si quien abre el enlace es un conductor (no coordinador/
+        // admin) y la placa dirigida no es una de las suyas, el selector
+        // filtrado no la tendrá — en ese caso se activa automáticamente
+        // el modo "ver todas" antes de buscarla, para que el enlace
+        // siempre funcione sin importar quién lo abra.
+        try {
+            const paramsUrl = new URLSearchParams(window.location.search);
+            const placaParam = paramsUrl.get('placa');
+            const notaParam  = paramsUrl.get('nota');
+            const retornoParam = paramsUrl.get('retorno_salida');
+            const regionalParam = paramsUrl.get('regional');
+
+            if (retornoParam === '1') {
+                window._retornoSalida   = true;
+                window._regionalRetorno = regionalParam || '';
+            }
+
+            if (placaParam) {
+                const placaNorm = placaParam.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+                let selectPlaca = document.getElementById('placa');
+                let opcion = Array.from(selectPlaca.options).find(o =>
+                    o.value.replace(/[^A-Z0-9]/gi, '').toUpperCase() === placaNorm
+                );
+
+                if (!opcion && !modoVerTodas) {
+                    // No estaba en la lista filtrada — probar en modo "ver todas"
+                    activarVerTodas();
+                    selectPlaca = document.getElementById('placa');
+                    opcion = Array.from(selectPlaca.options).find(o =>
+                        o.value.replace(/[^A-Z0-9]/gi, '').toUpperCase() === placaNorm
+                    );
+                }
+
+                if (opcion) {
+                    selectPlaca.value = opcion.value;
+
+                    const banner = document.getElementById('banner-dirigido');
+                    if (notaParam) {
+                        // 🆕 Cierre manual del servicio de OTRO conductor
+                        banner.className = 'tercero';
+                        banner.innerHTML = '🔧 Vas a cerrar un servicio pendiente de otro conductor. ' +
+                            'Se prellenó la observación explicando el motivo — revísala antes de guardar.';
+                    } else {
+                        banner.className = '';
+                        banner.innerHTML = '🔔 Abierto desde la notificación de servicio sin cerrar — placa preseleccionada.';
+                    }
+                    banner.style.display = 'block';
+
+                    await alSeleccionarPlaca();
+
+                    // 🆕 Prellenar la observación con el motivo del cierre
+                    // (solo si venía en la URL, y sin pisar nada si el
+                    // usuario ya hubiera escrito algo antes de este punto).
+                    if (notaParam) {
+                        const obsEl = document.getElementById('observaciones');
+                        if (!obsEl.value) obsEl.value = notaParam;
+                    }
+                } else {
+                    console.warn('La placa recibida por URL (' + placaParam + ') no está en el selector de salidas activas — puede que ya se haya cerrado.');
+                }
+            }
+        } catch(e) {
+            console.warn('No se pudo preseleccionar la placa desde la URL:', e);
+        }
+    };
+
+    // ── CARGAR PLACAS (CON FILTRO POR CONDUCTOR) ──────────
+    // 🆕 Fuente principal: DB.obtenerPlacasConTrasladoActivo(), que lee
+    // directamente la hoja "Traslado" y devuelve solo las placas con una
+    // salida abierta (sin hora_de_ingreso) y sin Llegada ya registrada.
+    //
+    // 🆕 FILTRO POR CONDUCTOR: si quien inició sesión tiene rol distinto
+    // de admin/administracion/coordinador, el selector muestra SOLO las
+    // salidas cuyo campo "conductor" coincide con su nombre de sesión
+    // (comparación normalizada: sin tildes, sin mayúsculas, sin espacios
+    // repetidos). Esto evita que un conductor cierre por error el
+    // servicio de otro compañero, y además reduce lo que hay que
+    // renderizar en el selector.
+    //
+    // Coordinador y admin siguen viendo TODAS las placas activas, porque
+    // necesitan poder cerrar el servicio de cualquier conductor (incluido
+    // el flujo de la campana de notificaciones).
+    //
+    // Si el filtro deja al conductor sin ninguna placa (porque el nombre
+    // de su sesión no calza exactamente con el que quedó registrado en el
+    // Traslado, o porque de verdad no tiene servicios abiertos), se
+    // muestra un aviso claro y el botón "Ver todos los servicios abiertos"
+    // como respaldo, para que nunca quede bloqueado sin poder cerrar su
+    // salida.
+    //
+    // Si por algún motivo la consulta principal falla o no devuelve nada
+    // (p.ej. problema puntual de red), se conserva el respaldo anterior
+    // por "estado" de carrozas para que el formulario nunca quede sin
+    // opciones para elegir (ese respaldo no tiene el dato de conductor,
+    // así que se muestra sin filtrar, igual que antes).
+    //
+    // 🔧 FIX: el selector permanece DESHABILITADO con el texto
+    // "⏳ Cargando placas..." mientras esta función corre, para que el
+    // conductor no le dé clic antes de tiempo y crea que no hay placas
+    // disponibles.
+    async function cargarPlacas() {
+        const select   = document.getElementById('placa');
+        const btnVer   = document.getElementById('btn-ver-todas');
+        const avisoVac = document.getElementById('aviso-sin-placas-propias');
+
+        trasladosActivosCache = {};
+        avisoVac.style.display = 'none';
+
+        select.disabled = true;
+        select.innerHTML = '<option value="">⏳ Cargando placas...</option>';
+
+        // Rol actual: solo admin/administracion/coordinador ven todo sin filtro
+        const rolNorm     = normalizarTexto(usuarioActual?.rol);
+        const esConductor = !['admin', 'administracion', 'coordinador'].includes(rolNorm);
+
+        try {
+            const resActivos = await DB.obtenerPlacasConTrasladoActivo();
+
+            if (resActivos.ok && resActivos.data.length > 0) {
+                trasladosActivosRaw = resActivos.data;   // 🆕 guardar sin filtrar para toggleVerTodas()
+
+                // El coordinador/admin siempre parte en modo "ver todas"
+                // (no tiene sentido filtrarles por conductor).
+                if (!esConductor) modoVerTodas = true;
+
+                renderizarSelectorPlacas();
+
+                // 🆕 Mostrar el botón de respaldo solo para conductores
+                // (el coordinador/admin ya ve todo, no lo necesita).
+                btnVer.style.display = esConductor ? 'block' : 'none';
+                return;
+            }
+
+            // ⚠️ Respaldo: no se encontraron Traslados activos (o falló la
+            // consulta) — se recurre al listado por "estado" de carrozas,
+            // igual que antes, para que el formulario siga siendo usable.
+            // Este respaldo no tiene dato de conductor, así que se muestra
+            // completo (no se puede filtrar).
+            btnVer.style.display = 'none';
+            const res = await DB.obtenerFlota();
+            flotaCompleta = (res.data || []);
+
+            const enServicio = flotaCompleta.filter(c => (c.estado || '').includes('Servicio'));
+            const lista = enServicio.length > 0 ? enServicio : flotaCompleta;
+
+            if (lista.length > 0) {
+                select.innerHTML = '<option value="">Elija placa...</option>' +
+                    lista.map(c =>
+                        '<option value="' + c.placa + '">' + c.placa + ' — ' + (c.modelo || 'S/M') +
+                        (enServicio.length === 0 ? ' (' + (c.estado || '?') + ')' : '') + '</option>'
+                    ).join('');
+            } else {
+                // 🔧 FIX: si de verdad no hay ninguna placa (ni traslados
+                // activos ni flota registrada), se avisa con un mensaje
+                // claro en vez de dejar un desplegable ambiguo que solo
+                // diga "Elija placa..." sin ninguna explicación.
+                select.innerHTML = '<option value="">🚫 No hay placas disponibles</option>';
+            }
+            select.disabled = false;
+        } catch(e) {
+            btnVer.style.display = 'none';
+            select.innerHTML = '<option value="">❌ Error al cargar placas — recarga la página</option>';
+            select.disabled = false;
+        }
+    }
+
+    // 🆕 Construye el <select> de placas a partir de trasladosActivosRaw,
+    // aplicando (o no) el filtro por conductor según modoVerTodas.
+    // Separado de cargarPlacas() para poder alternar el modo sin volver
+    // a consultar la base de datos.
+    function renderizarSelectorPlacas() {
+        const select   = document.getElementById('placa');
+        const avisoVac = document.getElementById('aviso-sin-placas-propias');
+        const rolNorm     = normalizarTexto(usuarioActual?.rol);
+        const esConductor = !['admin', 'administracion', 'coordinador'].includes(rolNorm);
+        const nombreUsuarioNorm = normalizarTexto(usuarioActual?.nombre);
+
+        trasladosActivosCache = {};
+        avisoVac.style.display = 'none';
+
+        let datos = trasladosActivosRaw;
+        if (esConductor && !modoVerTodas) {
+            datos = trasladosActivosRaw.filter(t =>
+                normalizarTexto(t.conductor) === nombreUsuarioNorm
+            );
+        }
+
+        if (datos.length === 0) {
+            if (esConductor && !modoVerTodas) {
+                // El conductor no tiene ninguna salida abierta a su nombre
+                avisoVac.style.display = 'block';
+                select.innerHTML = '<option value="">🚫 No tienes servicios sin cerrar</option>';
+            } else {
+                select.innerHTML = '<option value="">🚫 No hay placas con salida abierta</option>';
+            }
+            select.disabled = false;
+            actualizarBoton();
+            return;
+        }
+
+        datos.forEach(function(t) {
+            const key = String(t.placa || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
+            if (key) trasladosActivosCache[key] = t;
+        });
+
+        select.innerHTML = '<option value="">Elija placa...</option>' +
+            datos.map(function(t) {
+                const modeloTxt = t.modelo ? ' — ' + t.modelo : '';
+                const salidaTxt = t.hora_de_salida ? ' (salió ' + t.hora_de_salida + ')' : '';
+                return '<option value="' + t.placa + '">' + t.placa + modeloTxt + salidaTxt + '</option>';
+            }).join('');
+        select.disabled = false;
+    }
+
+    // 🆕 Alterna entre "solo mis servicios" y "ver todos los servicios
+    // abiertos", sin volver a consultar la base de datos. Al cambiar de
+    // modo se resetea la placa elegida (si había una) para evitar
+    // confusión entre lo mostrado y lo seleccionado.
+    function toggleVerTodas() {
+        modoVerTodas = !modoVerTodas;
+        activarVerTodas(modoVerTodas);
+    }
+
+    // 🆕 Fuerza el modo (true = ver todas, false = solo mías) y refresca
+    // el selector + el texto del botón. Reutilizado también en la
+    // preselección por URL cuando la placa dirigida no está en la lista
+    // filtrada del conductor.
+    function activarVerTodas(activar) {
+        modoVerTodas = (activar === undefined) ? true : !!activar;
+        renderizarSelectorPlacas();
+
+        const btnVer = document.getElementById('btn-ver-todas');
+        btnVer.innerText = modoVerTodas
+            ? '👤 Ver solo mis servicios'
+            : '👁️ ¿No ves tu placa? Ver todos los servicios abiertos';
+
+        // Limpiar cualquier selección/cálculo previo al cambiar de modo
+        document.getElementById('placa').value = '';
+        alSeleccionarPlaca();
+    }
+
+    // ── ACTUALIZAR ESTADO DEL BOTÓN ───────────────────────
+    // El botón solo se habilita cuando:
+    //   1. estadoCargaKM === 'ok' (se encontró el KM de salida y el total está calculado)
+    //   2. O estadoCargaKM === 'sin-dato' (no hay traslado activo — el conductor escribe el KM salida manual)
+    // En cualquier otro caso permanece deshabilitado.
+    function actualizarBoton() {
+        const btn    = document.getElementById('btn-finalizar');
+        const kmI    = parseFloat(document.getElementById('km_ingreso').value) || 0;
+        const total  = parseFloat(document.getElementById('total_km').value) || 0;
+        const kmS    = window._kmSalidaActivo || 0;
+
+        if (estadoCargaKM === 'cargando') {
+            btn.disabled = true;
+            btn.classList.remove('bloqueado-km');
+            btn.innerText = '⏳ CARGANDO DATOS DE KM...';
+            return;
+        }
+
+        // 🔧 FIX: si ya se tienen KM de salida y de llegada pero el total
+        // no es válido (llegada menor a la salida), antes se mostraba
+        // "⏳ ESPERANDO DATOS DE KM..." — un mensaje confuso porque los
+        // datos ya llegaron, el problema es que el KM de llegada está mal.
+        // Ahora se avisa explícitamente cuál es el problema.
+        if (estadoCargaKM === 'ok' && kmI > 0 && kmS > 0 && total <= 0) {
+            btn.disabled = true;
+            btn.classList.remove('bloqueado-km');
+            btn.innerText = '⚠️ KM DE LLEGADA MENOR AL DE SALIDA';
+            return;
+        }
+
+        if (estadoCargaKM === 'ok' && total > 0 && kmI > 0) {
+            btn.disabled = false;
+            btn.classList.remove('bloqueado-km');
+            btn.innerText = '🏁 FINALIZAR SERVICIO';
+            return;
+        }
+
+        if (estadoCargaKM === 'sin-dato' && kmI > 0) {
+            // Permitir guardar pero avisar que no hay KM salida
+            btn.disabled = false;
+            btn.classList.add('bloqueado-km');
+            btn.innerText = '⚠️ GUARDAR SIN KM SALIDA';
+            return;
+        }
+
+        // Estado inicial o KM ingreso vacío
+        btn.disabled = true;
+        btn.classList.remove('bloqueado-km');
+        btn.innerText = kmI > 0 ? '⏳ ESPERANDO DATOS DE KM...' : '🏁 FINALIZAR SERVICIO';
+    }
+    
+ // ── AL ELEGIR PLACA (VERSIÓN CORREGIDA) ───────────────────────────────────
+    // 🆕 Se usa primero el traslado activo que ya se cargó en
+    // trasladosActivosCache (memoria) al armar el selector — así el dato
+    // que se usa aquí es exactamente el mismo que se mostró en el
+    // desplegable, sin margen para que se desincronicen entre sí.
+    // Si por algún motivo no está en caché (p.ej. se usó el respaldo por
+    // "estado" de carrozas), se hace la consulta directa como antes.
+    async function alSeleccionarPlaca() {
+        const placaSeleccionada = document.getElementById('placa').value;
+        const subInfo = document.getElementById('km-sub-info');
+        const card    = document.getElementById('total-km-card');
+        const banner  = document.getElementById('banner-esperar');
+        const campoKM = document.getElementById('km_ingreso');
+        const kmSalidaInput = document.getElementById('km_salida_display');
+        const kmSalidaHint  = document.getElementById('km-salida-hint');
+
+        // Resetear valores
+        window._kmSalidaActivo  = 0;
+        window._idSalidaActivo  = '';
+        window._kmSalidaCorregidoManual = false;
+        window._totalKmSospechoso = false;
+        document.getElementById('total_km').value = '';
+        document.getElementById('total-km-display').innerText = '— KM';
+        kmSalidaInput.value = '';
+        kmSalidaInput.classList.remove('editado');
+        kmSalidaHint.style.display = 'none';
+        document.getElementById('km_ingreso').value = '';
+        ocultarCardCombustible();
+
+        if (!placaSeleccionada) {
+            estadoCargaKM = null;
+            subInfo.innerText = 'Selecciona la placa para calcular';
+            card.className = 'total-km-card';
+            banner.style.display = 'none';
+            campoKM.disabled = true;
+            actualizarBoton();
+            return;
+        }
+
+        campoKM.disabled = true;
+        campoKM.placeholder = '⏳ Buscando salida...';
+        estadoCargaKM = 'cargando';
+        banner.style.display = 'block';
+        card.className = 'total-km-card cargando';
+        actualizarBoton();
+
+        // 🆕 Vista previa del combustible actual — se dispara en paralelo,
+        // no bloquea la carga del KM de salida. Si la carroza no se
+        // encuentra o falla la consulta, simplemente no se muestra nada
+        // (no es crítico, el flujo de KM sigue funcionando igual).
+        DB.obtenerEstadoCarroza(placaSeleccionada)
+            .then(function(estado) {
+                if (estado && estado.ok) mostrarCombustiblePreview(estado);
+            })
+            .catch(function(e) { console.warn('No se pudo cargar el combustible actual:', e); });
+
+        try {
+            const keyCache = placaSeleccionada.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+            let activo = trasladosActivosCache[keyCache] || null;
+
+            if (!activo) {
+                // No estaba precargado (se usó el respaldo por estado de
+                // carrozas) — se consulta directamente, igual que antes.
+                const res = await DB.obtenerTrasladoActivoPorPlaca(placaSeleccionada);
+                if (!res.ok) throw new Error(res.error || 'Error de conexión');
+                activo = res.data;
+            }
+
+            banner.style.display = 'none';
+
+            if (activo) {
+                // 3. BUSCAR KM EN CUALQUIER COLUMNA POSIBLE (Detección agresiva)
+                // Basado en tu dato: 279134
+                const kmSal = parseFloat(activo.km__salida || activo.km_salida || activo['km_ salida'] || activo['km salida'] || activo['kilometraje_salida'] || 0);
+                
+                window._kmSalidaActivo = kmSal;
+                window._idSalidaActivo = activo.id_salida || activo.id || '';
+                estadoCargaKM = 'ok';
+                
+                if (kmSal > 0) {
+                    subInfo.innerText = `✅ Salida encontrada: ${kmSal.toLocaleString()} KM (${activo.fecha || ''})`;
+                    kmSalidaInput.value = kmSal;
+                    card.className = 'total-km-card listo';
+                } else {
+                    subInfo.innerText = '⚠️ Registro hallado pero sin KM (aparece como 0) — puedes escribirlo manualmente';
+                    card.className = 'total-km-card error';
+                }
+            } else {
+                estadoCargaKM = 'sin-dato';
+                subInfo.innerText = '⚠️ No se encontró el registro de salida para ' + placaSeleccionada + ' — escribe el KM de salida manualmente';
+                card.className = 'total-km-card';
+            }
+        } catch(e) {
+            console.error("Error crítico:", e);
+            banner.style.display = 'none';
+            estadoCargaKM = 'sin-dato';
+            subInfo.innerText = '❌ Error de conexión con la base de datos — escribe el KM de salida manualmente';
+            card.className = 'total-km-card error';
+        }
+
+        campoKM.disabled = false;
+        campoKM.placeholder = 'Ej: 155280';
+        campoKM.style.cssText = '';
+        kmSalidaHint.style.display = 'block';
+        actualizarBoton();
+    }
+
+    // ── CORREGIR KM DE SALIDA MANUALMENTE ─────────────────
+    // Se dispara cuando el usuario edita el campo "KM de Salida (automático)".
+    // Útil cuando el sistema no encontró el traslado, lo encontró vacío,
+    // o el conductor detecta que el valor traído no es el correcto.
+    function corregirKmSalida() {
+        const kmSalidaInput = document.getElementById('km_salida_display');
+        const subInfo = document.getElementById('km-sub-info');
+        const val = parseFloat(kmSalidaInput.value) || 0;
+
+        window._kmSalidaActivo = val;
+        window._kmSalidaCorregidoManual = true;
+        kmSalidaInput.classList.add('editado');
+
+        if (val > 0) {
+            subInfo.innerText = '✏️ KM de salida corregido manualmente';
+            estadoCargaKM = 'ok';
+        } else {
+            estadoCargaKM = 'sin-dato';
+        }
+
+        calcularTotal();
+    }
+
+    // ── CÁLCULO TOTAL KM ──────────────────────────────────
+    function calcularTotal() {
+        const kmI    = parseFloat(document.getElementById('km_ingreso').value) || 0;
+        const kmS    = window._kmSalidaActivo || 0;
+        const display = document.getElementById('total-km-display');
+        const card    = document.getElementById('total-km-card');
+        const hidden  = document.getElementById('total_km');
+
+        if (kmI > 0 && kmS > 0) {
+            const total = kmI - kmS;
+            if (total >= 0) {
+                display.innerText = total.toLocaleString('es-CO') + ' KM';
+                hidden.value = total.toFixed(1);
+                card.classList.remove('error');
+
+                // 🆕 Aviso de KM sospechosamente alto (posible error de digitación
+                // en el KM de salida o de llegada). No bloquea, pero exige
+                // confirmación explícita al guardar.
+                if (total > UMBRAL_KM_SOSPECHOSO) {
+                    window._totalKmSospechoso = true;
+                    document.getElementById('km-sub-info').innerHTML =
+                        '⚠️ KM muy alto (' + total.toLocaleString('es-CO') + '). Verifica el KM de salida antes de guardar.';
+                    card.classList.add('error');
+                    card.classList.remove('listo');
+                } else {
+                    window._totalKmSospechoso = false;
+                    card.classList.add('listo');
+                }
+            } else {
+                display.innerText = '⚠️ KM menor al de salida';
+                hidden.value = '';
+                card.classList.add('error');
+                card.classList.remove('listo');
+                window._totalKmSospechoso = false;
+            }
+        } else {
+            // 🔧 FIX: al quedar sin datos suficientes para calcular, se
+            // limpia también el estilo de la tarjeta (antes podía quedar
+            // pintada de verde "listo" o roja "error" de un cálculo
+            // anterior, aunque ya no hubiera ningún total mostrado).
+            display.innerText = '— KM';
+            hidden.value = '';
+            card.classList.remove('error', 'listo');
+            window._totalKmSospechoso = false;
+        }
+
+        actualizarBoton();
+    }
+
+    // ── ESTADO DE ENTREGA ─────────────────────────────────
+    function seleccionarEstado(valor) {
+        estadoSeleccionado = valor;
+        ['orden','novedad','averia'].forEach(v => {
+            document.getElementById('est-' + v).classList.remove('sel-orden','sel-novedad','sel-averia');
+            document.getElementById('check-' + v).innerHTML = '';
+        });
+        document.getElementById('est-' + valor).classList.add('sel-' + valor);
+    }
+
+    function setStep(id, estado, texto) {
+        const el = document.getElementById(id);
+        if (el) { el.className = estado; el.innerText = texto; }
+    }
+
+    // ── COMBUSTIBLE ANTES/DESPUÉS (transparencia del cierre) ──────────────
+    function ocultarCardCombustible() {
+        const card = document.getElementById('combustible-card');
+        card.classList.remove('show', 'cc-error');
+        document.getElementById('cc-antes-val').innerText = '—';
+        document.getElementById('cc-antes-sub').innerText = '—';
+        document.getElementById('cc-despues-val').innerText = '—';
+        document.getElementById('cc-despues-sub').innerText = '—';
+        document.getElementById('cc-detalle').innerText = 'Calculando el descuento real de combustible...';
+    }
+
+    function formatoCombustible(est) {
+        if (!est || !est.ok) return { val: 'Sin datos', sub: '' };
+        return {
+            val: (est.porcentaje_combustible != null ? est.porcentaje_combustible + '%' : '—'),
+            sub: (est.combustible_galones != null && est.capacidad_galones != null)
+                ? est.combustible_galones + ' / ' + est.capacidad_galones + ' gal'
+                : (est.nivel_combustible || '')
+        };
+    }
+
+    function mostrarCombustibleAntes(estAntes) {
+        const card = document.getElementById('combustible-card');
+        card.classList.add('show');
+        card.classList.remove('cc-error');
+        const f = formatoCombustible(estAntes);
+        document.getElementById('cc-antes-val').innerText = f.val;
+        document.getElementById('cc-antes-sub').innerText = f.sub;
+        document.getElementById('cc-detalle').innerText = 'Cerrando el servicio y recalculando el consumo real...';
+    }
+
+    // 🆕 Vista previa del combustible ACTUAL de la carroza — se muestra
+    // apenas se elige la placa, igual que el Total KM, sin tener que
+    // finalizar el servicio para verlo. El bloque "Después" se deja en
+    // "—" hasta que de verdad se cierre el servicio.
+    function mostrarCombustiblePreview(estado) {
+        const card = document.getElementById('combustible-card');
+        card.classList.add('show');
+        card.classList.remove('cc-error');
+        const f = formatoCombustible(estado);
+        document.getElementById('cc-antes-val').innerText = f.val;
+        document.getElementById('cc-antes-sub').innerText = f.sub;
+        document.getElementById('cc-despues-val').innerText = '—';
+        document.getElementById('cc-despues-sub').innerText = '—';
+        document.getElementById('cc-detalle').innerText =
+            'ℹ️ Nivel actual de combustible de la carroza (antes de este servicio). Al finalizar, aquí se mostrará cuánto quedó después.';
+    }
+
+    function mostrarCombustibleDespues(estAntes, estDespues, totalKmServicio) {
+        const card = document.getElementById('combustible-card');
+        card.classList.add('show');
+        card.classList.remove('cc-error');
+
+        const fD = formatoCombustible(estDespues);
+        document.getElementById('cc-despues-val').innerText = fD.val;
+        document.getElementById('cc-despues-sub').innerText = fD.sub;
+
+        let detalle = '';
+        if (estAntes && estAntes.ok && estDespues && estDespues.ok &&
+            estAntes.combustible_galones != null && estDespues.combustible_galones != null) {
+            const consumidos = (estAntes.combustible_galones - estDespues.combustible_galones);
+            const pctAntes = estAntes.porcentaje_combustible;
+            const pctDespues = estDespues.porcentaje_combustible;
+            detalle = '✅ Se descontaron ' + consumidos.toFixed(1) + ' gal' +
+                (totalKmServicio ? ' por los ' + Number(totalKmServicio).toLocaleString('es-CO') + ' km de este servicio' : '') +
+                '. Nivel real confirmado: ' + pctAntes + '% → ' + pctDespues + '%.';
+        } else if (estDespues && estDespues.ok) {
+            detalle = 'ℹ️ Combustible actualizado y confirmado directamente contra la base de datos.';
+        } else {
+            detalle = '⚠️ No se pudo confirmar el combustible actualizado — revisa manualmente esta carroza.';
+            card.classList.add('cc-error');
+        }
+        document.getElementById('cc-detalle').innerText = detalle;
+    }
+
+    // ── FINALIZAR SERVICIO ────────────────────────────────
+    async function finalizarServicio() {
+        const btn   = document.getElementById('btn-finalizar');
+        const placa = document.getElementById('placa').value;
+        const kmI   = document.getElementById('km_ingreso').value;
+        const hora  = document.getElementById('hora_ingreso').value;
+
+        if (!placa)              { alert('Selecciona la placa'); return; }
+        if (!kmI)                { alert('Ingresa el KM de llegada'); return; }
+        if (!estadoSeleccionado) { alert('Selecciona el estado de entrega'); return; }
+
+        // Guardia extra: no guardar si todavía está cargando el KM
+        if (estadoCargaKM === 'cargando') {
+            alert('⏳ Espera — todavía se están cargando los datos de KM de salida. Intenta en unos segundos.');
+            return;
+        }
+
+        // 🔧 FIX: bloquear explícitamente si el KM de llegada es menor al
+        // de salida — antes el botón quedaba en un estado ambiguo pero
+        // esta función no verificaba el caso, así que técnicamente se
+        // podía forzar el envío (p.ej. reactivando el botón por consola).
+        if (window._kmSalidaActivo > 0 && parseFloat(kmI) < window._kmSalidaActivo) {
+            alert('⚠️ El KM de llegada (' + kmI + ') es menor al KM de salida (' + window._kmSalidaActivo + ').\n\nRevisa y corrige antes de guardar.');
+            return;
+        }
+
+        // Confirmación si no hay KM salida
+        if (estadoCargaKM === 'sin-dato' || !window._kmSalidaActivo) {
+            const conf = confirm(
+                '⚠️ No se encontró el KM de salida para esta placa.\n\n' +
+                'El Total KM quedará vacío en el reporte.\n\n' +
+                '¿Deseas continuar de todas formas?'
+            );
+            if (!conf) return;
+        }
+
+        // 🆕 Confirmación obligatoria si el Total KM es sospechosamente alto.
+        // Esto evita que un KM de salida o llegada mal digitado dañe
+        // silenciosamente el cálculo automático de aceite y combustible.
+        if (window._totalKmSospechoso) {
+            const totalActual = document.getElementById('total_km').value;
+            const conf = confirm(
+                '🚨 EL TOTAL KM ES MUY ALTO: ' + Number(totalActual).toLocaleString('es-CO') + ' km\n\n' +
+                'Esto puede deberse a un error al escribir el KM de salida o el KM de llegada.\n\n' +
+                'Si guardas así, este valor va a afectar el cálculo automático de combustible ' +
+                'y el control de cambio de aceite de la carroza.\n\n' +
+                '¿Es correcto? (Solo confirma si en verdad fue un trayecto muy largo, ' +
+                'como un Traslado Nacional)'
+            );
+            if (!conf) {
+                alert('Revisa y corrige el "KM de Salida (automático — editable)" o el "KM al Llegar" antes de guardar.');
+                return;
+            }
+        }
+
+        btn.disabled  = true;
+        btn.innerText = '⏳ GUARDANDO...';
+        document.getElementById('progreso-steps').style.display = 'block';
+
+        const etiquetaEstado = {
+            'orden':   'Todo En Orden ✅',
+            'novedad': 'Con Novedad ⚠️',
+            'averia':  'Con Avería 🔧'
+        }[estadoSeleccionado];
+
+        // Si el KM de salida fue corregido manualmente, se deja constancia
+        // en observaciones para trazabilidad (auditoría posterior).
+        const notaCorreccion = window._kmSalidaCorregidoManual
+            ? ' [KM salida corregido manualmente a: ' + window._kmSalidaActivo + ']'
+            : '';
+
+        datosFinales = {
+            placa,
+            id_salida:      window._idSalidaActivo || '',   // 🆕 trazabilidad con el Traslado (enlaza esta Llegada con su Salida)
+            hora_ingreso:   hora,
+            km_ingreso:     kmI,
+            km_salida_ref:  window._kmSalidaActivo || '',
+            total_km:       document.getElementById('total_km').value || '',
+            estado_entrega: etiquetaEstado,
+            observaciones:  document.getElementById('observaciones').value + notaCorreccion,
+            recibido_por:   document.getElementById('recibido_por').value,
+        };
+
+        // 🆕 Foto ANTES de tocar la carroza — así el card de combustible puede
+        // mostrar la comparación real antes/después y no solo el valor final.
+        // Si esta consulta falla, el cierre continúa igual (no es bloqueante).
+        let estadoCombustibleAntes = null;
+        try {
+            estadoCombustibleAntes = await DB.obtenerEstadoCarroza(placa);
+            if (estadoCombustibleAntes && estadoCombustibleAntes.ok) {
+                mostrarCombustibleAntes(estadoCombustibleAntes);
+            }
+        } catch(e) { console.warn('No se pudo leer combustible antes del cierre:', e); }
+
+        // Paso 1: Carroza (informativo — la actualización real y garantizada
+        // de kilometraje_actual ahora ocurre dentro de DB.guardarLlegada,
+        // que la espera con await antes de responder — ver Paso 2).
+        setStep('step-carroza', 'act', '⏳ Actualizando estado de carroza...');
+        try {
+            await DB.actualizarCarroza(placa, {
+                estado: 'Disponible',
+                kilometraje_actual: parseInt(kmI) || 0
+            });
+            setStep('step-carroza', 'ok', '✅ Carroza marcada como Disponible');
+        } catch(e) {
+            setStep('step-carroza', 'ok', '⚠️ Carroza: se omitió (no crítico)');
+        }
+
+        // Paso 2: Registro llegada
+        setStep('step-llegada', 'act', '⏳ Guardando registro de llegada...');
+        try {
+            const res = await DB.guardarLlegada(datosFinales);
+            if (!res.ok) throw new Error(res.error || 'Error al guardar');
+
+            // ✅ La Llegada YA quedó guardada en este punto. A partir de aquí,
+            // cerrar el Traslado es un paso secundario: si falla, NO debe
+            // mostrar error ni invitar a "reintentar" (eso duplicaría la Llegada).
+            if (window._idSalidaActivo) {
+                cerrarTrasladoConReintento(
+                    window._idSalidaActivo, kmI, hora,
+                    undefined,
+                    // 🆕 Si el KM de salida fue corregido manualmente en esta
+                    // pantalla, se envía para que se corrija también en el
+                    // Traslado original — así el dato queda arreglado en la
+                    // fuente (no solo anotado como texto), y el cálculo de
+                    // aceite/combustible de próximos servicios usa el KM real.
+                    window._kmSalidaCorregidoManual ? window._kmSalidaActivo : null
+                );
+            }
+
+            setStep('step-llegada', 'ok', '✅ Llegada registrada correctamente');
+            btn.innerText = '✓ SERVICIO FINALIZADO';
+            btn.style.background = '#16a34a';
+            document.getElementById('bloque-wa').style.display = 'block';
+
+            // 🆕 Si se vino desde "Cerrar yo esta llegada y continuar" en
+            // registro_salida.html, ofrecer el botón de vuelta con la
+            // misma placa ya lista para continuar la salida propia.
+            if (window._retornoSalida) {
+                document.getElementById('bloque-continuar-salida').style.display = 'block';
+            }
+
+            // ── COMBUSTIBLE ACTUALIZADO (verificación real antes/después) ──
+            // db.js v12.5 ya hace `await` de la actualización real de la
+            // carroza (kilometraje_actual y combustible) y devuelve el
+            // estado confirmado directamente en res.estado_carroza_despues
+            // — se usa ese dato tal cual, sin volver a consultar la base
+            // de datos (evita una llamada de red de más y una segunda
+            // fuente de verdad). Solo si por algún motivo no llegara ese
+            // dato (error puntual, etc.) se hace la consulta de respaldo
+            // por separado.
+            try {
+                let estDespues = res.estado_carroza_despues;
+                if (!estDespues || !estDespues.ok) {
+                    estDespues = await DB.obtenerEstadoCarroza(placa);
+                }
+                mostrarCombustibleDespues(estadoCombustibleAntes, estDespues, datosFinales.total_km);
+                if (estDespues && estDespues.ok) {
+                    datosFinales.combustible_resultante =
+                        `${estDespues.nivel_combustible} ${estDespues.combustible_galones}/${estDespues.capacidad_galones} gal (${estDespues.porcentaje_combustible}%)`;
+                }
+            } catch(e) {
+                console.warn('No se pudo consultar combustible actualizado:', e);
+                mostrarCombustibleDespues(estadoCombustibleAntes, null, datosFinales.total_km);
+            }
+
+            // 🆕 Confirmar en pantalla si el estado de combustible (antes/
+            // después/consumido) quedó guardado en el propio registro de
+            // Llegada — así queda auditable después: se puede abrir la
+            // hoja "Llegadas" y comparar el % con el que salió vs. el %
+            // con el que se cerró, para verificar si el consumo es real.
+            if (res.combustible_guardado_en_registro) {
+                setStep('step-combustible-registro', 'ok', '✅ Estado de combustible guardado en el registro de Llegada');
+            } else {
+                setStep('step-combustible-registro', 'ok', '⚠️ No se pudo anexar el combustible al registro (no crítico — revisa la hoja Llegadas)');
+            }
+
+            // Llevar la vista hasta el card de combustible para que se note
+            // de inmediato, sin que el usuario tenga que buscarlo con scroll.
+            document.getElementById('combustible-card').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } catch(e) {
+            setStep('step-llegada', 'err', '❌ Error: ' + e.message);
+            btn.disabled = false;
+            btn.innerText = '🏁 REINTENTAR';
+        }
+    }
+
+    // ── CERRAR TRASLADO CON REINTENTO EN SEGUNDO PLANO ────
+    // La Llegada ya está guardada cuando esto se llama. Si el cierre
+    // del Traslado (poner hora_de_ingreso y km__ingreso) falla por
+    // timeout u otro error, se reintenta solo, sin bloquear al usuario
+    // ni mostrarle un error que lo lleve a presionar "REINTENTAR"
+    // (eso volvería a insertar una Llegada duplicada).
+    // Nota: aunque este cierre falle definitivamente, el selector de
+    // placas de la próxima Llegada seguirá funcionando correctamente,
+    // porque DB.obtenerPlacasConTrasladoActivo() también verifica que
+    // no exista ya una Llegada con ese id_salida.
+    // 🆕 kmSalidaCorregido: si no es null, también corrige km__salida en
+    // el Traslado — así la corrección queda en la fuente de datos real,
+    // no solo como nota de texto en observaciones.
+    async function cerrarTrasladoConReintento(idSalida, kmI, hora, intento, kmSalidaCorregido) {
+        if (intento === undefined) intento = 1;
+        try {
+            const payload = { km__ingreso: parseInt(kmI), hora_de_ingreso: hora };
+            if (kmSalidaCorregido !== null && kmSalidaCorregido !== undefined && kmSalidaCorregido > 0) {
+                payload.km__salida = parseInt(kmSalidaCorregido);
+            }
+            await DB.actualizar('Traslado', payload, 'id_salida', idSalida);
+            console.log('✅ Traslado ' + idSalida + ' cerrado correctamente (intento ' + intento + ')');
+        } catch(e) {
+            console.warn('⚠️ No se pudo cerrar el Traslado ' + idSalida + ' (intento ' + intento + '):', e.message);
+            if (intento < 3) {
+                setTimeout(function() {
+                    cerrarTrasladoConReintento(idSalida, kmI, hora, intento + 1, kmSalidaCorregido);
+                }, 4000 * intento);
+            } else {
+                console.error('❌ El Traslado ' + idSalida + ' quedó SIN CERRAR tras 3 intentos. Revisar manualmente.');
+            }
+        }
+    }
+
+    // ── WHATSAPP ──────────────────────────────────────────
+    function enviarWA() {
+        const horaActual = new Date().getHours();
+        let saludo = '';
+        if (horaActual >= 6 && horaActual < 12)  saludo = 'Buenos Días ☀️';
+        else if (horaActual >= 12 && horaActual < 18) saludo = 'Buenas Tardes 🌤️';
+        else saludo = 'Buenas Noches 🌙';
+
+        const totalKM = datosFinales.total_km
+            ? datosFinales.total_km + ' km'
+            : 'No disponible';
+
+        const msg = saludo + '\n\n' +
+            '🏁 *Reporte de Llegada De Carroza*\n\n' +
+            '*Placa:* '          + datosFinales.placa          + '\n' +
+            '*Hora Llegada:* '   + datosFinales.hora_ingreso   + '\n' +
+            '*KM Ingreso:* '     + parseInt(datosFinales.km_ingreso).toLocaleString('es-CO') + '\n' +
+            '*Total KM:* '       + totalKM                     + '\n' +
+            '*Estado Entrega:* ' + datosFinales.estado_entrega + '\n' +
+            (datosFinales.combustible_resultante ? '*Combustible Actual:* ' + datosFinales.combustible_resultante + '\n' : '') +
+            '*Recibido Por:* '   + datosFinales.recibido_por   + '\n\n' +
+            '📝 *Observaciones:* ' + (datosFinales.observaciones || 'Sin novedades') + '\n\n' +
+            '✅ *Servicio completado exitosamente* 🙏';
+
+        window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+    }
+
+    // 🆕 Regresa a registro_salida.html con la misma placa ya seleccionada
+    // (y la regional, si se conocía), para continuar la salida propia sin
+    // tener que repetir la búsqueda de la placa. Se usa el mismo nombre
+    // de parámetro que registro_salida.html espera: "continuar_placa".
+    function continuarConSalida() {
+        const placa = document.getElementById('placa').value;
+        const params = new URLSearchParams({ continuar_placa: placa });
+        if (window._regionalRetorno) params.set('regional', window._regionalRetorno);
+        window.location.href = 'registro_salida.html?' + params.toString();
+    }
+
+    // ── VOLVER ────────────────────────────────────────────
+    function irAtras() {
+        const user = JSON.parse(localStorage.getItem('usuario_sesion') || '{}');
+        const norm = s => normalizarTexto(s);
+        const rol  = norm(user.rol);
+        const usr  = norm(user.usuario);
+        if (rol === 'admin' || rol === 'administracion' || usr === 'admin') window.location.href = 'dashboard.html';
+        else if (rol === 'coordinador') window.location.href = 'panel_coordinador.html';
+        else window.location.href = 'panel_conductor.html';
+    }
+</script>
+</body>
+</html>
