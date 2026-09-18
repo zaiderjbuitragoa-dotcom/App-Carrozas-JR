@@ -1,6 +1,6 @@
 /**
  * ══════════════════════════════════════════════════════════
- *  CONECTOR J.R. CARROZAS — db.js  v13.0 (SUPABASE)
+ *  CONECTOR J.R. CARROZAS — db.js  v13.1 (SUPABASE)
  *
  *  🆕 MIGRACIÓN A SUPABASE (Postgres real) — reemplaza a
  *  Google Apps Script + Google Sheets como backend.
@@ -32,6 +32,18 @@
  *    configuracion.html) para no romper esa pantalla. Es una
  *    mejora pendiente para más adelante, no un cambio de este
  *    paso.
+ *
+ *  🆕 v13.1 — NOTIFICACIONES CRUZADAS ENTRE REGIONALES:
+ *  - Cuando un traslado sale con destino a una ciudad que
+ *    pertenece a OTRA regional activa, se crea automáticamente
+ *    una notificación en "notificaciones_apoyo" para esa
+ *    regional destino (tipo "vehiculo_en_transito"), avisando
+ *    que hay un vehículo llegando a su zona por si lo requieren.
+ *  - Esa notificación se marca como leída sola cuando se
+ *    registra la Llegada de ese mismo id_salida (igual que ya
+ *    pasaba con "cierre_pendiente").
+ *  - No se tocó ninguna tabla ni columna en Supabase. Usa
+ *    "notificaciones_apoyo" tal cual ya existía.
  * ══════════════════════════════════════════════════════════
  */
 
@@ -445,6 +457,78 @@ function nivelTanque(porcentaje) {
 }
 
 // ══════════════════════════════════════════════════════════
+//  🆕 NOTIFICACIONES CRUZADAS ENTRE REGIONALES
+//  Mapa de ciudad de destino (texto libre que escribe el
+//  conductor, ej. "Armenia", "Pereira") -> regional operativa
+//  que debe enterarse de que un vehículo va hacia su zona.
+//
+//  "Tolima Norte" (Ibagué y Magdalena Medio) aún NO es una
+//  regional activa en el sistema (no hay usuarios con esa
+//  regional todavía) — si un traslado va hacia esas ciudades,
+//  regionalPorDestino() sí devuelve 'Tolima Norte', pero
+//  guardarTraslado() la descarta explícitamente para no crear
+//  notificaciones "al aire" sin nadie que las reciba. El día
+//  que exista esa regional, basta con quitarla de la lista de
+//  exclusión más abajo.
+// ══════════════════════════════════════════════════════════
+const REGIONALES_INACTIVAS = new Set(['Tolima Norte']);
+
+const CIUDAD_A_REGIONAL = {
+  // ── Quindío (departamento completo) ──
+  armenia:'Quindío', buenavista:'Quindío', calarca:'Quindío', circasia:'Quindío',
+  cordoba:'Quindío', filandia:'Quindío', genova:'Quindío', latebaida:'Quindío',
+  montenegro:'Quindío', pijao:'Quindío', quimbaya:'Quindío', salento:'Quindío',
+
+  // ── Risaralda (departamento completo) ──
+  apia:'Risaralda', balboa:'Risaralda', belendeumbria:'Risaralda', dosquebradas:'Risaralda',
+  guatica:'Risaralda', lacelia:'Risaralda', lavirginia:'Risaralda', marsella:'Risaralda',
+  mistrato:'Risaralda', pereira:'Risaralda', pueblorico:'Risaralda', quinchia:'Risaralda',
+  santarosadecabal:'Risaralda', santuario:'Risaralda',
+
+  // ── Tolima Sur (activa) ──
+  alpujarra:'Tolima Sur', ataco:'Tolima Sur', cajamarca:'Tolima Sur', carmendeapicala:'Tolima Sur',
+  chaparral:'Tolima Sur', coello:'Tolima Sur', coyaima:'Tolima Sur', cunday:'Tolima Sur',
+  dolores:'Tolima Sur', espinal:'Tolima Sur', guamo:'Tolima Sur', icononzo:'Tolima Sur',
+  melgar:'Tolima Sur', natagaima:'Tolima Sur', ortega:'Tolima Sur', planadas:'Tolima Sur',
+  prado:'Tolima Sur', purificacion:'Tolima Sur', rioblanco:'Tolima Sur', roncesvalles:'Tolima Sur',
+  rovira:'Tolima Sur', saldana:'Tolima Sur', sanantonio:'Tolima Sur', sanluis:'Tolima Sur',
+  suarez:'Tolima Sur', valledesanjuan:'Tolima Sur', villarrica:'Tolima Sur',
+
+  // ── Tolima Norte (Ibagué + Magdalena Medio) — sin regional activa aún ──
+  ibague:'Tolima Norte', honda:'Tolima Norte', mariquita:'Tolima Norte', armeroguayabal:'Tolima Norte',
+  falan:'Tolima Norte', palocabildo:'Tolima Norte', casabianca:'Tolima Norte', villahermosa:'Tolima Norte',
+  herveo:'Tolima Norte', fresno:'Tolima Norte', libano:'Tolima Norte', murillo:'Tolima Norte',
+  santaisabel:'Tolima Norte', anzoategui:'Tolima Norte', venadillo:'Tolima Norte', lerida:'Tolima Norte',
+  ambalema:'Tolima Norte', alvarado:'Tolima Norte', piedras:'Tolima Norte',
+
+  // ── Valle Centro (Cali/Palmira/Buga y alrededores) ──
+  cali:'Valle Centro', palmira:'Valle Centro', guadalajaradebuga:'Valle Centro', candelaria:'Valle Centro',
+  jamundi:'Valle Centro', yumbo:'Valle Centro', vijes:'Valle Centro', dagua:'Valle Centro',
+  lacumbre:'Valle Centro', elcerrito:'Valle Centro', ginebra:'Valle Centro', guacari:'Valle Centro',
+  florida:'Valle Centro', pradera:'Valle Centro', buenaventura:'Valle Centro', restrepo:'Valle Centro',
+  yotoco:'Valle Centro', sanpedro:'Valle Centro', calimaeldarien:'Valle Centro',
+
+  // ── Valle Norte (Tuluá/Cartago/Zarzal hacia arriba) ──
+  tulua:'Valle Norte', cartago:'Valle Norte', zarzal:'Valle Norte', bugalagrande:'Valle Norte',
+  andalucia:'Valle Norte', riofrio:'Valle Norte', trujillo:'Valle Norte', roldanillo:'Valle Norte',
+  launion:'Valle Norte', toro:'Valle Norte', lavictoria:'Valle Norte', obando:'Valle Norte',
+  ansermanuevo:'Valle Norte', elaguila:'Valle Norte', elcairo:'Valle Norte', eldovio:'Valle Norte',
+  argelia:'Valle Norte', bolivar:'Valle Norte', caicedonia:'Valle Norte', sevilla:'Valle Norte',
+  ulloa:'Valle Norte', versalles:'Valle Norte', alcala:'Valle Norte',
+};
+
+// Busca la regional a partir del texto libre de destino
+// (ej. "Armenia", "Pereira - Risaralda", "via Cartago").
+function regionalPorDestino(destinoTexto) {
+  const clave = normClave(destinoTexto);
+  if (!clave) return null;
+  if (CIUDAD_A_REGIONAL[clave]) return CIUDAD_A_REGIONAL[clave];
+  // fallback: coincidencia parcial si el texto trae más palabras
+  const encontrada = Object.keys(CIUDAD_A_REGIONAL).find(c => clave.includes(c));
+  return encontrada ? CIUDAD_A_REGIONAL[encontrada] : null;
+}
+
+// ══════════════════════════════════════════════════════════
 //  CAPA DE COMPATIBILIDAD — DB.supabase.from(...)
 //  (usada directo por varias pantallas: configuracion.html,
 //  taller.html, registro_salida.html, etc.)
@@ -795,6 +879,37 @@ const DB = {
             .then(r => { DB.invalidarCache('carrozas'); return r; }),
           'actualizarCarroza tras guardarTraslado'
         );
+
+        // 🆕 Notificación cruzada de regional si el destino cae en otra
+        // regional ACTIVA (distinta a la de origen). Si no se reconoce
+        // la ciudad, o es la misma regional, o mapea a una regional que
+        // todavía no tiene usuarios (ver REGIONALES_INACTIVAS), no se
+        // crea nada — nunca bloquea ni afecta el guardado del traslado.
+        try {
+          const regionalDestino = regionalPorDestino(d.destino);
+          const regionalOrigen  = String(d.regional || '').trim();
+          if (regionalDestino && regionalDestino !== regionalOrigen && !REGIONALES_INACTIVAS.has(regionalDestino)) {
+            actualizarEnSegundoPlano(
+              DB.crearNotificacion({
+                tipo: 'vehiculo_en_transito',
+                titulo: `🚐 Vehículo en tránsito hacia tu regional — ${d.placa || ''}`,
+                cuerpo: `Carroza ${d.placa || 's/d'} salió de ${regionalOrigen || 'otra regional'} con destino ${d.destino || 's/d'}. ` +
+                        `Conductor: ${d.conductor || 's/d'} (${d.nnum_telefono || 's/n'}). Motivo: ${d.motivo || 's/d'}. ` +
+                        `Por si el vehículo se requiere en tu zona.`,
+                regional: regionalDestino,
+                remitente: d.conductor || '',
+                placa: d.placa || '',
+                id_salida_ref: fila.id_salida,
+                conductor: d.conductor || '',
+                hora_salida: d.hora_salida || '',
+                fecha_salida: fechaHoy(),
+              }),
+              'crearNotificacion vehiculo_en_transito tras guardarTraslado'
+            );
+          }
+        } catch (e) {
+          console.warn('⚠️ No se pudo evaluar/crear la notificación cruzada de regional:', e.message);
+        }
       }
       return res.ok ? Object.assign({}, res, { id_salida: fila.id_salida }) : res;
     });
@@ -926,11 +1041,16 @@ const DB = {
         }
       } catch (e) { console.warn('⚠️ Error actualizando Checklist_Salida tras guardarLlegada:', e.message); }
 
+      // 🆕 Al cerrar el traslado con su Llegada, se marcan como leídas
+      // tanto las notificaciones de "cierre_pendiente" (ya existía)
+      // como las de "vehiculo_en_transito" (nuevo) asociadas a ese
+      // mismo id_salida — la regional destino ya no necesita seguir
+      // viendo el aviso de "vehículo en camino".
       try {
         if (d.id_salida) {
           const notis = await gasGet('notificaciones_apoyo');
           const pendientes = notis.filter(n =>
-            String(n.tipo || '') === 'cierre_pendiente' &&
+            (String(n.tipo || '') === 'cierre_pendiente' || String(n.tipo || '') === 'vehiculo_en_transito') &&
             String(n.id_salida_ref || '').trim() === String(d.id_salida).trim() &&
             !(n.leido === true || n.leido === 'TRUE' || n.leido === 'true')
           );
