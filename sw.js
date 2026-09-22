@@ -1,4 +1,12 @@
-// sw.js - Service Worker Oficial J.R. v8.0
+// sw.js - Service Worker Oficial J.R. v9.0
+//
+// 🆕 v9.0 — SOPORTE DE PUSH NOTIFICATIONS REALES:
+// Se agregan los listeners 'push' y 'notificationclick' al final del
+// archivo. Todo lo demás (install, activate, message, fetch) queda
+// EXACTAMENTE igual que en v8.0 — no se tocó ni una línea de esa
+// lógica, solo se subió CACHE_NAME (ver más abajo) para que los
+// dispositivos que ya tenían la PWA instalada recojan este archivo
+// nuevo, y se agregó push-subscribe.js a la lista de caché offline.
 //
 // 🆕 v8.0 — FIX BUG "hay que dar muchos clics al acceso directo para
 // que cargue":
@@ -28,7 +36,7 @@
 //       plano por si acaso). Así la app abre rápido siempre, con o sin
 //       buena señal.
 
-const CACHE_NAME = 'jr-carrozas-v12';
+const CACHE_NAME = 'jr-carrozas-v13';
 // 🆕 v9 — se sube la versión de caché a propósito: index.html tenía un
 // bug de redirección para el rol "coordinador nacional" (apuntaba a
 // "panel_coordinador_nacional.html" pero el archivo real se llamaba
@@ -61,6 +69,7 @@ const urlsToCache = [
   './taller.html',
   './dashboard.html',
   './db.js',
+  './push-subscribe.js',
 
   './config-aplicar.js',
   './manifest.json',
@@ -168,5 +177,51 @@ self.addEventListener('fetch', event => {
       const ganador = await Promise.race([fetchPromise, timeoutPromise]);
       return ganador || cachedResponse;
     })()
+  );
+});
+
+// ══════════════════════════════════════════════════════════
+// 🆕 PUSH — muestra la notificación aunque la app esté cerrada
+// o el celular bloqueado. La Edge Function "enviar-push" (en
+// Supabase) es quien manda estos mensajes vía Web Push cuando
+// se inserta una fila en "notificaciones_apoyo".
+// ══════════════════════════════════════════════════════════
+self.addEventListener('push', event => {
+  let datos = {};
+  try {
+    datos = event.data ? event.data.json() : {};
+  } catch (e) {
+    datos = { title: 'J.R. Carrozas', body: event.data ? event.data.text() : '' };
+  }
+
+  const titulo = datos.title || 'J.R. Carrozas';
+  const opciones = {
+    body: datos.body || '',
+    tag: (datos.data && datos.data.id) || undefined, // evita duplicar si llega dos veces
+    data: datos.data || {},
+    vibrate: [300, 150, 300],
+    // Si tu manifest.json tiene un ícono propio, puedes descomentar y
+    // ajustar esta ruta para que la notificación lo use:
+    // icon: './icono-192.png',
+    // badge: './icono-96.png',
+  };
+
+  event.waitUntil(self.registration.showNotification(titulo, opciones));
+});
+
+// ── CLIC EN LA NOTIFICACIÓN: abre o enfoca la app en la pantalla útil ──
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const datos = event.notification.data || {};
+  const urlDestino = datos.url || './index.html';
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
+      const archivoDestino = urlDestino.split('/').pop();
+      for (const client of clientList) {
+        if (client.url.includes(archivoDestino) && 'focus' in client) return client.focus();
+      }
+      if (clients.openWindow) return clients.openWindow(urlDestino);
+    })
   );
 });
