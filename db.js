@@ -1,6 +1,6 @@
 /**
  * ══════════════════════════════════════════════════════════
- *  CONECTOR J.R. CARROZAS — db.js  v13.1 (SUPABASE)
+ *  CONECTOR J.R. CARROZAS — db.js  v13.2 (SUPABASE)
  *
  *  🆕 MIGRACIÓN A SUPABASE (Postgres real) — reemplaza a
  *  Google Apps Script + Google Sheets como backend.
@@ -33,7 +33,15 @@
  *    mejora pendiente para más adelante, no un cambio de este
  *    paso.
  *
- *  🆕 v13.1 — NOTIFICACIONES CRUZADAS ENTRE REGIONALES:
+ *  🆕 v13.1 — FOTOS Y FIRMAS A SUPABASE STORAGE:
+ *  - Cualquier foto o firma que llegue en base64 (averías,
+ *    firma de traslado, tirilla de tanqueo, firmas de
+ *    inspección y checklist) se sube sola al bucket "fotos" de
+ *    Supabase Storage antes de guardar la fila, y en la base
+ *    de datos solo queda el link. Si la subida falla, se deja
+ *    el dato original (nunca se pierde información).
+ *
+ *  🆕 v13.2 — NOTIFICACIONES CRUZADAS ENTRE REGIONALES:
  *  - Cuando un traslado sale con destino a una ciudad que
  *    pertenece a OTRA regional activa, se crea automáticamente
  *    una notificación en "notificaciones_apoyo" para esa
@@ -322,10 +330,73 @@ async function gasGet(logico) {
   return out;
 }
 
+// ══════════════════════════════════════════════════════════
+//  FOTOS Y FIRMAS -> SUPABASE STORAGE (bucket "fotos")
+//  Antes cada foto/firma se guardaba como texto base64 DENTRO
+//  de la fila (pesando cientos de KB cada una y llenando la
+//  cuota de 500 MB de la base de datos). Ahora, antes de
+//  guardar cualquier fila, se detecta el campo que trae una
+//  imagen en base64 (data:image/...), se sube como archivo al
+//  Storage (que tiene su propia cuota de 1 GB, aparte) y en la
+//  fila solo queda guardado el link corto a esa foto — igual
+//  de accesible para la app, mucho más liviano.
+// ══════════════════════════════════════════════════════════
+const FOTOS_POR_TABLA = {
+  Traslado:              ['imagen1', 'imagen2', 'imagen3', 'imagen4', 'firma'],
+  Averias:               ['imagen1', 'imagen2', 'imagen3', 'imagen4'],
+  Tanqueo:               ['FOTO_TIRILLA'],
+  Inspeccion_Vehiculo:   ['FIRMA_CONDUCTOR', 'FIRMA_INSPECTOR'],
+  Checklist_Salida:      ['FIRMA_CONDUCTOR'],
+};
+
+function dataUrlABlob(dataUrl) {
+  const partes = dataUrl.split(',');
+  const mimeMatch = partes[0].match(/:(.*?);/);
+  const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+  const binario = atob(partes[1]);
+  let n = binario.length;
+  const bytes = new Uint8Array(n);
+  while (n--) bytes[n] = binario.charCodeAt(n);
+  return new Blob([bytes], { type: mime });
+}
+
+async function subirFoto(campo, dataUrl) {
+  try {
+    const blob = dataUrlABlob(dataUrl);
+    const ext = (blob.type.split('/')[1] || 'jpg').split('+')[0];
+    const nombreArchivo = `${campo}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const { error } = await _sb().storage.from('fotos').upload(nombreArchivo, blob, { contentType: blob.type, upsert: false });
+    if (error) { console.warn(`No se pudo subir "${campo}" a Storage, se deja el dato original:`, error.message); return null; }
+    const { data } = _sb().storage.from('fotos').getPublicUrl(nombreArchivo);
+    return (data && data.publicUrl) || null;
+  } catch (e) {
+    console.warn(`Error subiendo "${campo}" a Storage, se deja el dato original:`, e.message);
+    return null;
+  }
+}
+
+// Reemplaza, dentro de una fila a guardar, cualquier campo de foto/firma
+// que venga en base64 por el link ya subido a Storage. Si algo falla, esa
+// foto en particular se queda tal cual (nunca se pierde el dato).
+async function subirFotosDelPayload(logico, payload) {
+  const campos = FOTOS_POR_TABLA[logico];
+  if (!campos || !payload) return payload;
+  const out = Object.assign({}, payload);
+  await Promise.all(campos.map(async (campo) => {
+    const v = out[campo];
+    if (typeof v === 'string' && v.indexOf('data:') === 0 && v.length > 200) {
+      const url = await subirFoto(campo, v);
+      if (url) out[campo] = url;
+    }
+  }));
+  return out;
+}
+
 async function gasWrite(logico, payload, accion, idCol, idValue) {
   accion = accion || 'insert';
   try {
     const real = tablaReal(logico);
+    payload    = await subirFotosDelPayload(logico, payload);
     const row  = saneaNumericos(real, toDbRow(logico, payload));
     let res;
     if (accion === 'insert') {
@@ -538,6 +609,9 @@ class SupaCompat {
     this._logico = logico;
     this._real   = tablaReal(logico);
     this._q      = _sb().from(this._real).select('*');
+    this._modoAsync = null;        // null | 'insert' | 'update' | 'delete'
+    this._payload = null;          // payload pendiente para insert/update
+    this._filtrosPendientes = [];  // [ [metodo, col, val], ... ] aplicados tras subir fotos
   }
   select(cols) {
     if (cols) {
@@ -546,28 +620,78 @@ class SupaCompat {
     }
     return this;
   }
-  eq(col, val)        { this._q = this._q.eq(colToDb(this._logico, col), val); return this; }
-  is(col, val)         { this._q = this._q.is(colToDb(this._logico, col), val); return this; }
-  ilike(col, pattern) { this._q = this._q.ilike(colToDb(this._logico, col), pattern); return this; }
-  order(col, opts)    { this._q = this._q.order(colToDb(this._logico, col), opts); return this; }
-  limit(n)             { this._q = this._q.limit(n); return this; }
-  single()              { this._q = this._q.single(); return this; }
-  insert(payload) {
-    const arr = Array.isArray(payload) ? payload : [payload];
-    const mapeado = arr.map(p => saneaNumericos(this._real, toDbRow(this._logico, p)));
-    this._q = _sb().from(this._real).insert(mapeado).select();
+  eq(col, val) {
+    if (this._modoAsync) this._filtrosPendientes.push(['eq', col, val]);
+    else this._q = this._q.eq(colToDb(this._logico, col), val);
     return this;
   }
-  update(payload) { this._q = _sb().from(this._real).update(saneaNumericos(this._real, toDbRow(this._logico, payload))); return this; }
-  delete()          { this._q = _sb().from(this._real).delete(); return this; }
+  is(col, val) {
+    if (this._modoAsync) this._filtrosPendientes.push(['is', col, val]);
+    else this._q = this._q.is(colToDb(this._logico, col), val);
+    return this;
+  }
+  ilike(col, pattern) {
+    if (this._modoAsync) this._filtrosPendientes.push(['ilike', col, pattern]);
+    else this._q = this._q.ilike(colToDb(this._logico, col), pattern);
+    return this;
+  }
+  order(col, opts) {
+    if (this._modoAsync) this._filtrosPendientes.push(['order', col, opts]);
+    else this._q = this._q.order(colToDb(this._logico, col), opts);
+    return this;
+  }
+  limit(n) {
+    if (this._modoAsync) this._filtrosPendientes.push(['limit', null, n]);
+    else this._q = this._q.limit(n);
+    return this;
+  }
+  single() {
+    if (this._modoAsync) this._filtrosPendientes.push(['single', null, null]);
+    else this._q = this._q.single();
+    return this;
+  }
+  insert(payload) {
+    this._modoAsync = 'insert';
+    this._payload = Array.isArray(payload) ? payload : [payload];
+    return this;
+  }
+  update(payload) {
+    this._modoAsync = 'update';
+    this._payload = payload;
+    return this;
+  }
+  delete() { this._modoAsync = 'delete'; return this; }
   then(resolve, reject) {
     delete _cache[this._logico];
-    this._q.then(res => {
-      let data = res.data;
-      if (Array.isArray(data)) data = fromDbRows(this._logico, data);
-      else if (data) data = fromDbRow(this._logico, data);
-      resolve({ data, error: res.error ? { message: res.error.message } : null });
-    }).catch(err => resolve({ data: null, error: { message: err.message } }));
+    (async () => {
+      try {
+        let q;
+        if (this._modoAsync === 'insert') {
+          const filas = await Promise.all(this._payload.map(p => subirFotosDelPayload(this._logico, p)));
+          const mapeado = filas.map(p => saneaNumericos(this._real, toDbRow(this._logico, p)));
+          q = _sb().from(this._real).insert(mapeado).select();
+        } else if (this._modoAsync === 'update') {
+          const p = await subirFotosDelPayload(this._logico, this._payload);
+          q = _sb().from(this._real).update(saneaNumericos(this._real, toDbRow(this._logico, p)));
+        } else if (this._modoAsync === 'delete') {
+          q = _sb().from(this._real).delete();
+        } else {
+          q = this._q; // select puro, sin cambios
+        }
+        for (const [metodo, col, val] of this._filtrosPendientes) {
+          if (metodo === 'limit')       q = q.limit(val);
+          else if (metodo === 'single') q = q.single();
+          else                          q = q[metodo](colToDb(this._logico, col), val);
+        }
+        const res = await q;
+        let data = res.data;
+        if (Array.isArray(data)) data = fromDbRows(this._logico, data);
+        else if (data) data = fromDbRow(this._logico, data);
+        resolve({ data, error: res.error ? { message: res.error.message } : null });
+      } catch (err) {
+        resolve({ data: null, error: { message: err.message } });
+      }
+    })();
   }
 }
 class ChannelStub { on() { return this; } subscribe() { return this; } }
