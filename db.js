@@ -317,7 +317,7 @@ function saneaNumericos(real, row) {
 //  PRIMITIVAS GENÉRICAS DE LECTURA/ESCRITURA
 // ══════════════════════════════════════════════════════════
 const _cache = {};       // { logico: { ts, data } }
-const CACHE_TTL = 15000; // 15s — Postgres ya no necesita horas de caché como Apps Script
+const CACHE_TTL = 30000; // 30s — suficiente para absorber refrescos automáticos de 17-30s sin perder actualidad
 
 async function gasGet(logico) {
   const c = _cache[logico];

@@ -36,15 +36,16 @@
 //       plano por si acaso). Así la app abre rápido siempre, con o sin
 //       buena señal.
 
-const CACHE_NAME = 'jr-carrozas-v13';
-// 🆕 v9 — se sube la versión de caché a propósito: index.html tenía un
-// bug de redirección para el rol "coordinador nacional" (apuntaba a
-// "panel_coordinador_nacional.html" pero el archivo real se llamaba
-// "panel _coordinador _nacional.html", CON ESPACIOS — se renombró el
-// archivo para que coincida). Subir CACHE_NAME fuerza a que TODOS los
-// dispositivos, incluidos los que ya tenían la app instalada como PWA,
-// descarten su caché vieja y traigan estos archivos corregidos en el
-// próximo acceso, en vez de seguir sirviendo el index.html anterior.
+const CACHE_NAME = 'jr-carrozas-v14';
+// 🆕 v14 — se sube la versión de caché a propósito: db.js pasó a v13.2
+// (fotos/firmas suben solas a Supabase Storage en vez de guardarse como
+// texto base64 pesado). Sin este cambio de CACHE_NAME, los dispositivos
+// que ya tenían la PWA instalada seguían sirviendo el db.js viejo desde
+// su caché, así que las fotos seguían guardándose pesadas — eso fue lo
+// que disparó el consumo de "Salida" (egress) de Supabase. Subir
+// CACHE_NAME fuerza a que TODOS los dispositivos, incluidos los que ya
+// tenían la app instalada, descarten su caché vieja y traigan el db.js
+// nuevo en el próximo acceso.
 const NETWORK_TIMEOUT_MS = 3000; // si la red no responde en 3s, usar caché
 
 // Lista de archivos para funcionar offline
@@ -68,7 +69,7 @@ const urlsToCache = [
   './flota.html',
   './taller.html',
   './dashboard.html',
-  './db.js',
+  './db.js?v=13.2',
   './push-subscribe.js',
 
   './config-aplicar.js',
