@@ -344,6 +344,25 @@
                 </table>
             </div>
         </div>
+        <div class="monitor">
+            <h2>🏁 Últimas Llegadas</h2>
+            <div class="tabla-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Placa</th>
+                            <th>Hora Ingreso</th>
+                            <th>Total KM</th>
+                            <th>Estado Entrega</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lista-llegadas">
+                        <tr><td colspan="5" style="text-align:center; color:#94a3b8;">Cargando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
     <div>
@@ -351,6 +370,26 @@
             <h2 style="color: var(--rojo);">⚠️ Averías Recientes</h2>
             <div id="lista-averias">
                 <p style="text-align:center; font-size:12px; color:#94a3b8;">Buscando...</p>
+            </div>
+        </div>
+
+        <div class="monitor">
+            <h2>✅ Últimos Checklists de Salida</h2>
+            <div class="tabla-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Placa</th>
+                            <th class="col-modelo">Conductor</th>
+                            <th>Salida / Entrada</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lista-checklist">
+                        <tr><td colspan="5" style="text-align:center; color:#94a3b8;">Cargando...</td></tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -410,7 +449,7 @@
         }
 
         document.getElementById('user-name').innerText = sesion.nombre || "Admin J.R.";
-        await Promise.all([cargarFlota(), cargarTraslados(), cargarAverias(), cargarNotificacionesNacional()]);
+        await Promise.all([cargarFlota(), cargarTraslados(), cargarLlegadas(), cargarChecklists(), cargarAverias(), cargarNotificacionesNacional()]);
 
         // Polling igual que en el panel de coordinador: cada 17s se
         // refresca la campana (backend GAS+Sheets sin websockets).
@@ -646,6 +685,49 @@
         document.getElementById('buscador').value         = '';
         document.getElementById('filtro-regional').value  = '';
         filtrarTabla();
+    }
+
+    async function cargarLlegadas() {
+        const { data } = await DB.obtenerHoja('Llegadas');
+        const tbody = document.getElementById('lista-llegadas');
+        if (data && data.length > 0) {
+            const ordenadas = data.slice().sort((a, b) => String(b.created_at || b.fecha || '').localeCompare(String(a.created_at || a.fecha || '')));
+            tbody.innerHTML = ordenadas.slice(0, 15).map(l => {
+                const estado = (l.estado_entrega || '').trim();
+                const clase  = /orden/i.test(estado) ? 'disp' : (estado ? 'serv' : 'tall');
+                return '<tr>' +
+                    '<td>' + formatearFecha(l.fecha) + '</td>' +
+                    '<td><b>' + (l.placa || '---') + '</b></td>' +
+                    '<td>' + (l.hora_ingreso || '---') + '</td>' +
+                    '<td>' + (l.total_km ? Number(l.total_km).toLocaleString() + ' KM' : '---') + '</td>' +
+                    '<td><span class="status-pill ' + clase + '">● ' + (estado || 'S/E') + '</span></td>' +
+                    '</tr>';
+            }).join('');
+        } else {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Sin llegadas recientes</td></tr>';
+        }
+    }
+
+    async function cargarChecklists() {
+        const { data } = await DB.obtenerHoja('Checklist_Salida');
+        const tbody = document.getElementById('lista-checklist');
+        if (data && data.length > 0) {
+            const ordenadas = data.slice().sort((a, b) => String(b.FECHA || '').localeCompare(String(a.FECHA || '')) || String(b.HORA_SALIDA || '').localeCompare(String(a.HORA_SALIDA || '')));
+            tbody.innerHTML = ordenadas.slice(0, 15).map(c => {
+                const abierto = !c.HORA_ENTRADA || String(c.HORA_ENTRADA).trim() === '';
+                const estado  = (c.ESTADO_VEHICULO || '').trim();
+                const clase   = abierto ? 'serv' : (estado && !/incompleto|sin kit|falta/i.test(estado) ? 'disp' : 'tall');
+                return '<tr>' +
+                    '<td>' + formatearFecha(c.FECHA) + '</td>' +
+                    '<td><b>' + (c.PLACA || '---') + '</b></td>' +
+                    '<td class="col-modelo">' + (c.CONDUCTOR || '---') + '</td>' +
+                    '<td style="font-size:11px;">' + (c.HORA_SALIDA || '---') + ' ➔ ' + (c.HORA_ENTRADA || (abierto ? '<b style="color:var(--rojo)">en ruta</b>' : '---')) + '</td>' +
+                    '<td><span class="status-pill ' + clase + '">● ' + (estado || (abierto ? 'En ruta' : 'S/E')) + '</span></td>' +
+                    '</tr>';
+            }).join('');
+        } else {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Sin checklists recientes</td></tr>';
+        }
     }
 
     async function cargarAverias() {
