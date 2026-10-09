@@ -36,8 +36,11 @@
 //       plano por si acaso). Así la app abre rápido siempre, con o sin
 //       buena señal.
 
-const CACHE_NAME = 'jr-carrozas-v14';
-// 🆕 v14 — se sube la versión de caché a propósito: db.js pasó a v13.2
+const CACHE_NAME = 'jr-carrozas-v15';
+// 🆕 v15 — dashboard.html del admin ahora muestra las Salidas en un modal
+// (10 en 10, con buscador y ventana de detalle), así que se sube la caché
+// para que todos los dispositivos traigan el archivo nuevo de una vez.
+// v14 — se sube la versión de caché a propósito: db.js pasó a v13.2
 // (fotos/firmas suben solas a Supabase Storage en vez de guardarse como
 // texto base64 pesado). Sin este cambio de CACHE_NAME, los dispositivos
 // que ya tenían la PWA instalada seguían sirviendo el db.js viejo desde
