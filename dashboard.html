@@ -232,6 +232,46 @@
             .dashboard-grid { grid-template-columns: 1fr 280px; }
             .grid-menu { grid-template-columns: repeat(4, 1fr); }
         }
+
+        /* ── MODALES: LISTA DE SALIDAS + DETALLE DEL TRASLADO ── */
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.55); z-index: 200; align-items: center; justify-content: center; padding: 15px; }
+        .modal-overlay.abierto { display: flex; }
+        .modal-box { background: var(--blanco); border-radius: 22px; width: 100%; max-width: 720px; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 20px 50px rgba(0,0,0,0.25); overflow: hidden; }
+        .modal-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 16px 20px; border-bottom: 1px solid #eef2f7; }
+        .modal-head h2 { font-size: 15px; color: var(--azul); text-transform: uppercase; letter-spacing: 0.5px; }
+        .modal-acciones { display: flex; align-items: center; gap: 8px; }
+        .modal-cerrar { border: none; background: #f1f5f9; color: var(--gris-texto); width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 15px; font-weight: 700; font-family: inherit; }
+        .modal-cerrar:hover { background: #fee2e2; color: var(--rojo); }
+        .modal-body { padding: 16px 20px 20px; overflow-y: auto; }
+        .btn-nueva { background: var(--azul); color: #fff; text-decoration: none; font-size: 11px; font-weight: 700; padding: 8px 12px; border-radius: 10px; white-space: nowrap; text-transform: uppercase; }
+
+        .salida-item { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid #eef2f7; border-radius: 14px; margin-bottom: 8px; cursor: pointer; transition: 0.15s; background: #fff; }
+        .salida-item:hover { border-color: var(--azul); background: #f8faff; }
+        .salida-placa { font-weight: 800; color: var(--azul); font-size: 14px; min-width: 76px; }
+        .salida-info { flex: 1; min-width: 0; }
+        .salida-info b { display: block; font-size: 13px; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .salida-info small { display: block; font-size: 11px; color: var(--gris-texto); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .salida-lado { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+        .salida-fecha { font-size: 10px; color: var(--gris-texto); white-space: nowrap; }
+        .btn-mas { width: 100%; padding: 11px; margin-top: 6px; border: 1.5px dashed #cbd5e1; background: #f8faff; color: var(--azul); font-weight: 700; font-size: 12px; border-radius: 12px; cursor: pointer; font-family: inherit; }
+        .btn-mas:hover { border-color: var(--azul); }
+        .vacio { text-align: center; color: #94a3b8; font-size: 13px; padding: 25px 0; }
+
+        .det-seccion { margin-bottom: 18px; }
+        .det-seccion h3 { font-size: 11px; color: var(--gris-texto); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px; }
+        .det-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .det-campo { background: #f8faff; border-radius: 12px; padding: 10px 12px; }
+        .det-campo small { display: block; font-size: 10px; color: var(--gris-texto); text-transform: uppercase; font-weight: 700; margin-bottom: 2px; }
+        .det-campo span { font-size: 13px; color: #1e293b; word-break: break-word; }
+        .det-campo.ancho { grid-column: 1 / -1; }
+        .det-fotos { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
+        .det-fotos img { width: 100%; height: 100px; object-fit: cover; border-radius: 12px; border: 1px solid #e2e8f0; cursor: zoom-in; background: #f1f5f9; }
+        .det-fotos img.firma { object-fit: contain; background: #fff; }
+        @media (max-width: 700px) {
+            .det-grid { grid-template-columns: 1fr; }
+            .modal-box { max-height: 94vh; border-radius: 18px; }
+            .salida-lado { flex-direction: row; align-items: center; }
+        }
     </style>
 </head>
 <body>
@@ -264,7 +304,7 @@
 </header>
 
 <div class="grid-menu">
-    <a href="registro_salida.html" class="card"><i>🚚</i><h3>Salidas</h3></a>
+    <a href="#" class="card" onclick="abrirModalSalidas(); return false;"><i>🚚</i><h3>Salidas</h3></a>
     <a href="registro_llegada.html" class="card"><i>🏁</i><h3>Llegadas</h3></a>
     <a href="taller.html" class="card"><i>🔧</i><h3>Taller</h3></a>
     <a href="tanqueo.html" class="card"><i>⛽</i><h3>Tanqueo</h3></a>
@@ -296,54 +336,6 @@
             </div>
         </div>
 
-        <div class="monitor">
-            <h2>📋 Últimas Salidas</h2>
-
-            <!-- ── BUSCADOR ── -->
-            <div class="buscador-wrap">
-                <input
-                    type="text"
-                    class="buscador-input"
-                    id="buscador"
-                    placeholder="Buscar por placa, conductor, ruta..."
-                    oninput="filtrarTabla()"
-                >
-                <select class="filtro-select" id="filtro-regional" onchange="filtrarTabla()">
-                    <option value="">Todas las regionales</option>
-                    <option value="Quindio">Quindío</option>
-                    <option value="Risaralda">Risaralda</option>
-                    <option value="Antioquia">Antioquia</option>
-                    <option value="Caldas">Caldas</option>
-                    <option value="Valle Norte">Valle Norte</option>
-                    <option value="Valle Centro">Valle Centro</option>
-                    <option value="Valle Sur">Valle Sur</option>
-                    <option value="C/ Marca">Cundinamarca</option>
-                    <option value="Tolima Norte">Tolima Norte</option>
-                    <option value="Palmira">Palmira</option>
-                    <option value="Pereira">Pereira</option>
-                    <option value="Armenia">Armenia</option>
-                </select>
-                <button class="btn-limpiar" onclick="limpiarBusqueda()">✕ Limpiar</button>
-            </div>
-            <div class="resultados-info" id="resultados-info" style="display:none;"></div>
-
-            <div class="tabla-wrap">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Fecha</th>
-                            <th>Placa</th>
-                            <th class="col-modelo">Fallecido</th>
-                            <th>Ruta</th>
-                            <th>WA</th>
-                        </tr>
-                    </thead>
-                    <tbody id="lista-traslados">
-                        <tr><td colspan="5" style="text-align:center; color:#94a3b8;">Cargando...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
         <div class="monitor">
             <h2>🏁 Últimas Llegadas</h2>
             <div class="tabla-wrap">
@@ -397,6 +389,50 @@
 
 <script src="db.js?v=13.2"></script>
 <script src="push-subscribe.js"></script>
+<!-- ══ MODAL: LISTA DE SALIDAS ══ -->
+<div class="modal-overlay" id="modal-salidas" onclick="if(event.target===this)cerrarModalSalidas()">
+    <div class="modal-box">
+        <div class="modal-head">
+            <h2>📋 Salidas</h2>
+            <div class="modal-acciones">
+                <a href="registro_salida.html" class="btn-nueva">➕ Nueva salida</a>
+                <button class="modal-cerrar" onclick="cerrarModalSalidas()" aria-label="Cerrar">✕</button>
+            </div>
+        </div>
+        <div class="modal-body">
+            <div class="buscador-wrap">
+                <input type="text" class="buscador-input" id="buscador" placeholder="Buscar por placa, conductor, fallecido, ruta, fecha..." oninput="filtrarSalidas()">
+                <select class="filtro-select" id="filtro-regional" onchange="filtrarSalidas()">
+                    <option value="">Todas las regionales</option>
+                </select>
+                <button class="btn-limpiar" onclick="limpiarBusqueda()">✕ Limpiar</button>
+            </div>
+            <div class="resultados-info" id="resultados-info"></div>
+            <div id="lista-salidas-modal"></div>
+            <button class="btn-mas" id="btn-mas-salidas" onclick="verMasSalidas()" style="display:none;">Ver 10 más</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══ MODAL: DETALLE DE UN TRASLADO ══ -->
+<div class="modal-overlay" id="modal-detalle" style="z-index:250;" onclick="if(event.target===this)cerrarDetalle()">
+    <div class="modal-box">
+        <div class="modal-head">
+            <h2 id="det-titulo">Detalle de la salida</h2>
+            <div class="modal-acciones">
+                <button class="btn-wa" onclick="enviarWASalida(DETALLE_ACTUAL)">WA</button>
+                <button class="modal-cerrar" onclick="cerrarDetalle()" aria-label="Cerrar">✕</button>
+            </div>
+        </div>
+        <div class="modal-body" id="det-body"></div>
+    </div>
+</div>
+
+<!-- ══ VISOR DE FOTOS ══ -->
+<div class="modal-overlay" id="lightbox" style="z-index:300; background:rgba(0,0,0,0.88);" onclick="cerrarLightbox()">
+    <img id="lightbox-img" alt="Foto" style="max-width:96vw; max-height:92vh; border-radius:12px; background:#fff;">
+</div>
+
 <script>
     const norm = s => String(s || '').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 
@@ -449,7 +485,7 @@
         }
 
         document.getElementById('user-name').innerText = sesion.nombre || "Admin J.R.";
-        await Promise.all([cargarFlota(), cargarTraslados(), cargarLlegadas(), cargarChecklists(), cargarAverias(), cargarNotificacionesNacional()]);
+        await Promise.all([cargarFlota(), cargarLlegadas(), cargarChecklists(), cargarAverias(), cargarNotificacionesNacional()]);
 
         // Polling igual que en el panel de coordinador: cada 17s se
         // refresca la campana (backend GAS+Sheets sin websockets).
@@ -612,80 +648,199 @@
         }
     }
 
-    async function cargarTraslados() {
-        const { data } = await DB.obtenerTrasladosRecientes();
-        const tbody = document.getElementById('lista-traslados');
-        if (data && data.length > 0) {
-            tbody.innerHTML = data.map(t => {
-                const safeJson = JSON.stringify(t).replace(/"/g, '&quot;');
-                const fechaFormateada = formatearFecha(t.fecha);
-                // Guardar datos de búsqueda en atributos data-*
-                return '<tr' +
-                    ' data-placa="' + norm(t.placa) + '"' +
-                    ' data-conductor="' + norm(t.conductor) + '"' +
-                    ' data-fallecido="' + norm(t.nombre_del_fallecido) + '"' +
-                    ' data-origen="' + norm(t.origen) + '"' +
-                    ' data-destino="' + norm(t.destino) + '"' +
-                    ' data-regional="' + norm(t.regional) + '"' +
-                    ' data-fecha="' + norm(fechaFormateada) + '"' +
-                    '>' +
-                    '<td>' + fechaFormateada + '</td>' +
-                    '<td><b>' + (t.placa || '---') + '</b></td>' +
-                    '<td class="col-modelo">' + (t.nombre_del_fallecido || '---') + '</td>' +
-                    '<td style="font-size:11px;">' + (t.origen || '---') + ' ➔ ' + (t.destino || '---') + '</td>' +
-                    '<td><button class="btn-wa" data-json="' + safeJson + '" onclick="reenviarWhatsApp(this)">WA</button></td>' +
-                    '</tr>';
-            }).join('');
-        } else {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Sin salidas recientes</td></tr>';
-        }
+    // ══════════════════════════════════════════════
+    // MODAL DE SALIDAS: se carga solo al abrirlo (así no se
+    // descarga la tabla de traslados cada vez que se abre el panel).
+    // Muestra las 10 más recientes; el buscador filtra sobre todas
+    // las cargadas y "Ver 10 más" va ampliando la lista.
+    // ══════════════════════════════════════════════
+    let TRASLADOS = [];
+    let SALIDAS_FILTRADAS = [];
+    let SALIDAS_VISIBLES = 10;
+    const PASO_SALIDAS = 10;
+    let DETALLE_ACTUAL = null;
+
+    function esc(v) {
+        return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+    function formatearHora(v) {
+        if (!v) return '---';
+        const s = String(v);
+        if (/^\d{1,2}:\d{2}/.test(s)) return s.substring(0, 5);
+        const d = new Date(s);
+        if (isNaN(d.getTime())) return s;
+        return d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
+    }
+    function formatearKm(v) {
+        if (v === '' || v == null) return '---';
+        const n = Number(v);
+        return isNaN(n) ? esc(v) : n.toLocaleString('es-CO') + ' km';
     }
 
-    // ── FILTRAR TABLA ──────────────────────────────────
-    function filtrarTabla() {
-        const texto     = norm(document.getElementById('buscador').value);
-        const regional  = norm(document.getElementById('filtro-regional').value);
-        const filas     = document.querySelectorAll('#lista-traslados tr');
-        let visibles    = 0;
+    async function abrirModalSalidas() {
+        document.getElementById('modal-salidas').classList.add('abierto');
+        document.body.style.overflow = 'hidden';
+        if (!TRASLADOS.length) {
+            document.getElementById('lista-salidas-modal').innerHTML = '<p class="vacio">Cargando salidas...</p>';
+        }
+        try {
+            const res = await DB.obtenerTrasladosRecientes(500);
+            TRASLADOS = res.data || [];
+        } catch (e) { TRASLADOS = []; }
+        poblarRegionales();
+        filtrarSalidas();
+    }
+    function cerrarModalSalidas() {
+        document.getElementById('modal-salidas').classList.remove('abierto');
+        if (!document.getElementById('modal-detalle').classList.contains('abierto')) document.body.style.overflow = '';
+    }
 
-        filas.forEach(fila => {
-            if (!fila.dataset.placa) return; // fila de "Sin salidas"
+    function poblarRegionales() {
+        const sel = document.getElementById('filtro-regional');
+        const actual = sel.value;
+        const regs = [...new Set(TRASLADOS.map(t => String(t.regional || '').trim()).filter(Boolean))]
+            .sort((a, b) => a.localeCompare(b));
+        sel.innerHTML = '<option value="">Todas las regionales</option>' +
+            regs.map(r => '<option value="' + esc(r) + '">' + esc(r) + '</option>').join('');
+        sel.value = regs.includes(actual) ? actual : '';
+    }
 
-            const coincideTexto = !texto || (
-                fila.dataset.placa.includes(texto) ||
-                fila.dataset.conductor.includes(texto) ||
-                fila.dataset.fallecido.includes(texto) ||
-                fila.dataset.origen.includes(texto) ||
-                fila.dataset.destino.includes(texto) ||
-                fila.dataset.fecha.includes(texto)
-            );
-
-            const coincideRegional = !regional || fila.dataset.regional.includes(regional);
-
-            if (coincideTexto && coincideRegional) {
-                fila.classList.remove('fila-oculta');
-                visibles++;
-            } else {
-                fila.classList.add('fila-oculta');
-            }
+    function filtrarSalidas() {
+        const texto    = norm(document.getElementById('buscador').value);
+        const regional = norm(document.getElementById('filtro-regional').value);
+        SALIDAS_FILTRADAS = TRASLADOS.filter(t => {
+            const okTexto = !texto || [
+                t.placa, t.conductor, t.nombre_del_fallecido, t.origen, t.destino,
+                t.motivo_de_salida, t.id_salida, formatearFecha(t.fecha)
+            ].some(v => norm(v).includes(texto));
+            const okRegional = !regional || norm(t.regional) === regional;
+            return okTexto && okRegional;
         });
-
-        // Mostrar contador
-        const infoEl = document.getElementById('resultados-info');
-        if (texto || regional) {
-            infoEl.style.display = 'block';
-            infoEl.textContent   = visibles + ' resultado' + (visibles !== 1 ? 's' : '') + ' encontrado' + (visibles !== 1 ? 's' : '');
-            infoEl.style.color   = visibles === 0 ? '#ef4444' : '#64748b';
-        } else {
-            infoEl.style.display = 'none';
-        }
+        SALIDAS_VISIBLES = PASO_SALIDAS;
+        renderSalidas();
     }
+
+    function renderSalidas() {
+        const cont = document.getElementById('lista-salidas-modal');
+        const info = document.getElementById('resultados-info');
+        const btnMas = document.getElementById('btn-mas-salidas');
+        const total = SALIDAS_FILTRADAS.length;
+        const visibles = SALIDAS_FILTRADAS.slice(0, SALIDAS_VISIBLES);
+
+        if (!total) {
+            cont.innerHTML = '<p class="vacio">No hay salidas que coincidan 🔍</p>';
+            info.textContent = '';
+            btnMas.style.display = 'none';
+            return;
+        }
+        cont.innerHTML = visibles.map((t, i) =>
+            '<div class="salida-item" onclick="abrirDetalle(' + i + ')">' +
+                '<div class="salida-placa">' + esc(t.placa || '---') + '</div>' +
+                '<div class="salida-info">' +
+                    '<b>' + esc(t.nombre_del_fallecido || t.motivo_de_salida || 'Sin nombre') + '</b>' +
+                    '<small>' + esc(t.origen || '---') + ' ➔ ' + esc(t.destino || '---') + ' · ' + esc(t.conductor || '---') + '</small>' +
+                '</div>' +
+                '<div class="salida-lado">' +
+                    '<span class="salida-fecha">' + esc(formatearFecha(t.fecha)) + '<br>' + esc(formatearHora(t.hora_de_salida)) + '</span>' +
+                    '<button class="btn-wa" onclick="event.stopPropagation(); enviarWASalida(SALIDAS_FILTRADAS[' + i + '])">WA</button>' +
+                '</div>' +
+            '</div>'
+        ).join('');
+
+        info.textContent = 'Mostrando ' + visibles.length + ' de ' + total + (total !== 1 ? ' salidas' : ' salida');
+        const restantes = total - visibles.length;
+        btnMas.style.display = restantes > 0 ? 'block' : 'none';
+        btnMas.textContent = 'Ver ' + Math.min(PASO_SALIDAS, restantes) + ' más (' + restantes + ' restantes)';
+    }
+    function verMasSalidas() { SALIDAS_VISIBLES += PASO_SALIDAS; renderSalidas(); }
 
     function limpiarBusqueda() {
-        document.getElementById('buscador').value         = '';
-        document.getElementById('filtro-regional').value  = '';
-        filtrarTabla();
+        document.getElementById('buscador').value = '';
+        document.getElementById('filtro-regional').value = '';
+        filtrarSalidas();
     }
+
+    // ── DETALLE COMPLETO DE UN TRASLADO ──
+    function abrirDetalle(i) {
+        const t = SALIDAS_FILTRADAS[i];
+        if (!t) return;
+        DETALLE_ACTUAL = t;
+
+        const campo = (label, valor, ancho) =>
+            '<div class="det-campo' + (ancho ? ' ancho' : '') + '"><small>' + label + '</small><span>' +
+            (valor === '' || valor == null ? '---' : valor) + '</span></div>';
+
+        const enRuta = !String(t.hora_de_ingreso || '').trim();
+        const estado = enRuta
+            ? '<span class="status-pill serv">● En ruta</span>'
+            : '<span class="status-pill disp">● Completado</span>';
+
+        const kits = { 'completo': '✅ Completo', 'incompleto': '⚠️ Incompleto', 'no-tiene': '🚫 Sin kit' };
+        const kit = kits[t.kit_carretera] || esc(t.kit_carretera);
+
+        const fotos = [['imagen1', 'Foto 1'], ['imagen2', 'Foto 2'], ['imagen3', 'Foto 3'], ['imagen4', 'Foto 4'], ['firma', 'Firma']]
+            .filter(([k]) => /^(https?:|data:image)/.test(String(t[k] || '')))
+            .map(([k, nombre]) => '<img src="' + esc(t[k]) + '" alt="' + nombre + '" class="' + (k === 'firma' ? 'firma' : '') + '" onclick="abrirLightbox(this.src)">')
+            .join('');
+
+        document.getElementById('det-titulo').textContent = '🚗 ' + (t.placa || 'Salida') + ' · ' + formatearFecha(t.fecha);
+        document.getElementById('det-body').innerHTML =
+            '<div class="det-seccion"><h3>Estado</h3><div class="det-grid">' +
+                campo('Estado del servicio', estado) +
+                campo('ID de salida', esc(t.id_salida)) +
+            '</div></div>' +
+
+            '<div class="det-seccion"><h3>Servicio</h3><div class="det-grid">' +
+                campo('Motivo', esc(t.motivo_de_salida)) +
+                campo('N° prestación', esc(t.numero_prestacion)) +
+                campo('Fallecido', esc(t.nombre_del_fallecido), true) +
+                campo('Lugar de recogida', esc(t.clinica_hospital_o_rsd), true) +
+                campo('Origen', esc(t.origen)) +
+                campo('Destino', esc(t.destino)) +
+            '</div></div>' +
+
+            '<div class="det-seccion"><h3>Responsables</h3><div class="det-grid">' +
+                campo('Regional', esc(t.regional)) +
+                campo('Coordinador en turno', esc(t.coordinador_en_turno)) +
+                campo('Conductor', esc(t.conductor)) +
+                campo('Teléfono', esc(t.nnum_telefono)) +
+            '</div></div>' +
+
+            '<div class="det-seccion"><h3>Vehículo, kilometraje y horas</h3><div class="det-grid">' +
+                campo('Placa', '<b>' + esc(t.placa) + '</b>') +
+                campo('Kit de carretera', kit) +
+                campo('Hora de salida', esc(formatearHora(t.hora_de_salida))) +
+                campo('Hora de ingreso', t.hora_de_ingreso ? esc(formatearHora(t.hora_de_ingreso)) : '<i style="color:#f97316">Aún no regresa</i>') +
+                campo('KM salida', formatearKm(t.km__salida)) +
+                campo('KM ingreso', formatearKm(t.km__ingreso)) +
+                campo('Total recorrido', formatearKm(t.total_km), true) +
+            '</div></div>' +
+
+            '<div class="det-seccion"><h3>Observaciones</h3><div class="det-grid">' +
+                campo('', esc(t.observaciones || 'Sin novedades'), true) +
+            '</div></div>' +
+
+            (fotos ? '<div class="det-seccion"><h3>Fotos y firma</h3><div class="det-fotos">' + fotos + '</div></div>' : '');
+
+        document.getElementById('modal-detalle').classList.add('abierto');
+        document.body.style.overflow = 'hidden';
+    }
+    function cerrarDetalle() {
+        document.getElementById('modal-detalle').classList.remove('abierto');
+        if (!document.getElementById('modal-salidas').classList.contains('abierto')) document.body.style.overflow = '';
+    }
+    function abrirLightbox(src) {
+        document.getElementById('lightbox-img').src = src;
+        document.getElementById('lightbox').classList.add('abierto');
+    }
+    function cerrarLightbox() { document.getElementById('lightbox').classList.remove('abierto'); }
+
+    document.addEventListener('keydown', e => {
+        if (e.key !== 'Escape') return;
+        if (document.getElementById('lightbox').classList.contains('abierto')) cerrarLightbox();
+        else if (document.getElementById('modal-detalle').classList.contains('abierto')) cerrarDetalle();
+        else if (document.getElementById('modal-salidas').classList.contains('abierto')) cerrarModalSalidas();
+    });
 
     async function cargarLlegadas() {
         const { data } = await DB.obtenerHoja('Llegadas');
@@ -754,29 +909,40 @@
         }
     }
 
-    function reenviarWhatsApp(btn) {
-        const d = JSON.parse(btn.getAttribute('data-json'));
+    // Mismo formato de mensaje que registro_salida.html y mis_salidas.html
+    function enviarWASalida(t) {
+        if (!t) return;
         const hora = new Date().getHours();
-        const saludo = hora < 12 ? "Buenos días ☀️" : hora < 18 ? "Buenas tardes 🌤️" : "Buenas noches 🌙";
-        const mensaje = saludo + "\n\n" +
-            "📢 *Reporte de Salida De Carroza*\n\n" +
-            "📍 *Regional:* "      + (d.regional              || '---') + "\n" +
-            "📅 *Fecha:* "         + formatearFecha(d.fecha) + "\n" +
-            "👤 *Coordinador:* "   + (d.coordinador_en_turno  || '---') + "\n" +
-            "🕒 *Hora De Salida:* "+ (d.hora_de_salida        || '---') + "\n" +
-            "🚗 *Placa:* "         + (d.placa                 || '---') + "\n" +
-            "❓ *Motivo:* "        + (d.motivo_de_salida      || '---') + "\n" +
-            "⚱️ *Fallecido:* "     + (d.nombre_del_fallecido  || '---') + "\n" +
-            "🏥 *Recogida:* "      + (d.clinica_hospital_o_rsd|| '---') + "\n" +
-            "🚩 *Origen:* "        + (d.origen                || '---') + "\n" +
-            "🏁 *Destino:* "       + (d.destino               || '---') + "\n" +
-            "📊 *KM Salida:* "     + (d.km__salida            || '---') + "\n" +
-            "📊 *KM Ingreso:* "    + (d.km__ingreso           || '---') + "\n" +
-            "👨🏻‍✈️ *Conductor:* "    + (d.conductor             || '---') + "\n" +
-            "📞 *Teléfono:* "      + (d.nnum_telefono         || '---') + "\n" +
-            "📝 *Observaciones:* " + (d.observaciones         || 'Sin novedades') + "\n\n" +
-            "✅ *La Carroza se Encuentra:* Todo En Orden 👍🏻";
-        window.open("https://wa.me/?text=" + encodeURIComponent(mensaje), '_blank');
+        const saludo = hora < 12 ? "*Buenos Días* ☀️" : hora < 18 ? "*Buenas Tardes* 🌤️" : "*Buenas Noches* 🌙";
+
+        let estadoCarroza = "✅ Todo En Orden";
+        if (t.kit_carretera === 'incompleto') estadoCarroza = "⚠️ Pendientes en Kit";
+        else if (t.kit_carretera === 'no-tiene') estadoCarroza = "🚨 Sin Kit de Carretera";
+
+        const msg = saludo + "\n\n" +
+            "*REPORTE DE SALIDA DE CARROZA* 🚗💨\n" +
+            "───────────────────\n" +
+            "*Regional:* "      + (t.regional || '---') + "\n" +
+            "*Fecha:* "         + formatearFecha(t.fecha) + "\n" +
+            "*Coordinador:* "   + (t.coordinador_en_turno || '---') + "\n" +
+            "*Hora Salida:* "   + formatearHora(t.hora_de_salida) + "\n" +
+            "*Placa:* "         + (t.placa || '---') + "\n" +
+            "*Motivo:* "        + (t.motivo_de_salida || '---') + "\n" +
+            "*Fallecido:* "     + (t.nombre_del_fallecido || '---') + "\n" +
+            "*Recogida:* "      + (t.clinica_hospital_o_rsd || '---') + "\n" +
+            "*Origen:* "        + (t.origen || '---') + "\n" +
+            "*Destino:* "       + (t.destino || '---') + "\n" +
+            "*KM Salida:* "     + (t.km__salida || '---') + "\n" +
+            "*Kit Carretera:* " + (t.kit_carretera || '---') + "\n" +
+            "*Conductor:* "     + (t.conductor || '---') + "\n" +
+            "*Teléfono:* "      + (t.nnum_telefono || '---') + "\n" +
+            "───────────────────\n" +
+            "*📝 Observaciones:* " + (t.observaciones || 'Sin novedades') + "\n\n" +
+            "*Estado del Vehículo:* " + estadoCarroza;
+
+        const esMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
+        const url = (esMobile ? "https://wa.me/" : "https://web.whatsapp.com/send") + "?text=" + encodeURIComponent(msg);
+        window.open(url, '_blank');
     }
 
     function cerrarSesion() {
