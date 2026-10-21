@@ -36,7 +36,11 @@
 //       plano por si acaso). Así la app abre rápido siempre, con o sin
 //       buena señal.
 
-const CACHE_NAME = 'jr-carrozas-v15';
+const CACHE_NAME = 'jr-carrozas-v16';
+// 🆕 v16 — db.js suma la herramienta de migración base64->Storage y los paneles
+// refrescan cada 3 min (solo con la pestaña visible) para bajar el egress de
+// Supabase. Se sube CACHE_NAME para que los celulares con la PWA instalada
+// descarten el db.js y los paneles viejos de su caché.
 // 🆕 v15 — dashboard.html del admin ahora muestra las Salidas en un modal
 // (10 en 10, con buscador y ventana de detalle), así que se sube la caché
 // para que todos los dispositivos traigan el archivo nuevo de una vez.

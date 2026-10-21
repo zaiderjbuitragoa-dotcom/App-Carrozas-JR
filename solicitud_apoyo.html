@@ -226,7 +226,7 @@ window.onload = async function() {
     document.getElementById('sub-info').textContent = sesion.nombre + ' · ' + regional;
 
     await cargar();
-    setInterval(cargar, 30000);
+    setInterval(function () { if (!document.hidden) cargar(); }, 30000);
 };
 
 // 🔧 FIX: se envuelve sesion.usuario y sesion.rol con String(...) antes de

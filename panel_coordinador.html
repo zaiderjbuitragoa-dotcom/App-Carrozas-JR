@@ -442,7 +442,7 @@
         // depender de un canal en vivo — así el coordinador ve nuevas
         // alertas y ve desaparecer las que ya se resolvieron, sin
         // recargar la página.
-        intervaloCampana = setInterval(cargarNotificacionesRegional, 17000);
+        intervaloCampana = setInterval(function () { if (!document.hidden) cargarNotificacionesRegional(); }, 17000);
     };
 
     // ══════════════════════════════════════════════

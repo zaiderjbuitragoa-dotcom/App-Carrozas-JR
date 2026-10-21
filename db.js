@@ -1432,6 +1432,73 @@ const DB = {
     return res;
   },
 
+  // ══════════════════════════════════════════════════════════
+  //  MIGRACIÓN ÚNICA: imágenes/firmas guardadas como base64 DENTRO
+  //  de las tablas  ->  archivos en Supabase Storage (bucket "fotos").
+  //
+  //  Por qué: unas pocas filas viejas pesan cientos de KB cada una y
+  //  viajan completas en cada consulta (select '*'), disparando el
+  //  egress. Tras migrarlas, en la fila solo queda el link corto.
+  //
+  //  Seguridad: por defecto SOLO SIMULA (dryRun). Al migrar, cada
+  //  foto se sube, se verifica que el link responda, y solo entonces
+  //  se reemplaza el base64 en la fila. Si algo falla, el dato
+  //  original se deja intacto. Nunca se borra nada.
+  // ══════════════════════════════════════════════════════════
+  async migrarBase64AStorage(opts) {
+    opts = opts || {};
+    const dryRun = opts.dryRun !== false;
+    const log = typeof opts.onLog === 'function' ? opts.onLog : function () {};
+    const TARGETS = [
+      { real: 'traslado',            pk: 'id_salida', campos: { imagen1: 'imagen1', imagen2: 'imagen2', imagen3: 'imagen3', imagen4: 'imagen4', firma: 'firma' } },
+      { real: 'checklist_salida',    pk: 'id',        campos: { firma_conductor: 'FIRMA_CONDUCTOR' } },
+      { real: 'averias',             pk: 'id',        campos: { imagen1: 'imagen1', imagen2: 'imagen2', imagen3: 'imagen3', imagen4: 'imagen4' } },
+      { real: 'tanqueo',             pk: 'id',        campos: { foto_tirilla: 'FOTO_TIRILLA' } },
+      { real: 'inspeccion_vehiculo', pk: 'id',        campos: { firma_conductor: 'FIRMA_CONDUCTOR', firma_inspector: 'FIRMA_INSPECTOR' } },
+    ];
+    const resumen = [];
+    for (const t of TARGETS) {
+      const cols = Object.keys(t.campos);
+      const r = { tabla: t.real, pendientes: 0, fotosMigradas: 0, fotosFallidas: 0 };
+      resumen.push(r);
+      // Solo se piden los IDs de las filas que aún tienen base64 (liviano).
+      const filtro = cols.map(c => c + '.like.data:*').join(',');
+      const { data: pend, error } = await _sb().from(t.real).select(t.pk).or(filtro);
+      if (error) { log('❌ ' + t.real + ': no se pudo consultar (' + error.message + ')'); r.error = error.message; continue; }
+      r.pendientes = (pend || []).length;
+      log((r.pendientes ? '📦 ' : '✅ ') + t.real + ': ' + r.pendientes + ' fila(s) con imágenes en base64');
+      if (dryRun || !r.pendientes) continue;
+
+      for (const p of pend) {
+        const id = p[t.pk];
+        try {
+          const { data: fila, error: e1 } = await _sb().from(t.real).select([t.pk].concat(cols).join(',')).eq(t.pk, id).single();
+          if (e1) throw new Error(e1.message);
+          const cambios = {};
+          for (const col of cols) {
+            const v = fila[col];
+            if (typeof v !== 'string' || v.indexOf('data:') !== 0 || v.length <= 200) continue;
+            const url = await subirFoto(t.campos[col], v);
+            let ok = false;
+            if (url) { try { ok = (await fetch(url, { method: 'HEAD' })).ok; } catch (_) { ok = false; } }
+            if (ok) cambios[col] = url; else { r.fotosFallidas++; log('⚠️ ' + t.real + ' ' + id + ' · ' + col + ': no se pudo verificar la subida; se deja intacto'); }
+          }
+          const n = Object.keys(cambios).length;
+          if (!n) continue;
+          const { data: upd, error: e2 } = await _sb().from(t.real).update(cambios).eq(t.pk, id).select(t.pk);
+          if (e2 || !upd || !upd.length) throw new Error(e2 ? e2.message : 'la fila no se actualizó (revisa permisos RLS)');
+          r.fotosMigradas += n;
+          log('   ✔ ' + t.real + ' ' + id + ': ' + n + ' imagen(es) migrada(s)');
+        } catch (e) {
+          r.fotosFallidas++;
+          log('❌ ' + t.real + ' ' + id + ': ' + e.message + ' (dato original intacto)');
+        }
+      }
+    }
+    if (!dryRun) DB.limpiarCacheCompleto();
+    return { dryRun: dryRun, tablas: resumen };
+  },
+
 };
 
 window.DB = DB;

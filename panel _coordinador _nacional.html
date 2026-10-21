@@ -572,7 +572,17 @@ window.onload = async () => {
         document.getElementById('fleetList').innerHTML = '<div class="fleet-empty">No se pudo conectar con la hoja. Verifica que db.js esté en la misma carpeta.</div>';
     }
 
-    setInterval(refrescarTodo, 60000);
+    // Auto-refresco: cada 3 min y SOLO si la pestaña está visible (antes: cada 60 s
+    // descargando 7-8 tablas completas aunque nadie estuviera mirando la pantalla).
+    let _ultimoRefresco = Date.now();
+    const _refrescarSiToca = () => {
+        if (document.hidden) return;
+        if (Date.now() - _ultimoRefresco < 170000) return;
+        _ultimoRefresco = Date.now();
+        refrescarTodo();
+    };
+    setInterval(_refrescarSiToca, 60000);
+    document.addEventListener('visibilitychange', _refrescarSiToca);
 };
 
 function tickClock(){

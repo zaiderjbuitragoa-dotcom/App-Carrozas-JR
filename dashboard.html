@@ -489,7 +489,7 @@
 
         // Polling igual que en el panel de coordinador: cada 17s se
         // refresca la campana (backend GAS+Sheets sin websockets).
-        intervaloCampana = setInterval(cargarNotificacionesNacional, 17000);
+        intervaloCampana = setInterval(function () { if (!document.hidden) cargarNotificacionesNacional(); }, 17000);
     };
 
     // ══════════════════════════════════════════════

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Migración única · imágenes a Storage</title>
+<script src="db.js"></script>
+<style>
+  body{font-family:system-ui,Arial,sans-serif;background:#f1f5f9;color:#0f172a;margin:0;padding:24px;}
+  .card{max-width:720px;margin:0 auto;background:#fff;border-radius:14px;padding:24px;box-shadow:0 2px 12px rgba(0,0,0,.08);}
+  h1{font-size:20px;margin:0 0 6px;}
+  p{font-size:14px;line-height:1.5;color:#475569;}
+  button{font-size:14px;font-weight:700;border:0;border-radius:10px;padding:12px 18px;cursor:pointer;margin:6px 8px 6px 0;}
+  #btnSim{background:#e2e8f0;color:#0f172a;} #btnMig{background:#16a34a;color:#fff;}
+  button:disabled{opacity:.5;cursor:not-allowed;}
+  pre{background:#0f172a;color:#e2e8f0;border-radius:10px;padding:14px;font-size:12.5px;min-height:140px;max-height:380px;overflow:auto;white-space:pre-wrap;}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>📦 Migración única: imágenes viejas a Storage</h1>
+  <p>Algunas salidas y checklists antiguos guardan fotos y firmas como texto (base64) dentro de la tabla, y viajan completas en cada consulta. Esta herramienta las pasa al Storage y deja solo el link corto.
+  Es segura: primero <b>simula</b>; al migrar, verifica cada subida antes de reemplazar y <b>nunca borra</b> nada. Puedes ejecutarla más de una vez.</p>
+  <button id="btnSim">1) Simular (no cambia nada)</button>
+  <button id="btnMig" disabled>2) Migrar ahora</button>
+  <pre id="log">Pulsa "Simular" para ver cuántas filas tienen imágenes en base64.</pre>
+  <p><small>Cuando termines, puedes eliminar este archivo del repositorio.</small></p>
+</div>
+<script>
+  const logEl = document.getElementById('log');
+  const btnSim = document.getElementById('btnSim');
+  const btnMig = document.getElementById('btnMig');
+  function pintar(m){ logEl.textContent += '\n' + m; logEl.scrollTop = logEl.scrollHeight; }
+  async function correr(dryRun){
+    btnSim.disabled = true; btnMig.disabled = true;
+    logEl.textContent = dryRun ? 'Simulando…' : 'Migrando… no cierres esta pestaña.';
+    try {
+      const res = await DB.migrarBase64AStorage({ dryRun: dryRun, onLog: pintar });
+      const pend = res.tablas.reduce((a, t) => a + t.pendientes, 0);
+      const ok   = res.tablas.reduce((a, t) => a + t.fotosMigradas, 0);
+      const mal  = res.tablas.reduce((a, t) => a + t.fotosFallidas, 0);
+      if (dryRun) {
+        pintar('\nResultado: ' + pend + ' fila(s) por migrar.');
+        btnMig.disabled = pend === 0;
+        if (!pend) pintar('No hay nada que migrar. ✅');
+      } else {
+        pintar('\n✅ Terminado: ' + ok + ' imagen(es) migrada(s), ' + mal + ' con problema (intactas).');
+        btnMig.disabled = true;
+      }
+    } catch (e) {
+      pintar('❌ Error: ' + e.message);
+    }
+    btnSim.disabled = false;
+  }
+  btnSim.onclick = () => correr(true);
+  btnMig.onclick = () => { if (confirm('¿Migrar las imágenes en base64 a Storage ahora?')) correr(false); };
+</script>
+</body>
+</html>
