@@ -255,7 +255,7 @@ input:focus, select:focus { border-color: var(--azul); background: white; }
         <span id="logo-texto">JR</span>
         <div class="logo-hint">✏️ Cambiar<br>logo</div>
     </div>
-    
+
     <h2 id="saludo-dinamico">Bienvenido</h2>
     <span class="txt-bienvenida">Bienvenido a la App Salida de carrozas</span>
 
@@ -430,6 +430,36 @@ input:focus, select:focus { border-color: var(--azul); background: white; }
 <script>
 const norm = s => String(s || '').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 
+// ══════════════════════════════════════════════════════════
+//  DESTINOS POR ROL
+//  👉 Si tu panel del Gestor de Flotas se llama distinto,
+//     cambia SOLO esta línea.
+// ══════════════════════════════════════════════════════════
+const PANEL_ADMIN          = 'dashboard.html';
+const PANEL_GESTOR_FLOTA   = 'panel_automotor.html';
+const PANEL_COORDINADOR    = 'panel_coordinador.html';
+const PANEL_CONDUCTOR      = 'panel_conductor.html';
+
+// Decide a qué pantalla va cada usuario. Normaliza mayúsculas, tildes,
+// guiones bajos y espacios, así "Gestor de Flotas JR", "gestor_flota",
+// "GESTOR FLOTA JR", etc. llegan al mismo destino.
+function rutaPorRol(rolCrudo, usuarioCrudo) {
+    const rol = norm(rolCrudo).replace(/[_\-]+/g, ' ').replace(/\s+/g, ' ').trim();
+    const usr = norm(usuarioCrudo);
+
+    if (rol === 'admin' || rol === 'administrador' || usr === 'admin') return PANEL_ADMIN;
+    if (rol.includes('gestor') && rol.includes('flota')) return PANEL_GESTOR_FLOTA;
+    if (rol === 'coordinador') return PANEL_COORDINADOR;
+    return PANEL_CONDUCTOR;
+}
+
+// db.js devuelve esErrorConexion; versiones anteriores usaban esFalloConexion.
+// Se aceptan ambos para que un fallo de red nunca se confunda con
+// "usuario o contraseña incorrectos".
+function esFalloDeConexion(res) {
+    return !!(res && (res.esErrorConexion || res.esFalloConexion));
+}
+
 function mostrarError(msg) {
     const d = document.getElementById('error-msg');
     d.innerText = msg; d.style.display = 'block';
@@ -515,6 +545,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('va-password').addEventListener('keydown', e => {
         if (e.key === 'Enter') verificarAdmin();
     });
+    // Enter en la contraseña del login también inicia sesión
+    document.getElementById('pass').addEventListener('keydown', e => {
+        if (e.key === 'Enter') login();
+    });
 });
 
 async function verificarAdmin() {
@@ -546,7 +580,7 @@ async function verificarAdmin() {
                 err.textContent = 'Este usuario no tiene permisos de administrador';
                 err.style.display = 'block';
             }
-        } else if (res.esFalloConexion) {
+        } else if (esFalloDeConexion(res)) {
             err.textContent = res.error || 'No se pudo conectar con el servidor. Verifica tu conexión e intenta de nuevo.';
             err.style.display = 'block';
         } else {
@@ -681,31 +715,20 @@ async function login() {
         const res = await DB.login(u, p);
         if (res.ok && res.data) {
             localStorage.setItem('usuario_sesion', JSON.stringify(res.data));
-            const rol = norm(res.data.rol);
-            const usr = norm(res.data.usuario || u);
-
-            if (rol === 'admin' || rol === 'administrador' || usr === 'admin') {
-                window.location.href = 'dashboard.html';
-            } else if (rol === 'gestor_flota' || rol === 'gestor de flotas jr' || rol === 'gestor de flota jr' || rol === 'gestor flota jr') {
-                window.location.href = 'panel_automotor.html';
-            } else if (rol === 'coordinador') {
-                window.location.href = 'panel_coordinador.html';
-            } else {
-                window.location.href = 'panel_conductor.html';
-            }
-        } else if (res.esFalloConexion) {
-            // 🆕 v12.15 — antes esto caía en el "else" de abajo y
-            // mostraba "Usuario o contraseña incorrectos" aunque el
-            // problema real era que no se pudo conectar con el backend.
+            const destino = rutaPorRol(res.data.rol, res.data.usuario || u);
+            console.log('🔐 Login OK → rol:', JSON.stringify(res.data.rol), '→', destino);
+            window.location.href = destino;
+            return; // la página se va; no restablecer el botón
+        } else if (esFalloDeConexion(res)) {
             mostrarError(res.error || "No se pudo conectar con el servidor. Verifica tu conexión e intenta de nuevo.");
         } else {
             mostrarError("Usuario o contraseña incorrectos");
         }
     } catch(e) {
+        console.error('Error en login:', e);
         mostrarError("Error de conexión con el servidor");
-    } finally {
-        btn.disabled = false; btn.innerText = "INGRESAR AL SISTEMA";
     }
+    btn.disabled = false; btn.innerText = "INGRESAR AL SISTEMA";
 }
 
 // ── REGISTRO ─────────────────────────────────────────────
@@ -750,10 +773,12 @@ async function ejecutarRegistro() {
 
     try {
         const res = await DB.registrarUsuario({
+            // 🆕 id = cédula, igual que en los usuarios creados manualmente
+            // en Supabase (la tabla usa la cédula como id de texto).
+            id: usuario,
             nombre, usuario, password, telefono, rol, regional, placa_asignada: placaFinal,
-            // 🆕 Trazabilidad de la autorización de tratamiento de datos —
-            // queda registrada con fecha/hora exacta de aceptación, para
-            // poder demostrar el consentimiento si se requiere.
+            // Trazabilidad de la autorización de tratamiento de datos —
+            // queda registrada con fecha/hora exacta de aceptación.
             acepta_tratamiento_datos: true,
             fecha_aceptacion_datos: new Date().toISOString(),
         });
@@ -876,15 +901,8 @@ function limpiarCarroza() {
 <!-- ── SERVICE WORKER + PWA INSTALL ── -->
 <script>
 // ── SERVICE WORKER ──
-// 🆕 FIX BUG "hay que dar muchos clics al acceso directo para que
-// cargue": antes, si se publicaba una versión nueva del Service Worker,
-// esta se quedaba "esperando" (waiting) hasta que el usuario cerrara
-// todas las instancias de la app, así que el ícono del acceso directo
-// parecía no responder / mostrar la versión vieja varios intentos.
-// Ahora, apenas se detecta una versión nueva instalada, se le pide que
-// tome el control de inmediato (SKIP_WAITING) y se recarga la página
-// UNA sola vez para que quede al día — sin que el usuario tenga que
-// hacer nada manualmente.
+// Apenas se detecta una versión nueva instalada, se le pide que tome el
+// control de inmediato (SKIP_WAITING) y se recarga la página UNA sola vez.
 if ('serviceWorker' in navigator) {
     let recargandoPorSW = false;
 
@@ -893,14 +911,10 @@ if ('serviceWorker' in navigator) {
             .then(reg => {
                 console.log('✅ SW J.R. registrado:', reg.scope);
 
-                // Si ya hay una versión nueva esperando (por ejemplo,
-                // porque se instaló en una pestaña anterior), actívala ya.
                 if (reg.waiting) {
                     reg.waiting.postMessage('SKIP_WAITING');
                 }
 
-                // Si se detecta una actualización mientras la app está
-                // abierta, activarla apenas termine de instalarse.
                 reg.addEventListener('updatefound', () => {
                     const nuevoSW = reg.installing;
                     if (!nuevoSW) return;
@@ -914,8 +928,6 @@ if ('serviceWorker' in navigator) {
             .catch(err => console.error('❌ Error SW:', err));
     });
 
-    // Cuando el nuevo SW toma el control, recargamos una sola vez para
-    // que la app quede sirviéndose desde la versión actualizada.
     navigator.serviceWorker.addEventListener('controllerchange', () => {
         if (recargandoPorSW) return;
         recargandoPorSW = true;
@@ -929,9 +941,9 @@ let deferredPrompt = null;
 window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
-    const yaInstalada = window.matchMedia('(display-mode: standalone)').matches
-                     || window.navigator.standalone === true;
-    if (!yaInstalada && !sessionStorage.getItem('pwa_descartada')) {
+    const yaInstaladaEv = window.matchMedia('(display-mode: standalone)').matches
+                       || window.navigator.standalone === true;
+    if (!yaInstaladaEv && !sessionStorage.getItem('pwa_descartada')) {
         document.getElementById('pwa-install-bar').classList.add('visible');
     }
 });
@@ -944,7 +956,6 @@ window.addEventListener('appinstalled', () => {
 
 async function instalarPWA() {
     if (deferredPrompt) {
-        // Chrome/Edge Android — instalación nativa
         deferredPrompt.prompt();
         const { outcome } = await deferredPrompt.userChoice;
         if (outcome === 'accepted') {
@@ -952,7 +963,6 @@ async function instalarPWA() {
         }
         deferredPrompt = null;
     } else {
-        // Navegador sin soporte automático — mostrar instrucciones manuales
         mostrarInstruccionesManuales();
     }
 }
@@ -994,13 +1004,12 @@ function mostrarInstruccionesManuales() {
 }
 
 // Si en 3 segundos no hubo beforeinstallprompt (Samsung, Firefox, iOS),
-// mostrar la barra igual para que puedan ver las instrucciones manuales
-// Verificar si ya está instalada como PWA (modo standalone)
+// mostrar la barra igual para que puedan ver las instrucciones manuales.
 const yaInstalada = window.matchMedia('(display-mode: standalone)').matches
                  || window.navigator.standalone === true;
 
 setTimeout(() => {
-    if (yaInstalada) return; // Ya instalada — no mostrar nada
+    if (yaInstalada) return;
     if (!deferredPrompt && !sessionStorage.getItem('pwa_descartada')) {
         const bar = document.getElementById('pwa-install-bar');
         if (!bar.classList.contains('visible')) {
