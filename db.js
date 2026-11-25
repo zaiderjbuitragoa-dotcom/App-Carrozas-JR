@@ -1,6 +1,6 @@
 /**
  * ══════════════════════════════════════════════════════════
- *  CONECTOR J.R. CARROZAS — db.js  v13.2 (SUPABASE)
+ *  CONECTOR J.R. CARROZAS — db.js  v13.3 (SUPABASE)
  *
  *  🆕 MIGRACIÓN A SUPABASE (Postgres real) — reemplaza a
  *  Google Apps Script + Google Sheets como backend.
@@ -52,6 +52,17 @@
  *    pasaba con "cierre_pendiente").
  *  - No se tocó ninguna tabla ni columna en Supabase. Usa
  *    "notificaciones_apoyo" tal cual ya existía.
+ *
+ *  🆕 v13.3 — SANEO DE SALIDAS PENDIENTES:
+ *  - obtenerNotificaciones() ahora respeta { todas:true } (vista
+ *    nacional del administrador). Antes devolvía [] sin regional
+ *    y la campana del dashboard siempre salía vacía.
+ *  - Las salidas "saneadas" (columna traslado.saneada = true) ya no
+ *    cuentan como abiertas en buscarTrasladoAbiertoPorPlaca() ni en
+ *    obtenerPlacasConTrasladoActivo().
+ *  - Nuevo DB.ponerOperativa(placa): llama a la función SQL
+ *    poner_operativa(), que deja la carroza Disponible y sanea sus
+ *    salidas sin llegada.
  * ══════════════════════════════════════════════════════════
  */
 
@@ -441,7 +452,7 @@ async function buscarTrasladoAbiertoPorPlaca(placa) {
     const pBase = String(r.placa || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
     const sinRegresoEnTraslado = (r.hora_de_ingreso === undefined || r.hora_de_ingreso === null || String(r.hora_de_ingreso).trim() === '');
     const yaTieneLlegada = r.id_salida && idsConLlegada.has(String(r.id_salida).trim());
-    return pBase === pSel && sinRegresoEnTraslado && !yaTieneLlegada;
+    return pBase === pSel && sinRegresoEnTraslado && !yaTieneLlegada && r.saneada !== true;
   });
   if (!abiertos.length) return null;
   abiertos.sort((a, b) => claveOrden(b) - claveOrden(a));
@@ -774,7 +785,7 @@ const DB = {
       const abiertos = traslados.filter(r => {
         const sinRegreso = (r.hora_de_ingreso === undefined || r.hora_de_ingreso === null || String(r.hora_de_ingreso).trim() === '');
         const yaTieneLlegada = r.id_salida && idsConLlegada.has(String(r.id_salida).trim());
-        return sinRegreso && !yaTieneLlegada;
+        return sinRegreso && !yaTieneLlegada && r.saneada !== true;
       });
       const porPlaca = {};
       abiertos.forEach(r => {
@@ -1395,9 +1406,10 @@ const DB = {
     opts = opts || {};
     try {
       const regionalNorm = normTexto(regional);
-      if (!regionalNorm) return { ok: true, data: [] };
+      if (!regionalNorm && !opts.todas) return { ok: true, data: [] };
       const rows = await gasGet('notificaciones_apoyo');
       let filtradas = rows.filter(r => {
+        if (opts.todas) return true; // vista nacional (admin): todas las regionales
         const alcanceNorm = normTexto(r.alcance), regCampoNorm = normTexto(r.regional);
         const esGlobal = alcanceNorm === 'global' || alcanceNorm === 'todas' || alcanceNorm === 'nacional' || alcanceNorm === 'general';
         const formatoNuevo = alcanceNorm === 'regional' && regCampoNorm === regionalNorm;
@@ -1423,6 +1435,17 @@ const DB = {
     const res = await gasWrite('notificaciones_apoyo', fila, 'insert');
     if (res.ok) DB.invalidarCache('notificaciones_apoyo');
     return res;
+  },
+
+  // Pone la carroza Disponible y sanea sus salidas sin llegada (función SQL poner_operativa)
+  async ponerOperativa(placa) {
+    try {
+      if (!placa) return { ok: false, error: 'ponerOperativa requiere la placa' };
+      const { data, error } = await _sb().rpc('poner_operativa', { p_placa: placa });
+      if (error) return { ok: false, error: error.message };
+      ['Traslado', 'carrozas', 'notificaciones_apoyo', 'Llegadas'].forEach(n => DB.invalidarCache(n));
+      return { ok: true, saneadas: data };
+    } catch (e) { return { ok: false, error: e.message }; }
   },
 
   async marcarNotificacionLeida(id) {
