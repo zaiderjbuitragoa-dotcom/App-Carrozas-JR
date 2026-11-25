@@ -145,6 +145,9 @@
             font-weight: 700;
             margin-top: 4px;
         }
+        .ci-botones { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
+        .ci-btn { border:1.5px solid #cbd5e1; background:#fff; color:var(--azul); font-size:10.5px; font-weight:700; padding:6px 10px; border-radius:8px; cursor:pointer; font-family:inherit; }
+        .ci-btn-op { background:#ecfdf5; border-color:#10b981; color:#047857; }
         .campana-vacio {
             padding: 26px 16px;
             text-align: center;
@@ -387,7 +390,7 @@
     </div>
 </div>
 
-<script src="db.js?v=13.2"></script>
+<script src="db.js?v=13.3"></script>
 <script src="push-subscribe.js"></script>
 <!-- ══ MODAL: LISTA DE SALIDAS ══ -->
 <div class="modal-overlay" id="modal-salidas" onclick="if(event.target===this)cerrarModalSalidas()">
@@ -518,13 +521,38 @@
             // Igual que en panel_coordinador: las de "cierre_pendiente"
             // solo se muestran si ese servicio sigue realmente abierto,
             // así la campana se limpia sola al registrar la Llegada.
+            // Se excluyen los avisos informativos por regional (una por cada
+            // salida / vehículo en tránsito): son cientos y no requieren acción
+            // del administrador. La campana nacional muestra lo accionable.
+            const TIPOS_INFORMATIVOS = ['salida_operativa', 'vehiculo_en_transito'];
             const relevantes = resNotis.data.filter(n => {
-                if (normTexto_(n.tipo) !== 'cierre_pendiente') return true;
+                const tipo = normTexto_(n.tipo);
+                if (TIPOS_INFORMATIVOS.indexOf(tipo) !== -1) return false;
+                if (tipo !== 'cierre_pendiente') return true;
                 const idSalida = String(n.id_salida_ref || '').trim();
                 return idSalida ? idsAbiertos.has(idSalida) : true;
             });
 
-            notisNacional = relevantes;
+            // Salidas abiertas (sin llegada y no saneadas) que no tienen ya una
+            // notificación de cierre: se listan para poder cerrarlas desde aquí.
+            const conNoti = new Set(relevantes
+                .filter(n => normTexto_(n.tipo) === 'cierre_pendiente')
+                .map(n => String(n.id_salida_ref || '').trim()));
+
+            const abiertas = (resAbiertos && resAbiertos.ok ? resAbiertos.data : [])
+                .filter(t => !conNoti.has(String(t.id_salida || '').trim()))
+                .map(t => ({
+                    id: 'abierta-' + t.id_salida,
+                    tipo: 'salida_abierta',
+                    placa: t.placa,
+                    regional: t.regional,
+                    id_salida_ref: t.id_salida,
+                    titulo: 'Salida sin cerrar — ' + t.placa,
+                    cuerpo: 'Salió el ' + formatearFecha(t.fecha) + ' a las ' + (t.hora_de_salida || '--:--') +
+                            '. Conductor: ' + (t.conductor || 's/d') + '.'
+                }));
+
+            notisNacional = relevantes.concat(abiertas);
             renderCampana();
         } catch (e) {
             console.warn('No se pudieron cargar las notificaciones nacionales:', e.message);
@@ -537,6 +565,7 @@
 
     const ICONOS_POR_TIPO = {
         cierre_pendiente:  '🚨',
+        salida_abierta:    '🚨',
         averia_reportada:  '⚠️',
         apoyo_aceptado:    '🤝',
         apoyo_solicitado:  '📤',
@@ -575,6 +604,20 @@
             const cta = esCierre && placaSegura ? 'Tocar para registrar la llegada →' : 'Tocar para marcar como leída ✓';
             const regionalTag = n.regional ? `<span class="ci-regional-tag">${n.regional}</span>` : '';
 
+            // Salidas pendientes de cierre: botones para poner la carroza
+            // operativa (sanea la salida) o registrar la llegada real.
+            if ((esCierre || n.tipo === 'salida_abierta') && placaSegura) {
+                return `
+                <div class="campana-item" style="cursor:default;">
+                    <div class="ci-placa">${icono} ${titulo} ${regionalTag}</div>
+                    <div class="ci-detalle">${detalle || 'Sin más detalles'}</div>
+                    <div class="ci-botones">
+                        <button class="ci-btn ci-btn-op" onclick="ponerOperativa('${placaSegura}')">✅ Poner operativa</button>
+                        <button class="ci-btn" onclick="irARegistrarLlegada('${placaSegura}', '${idSeguro}')">🏁 Registrar llegada</button>
+                    </div>
+                </div>`;
+            }
+
             return `
                 <div class="campana-item" onclick="${accion}">
                     <div class="ci-placa">${icono} ${titulo} ${regionalTag}</div>
@@ -601,12 +644,21 @@
     // directo a registro_llegada.html con la placa preseleccionada
     // (sin importar de qué regional sea), y se marca como leída.
     function irARegistrarLlegada(placa, idNotificacion) {
-        if (idNotificacion) marcarNotificacionLeida(idNotificacion, true);
+        if (idNotificacion && !String(idNotificacion).startsWith('abierta-')) marcarNotificacionLeida(idNotificacion, true);
         window.location.href = 'registro_llegada.html?placa=' + encodeURIComponent(placa);
+    }
+
+    // Deja la carroza Disponible y sanea sus salidas pendientes de cierre
+    async function ponerOperativa(placa) {
+        if (!confirm('¿Poner la carroza ' + placa + ' como OPERATIVA?\n\nLa salida pendiente quedará saneada sin registrar llegada.')) return;
+        const res = await DB.ponerOperativa(placa);
+        if (!res.ok) { alert('No se pudo poner operativa: ' + res.error); return; }
+        await Promise.all([cargarFlota(), cargarNotificacionesNacional()]);
     }
 
     async function marcarNotificacionLeida(id, silencioso) {
         if (!id) return;
+        if (String(id).startsWith('abierta-')) return;
         try {
             await DB.marcarNotificacionLeida(id);
             notisNacional = notisNacional.filter(n => String(n.id) !== String(id));
@@ -623,6 +675,7 @@
         notisNacional = [];
         renderCampana();
         for (const n of pendientes) {
+            if (String(n.id).startsWith('abierta-')) continue;
             try { await DB.marcarNotificacionLeida(n.id); } catch (err) { /* se reintentará en el próximo polling */ }
         }
     }
@@ -953,4 +1006,3 @@
 <script src="config-aplicar.js"></script>
 </body>
 </html>
-
