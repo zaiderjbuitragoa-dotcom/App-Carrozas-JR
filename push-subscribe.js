@@ -50,15 +50,28 @@
     };
 
     // "endpoint" es UNIQUE en la tabla — si ya existía esta suscripción
-    // (mismo navegador/dispositivo), se actualiza en vez de duplicarla.
-    const resInsert = await DB.supabase.from('push_subscriptions').insert(fila);
-    if (resInsert.error) {
-      const msg = String(resInsert.error.message || '').toLowerCase();
-      if (msg.includes('duplicate') || msg.includes('unique')) {
-        await DB.supabase.from('push_subscriptions').update(fila).eq('endpoint', fila.endpoint);
-      } else {
-        console.warn('⚠️ No se pudo guardar la suscripción push:', resInsert.error.message);
+    // (mismo navegador/dispositivo) se actualiza en vez de duplicarla.
+    // Se usa UPSERT: una sola petición, sin provocar el error de clave
+    // duplicada que antes quedaba registrado en los logs de Postgres en
+    // cada carga de pantalla (insert -> duplicado -> update).
+    try {
+      if (typeof _sb === 'function') {
+        const { error } = await _sb().from('push_subscriptions').upsert(fila, { onConflict: 'endpoint' });
+        if (error) console.warn('⚠️ No se pudo guardar la suscripción push:', error.message);
+        return;
       }
+    } catch (e) {
+      console.warn('⚠️ Upsert de suscripción push falló, se usa el método alterno:', e.message);
+    }
+
+    // Método alterno (si _sb no está disponible): consulta primero y luego
+    // actualiza o inserta, también sin generar errores de duplicado.
+    const existente = await DB.supabase.from('push_subscriptions').select('endpoint').eq('endpoint', fila.endpoint);
+    if (existente.data && existente.data.length) {
+      await DB.supabase.from('push_subscriptions').update(fila).eq('endpoint', fila.endpoint);
+    } else {
+      const resInsert = await DB.supabase.from('push_subscriptions').insert(fila);
+      if (resInsert.error) console.warn('⚠️ No se pudo guardar la suscripción push:', resInsert.error.message);
     }
   }
 
