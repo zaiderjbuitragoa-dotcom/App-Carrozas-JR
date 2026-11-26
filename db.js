@@ -1,6 +1,6 @@
 /**
  * ══════════════════════════════════════════════════════════
- *  CONECTOR J.R. CARROZAS — db.js  v13.3 (SUPABASE)
+ *  CONECTOR J.R. CARROZAS — db.js  v13.4 (SUPABASE)
  *
  *  🆕 MIGRACIÓN A SUPABASE (Postgres real) — reemplaza a
  *  Google Apps Script + Google Sheets como backend.
@@ -63,8 +63,31 @@
  *  - Nuevo DB.ponerOperativa(placa): llama a la función SQL
  *    poner_operativa(), que deja la carroza Disponible y sanea sus
  *    salidas sin llegada.
+ *
+ *  🆕 v13.4 — AHORRO DE EGRESS (cuota de transferencia):
+ *  - Guardas de salida filtran en el servidor (ya no bajan
+ *    traslado/llegadas completas en cada salida).
+ *  - Login consulta solo al usuario (ya no baja toda la tabla).
+ *  - Logo: se pide solo esa fila y se guarda 24 h en localStorage.
+ *  - Fotos: se comprimen antes de subir (no las firmas) y se
+ *    cachean 1 año en el CDN.
+ *  - Los setInterval de 5 s o más no corren con la pestaña oculta.
+ *  - CACHE_TTL de 30 s a 60 s.
  * ══════════════════════════════════════════════════════════
  */
+
+// ── No refrescar con la pestaña oculta (solo intervalos >= 5 s;
+// los relojes de 1 s no se tocan). ──────────────────────────
+(function () {
+  if (window.__jrIntervalPatch) return;
+  window.__jrIntervalPatch = true;
+  const _si = window.setInterval.bind(window);
+  window.setInterval = function (fn, ms) {
+    const args = Array.prototype.slice.call(arguments, 2);
+    if (typeof fn !== 'function' || !(ms >= 5000)) return _si.apply(null, arguments);
+    return _si(function () { if (!document.hidden) fn.apply(null, args); }, ms);
+  };
+})();
 
 // ── Carga síncrona de supabase-js ANTES de seguir parseando
 // este archivo (document.write durante el parseo del <script
@@ -328,7 +351,7 @@ function saneaNumericos(real, row) {
 //  PRIMITIVAS GENÉRICAS DE LECTURA/ESCRITURA
 // ══════════════════════════════════════════════════════════
 const _cache = {};       // { logico: { ts, data } }
-const CACHE_TTL = 30000; // 30s — suficiente para absorber refrescos automáticos de 17-30s sin perder actualidad
+const CACHE_TTL = 60000; // 60s — absorbe los refrescos automáticos y reduce el egress
 
 async function gasGet(logico) {
   const c = _cache[logico];
@@ -371,12 +394,40 @@ function dataUrlABlob(dataUrl) {
   return new Blob([bytes], { type: mime });
 }
 
+function comprimirDataUrl(dataUrl, maxLado, calidad) {
+  maxLado = maxLado || 1280; calidad = calidad || 0.7;
+  return new Promise(function (res) {
+    try {
+      if (typeof document === 'undefined' || !/^data:image\/(jpeg|jpg|png|webp)/i.test(dataUrl)) return res(dataUrl);
+      const img = new Image();
+      img.onload = function () {
+        try {
+          const k = Math.min(1, maxLado / Math.max(img.width, img.height));
+          const c = document.createElement('canvas');
+          c.width = Math.max(1, Math.round(img.width * k));
+          c.height = Math.max(1, Math.round(img.height * k));
+          const ctx = c.getContext('2d');
+          ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+          ctx.drawImage(img, 0, 0, c.width, c.height);
+          const out = c.toDataURL('image/jpeg', calidad);
+          res(out.length < dataUrl.length ? out : dataUrl);
+        } catch (_) { res(dataUrl); }
+      };
+      img.onerror = function () { res(dataUrl); };
+      img.src = dataUrl;
+    } catch (_) { res(dataUrl); }
+  });
+}
+
 async function subirFoto(campo, dataUrl) {
   try {
+    // Las firmas (PNG transparentes) no se comprimen.
+    if (!/firma/i.test(campo)) dataUrl = await comprimirDataUrl(dataUrl);
     const blob = dataUrlABlob(dataUrl);
     const ext = (blob.type.split('/')[1] || 'jpg').split('+')[0];
     const nombreArchivo = `${campo}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-    const { error } = await _sb().storage.from('fotos').upload(nombreArchivo, blob, { contentType: blob.type, upsert: false });
+    const { error } = await _sb().storage.from('fotos').upload(nombreArchivo, blob,
+      { contentType: blob.type, upsert: false, cacheControl: '31536000' });
     if (error) { console.warn(`No se pudo subir "${campo}" a Storage, se deja el dato original:`, error.message); return null; }
     const { data } = _sb().storage.from('fotos').getPublicUrl(nombreArchivo);
     return (data && data.publicUrl) || null;
@@ -446,22 +497,35 @@ async function buscarTrasladoAbiertoPorPlaca(placa) {
   const pSel = String(placa || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
   if (!pSel) return null;
   delete _cache['Traslado']; delete _cache['Llegadas'];
-  const [rows, llegadas] = await Promise.all([gasGet('Traslado'), gasGet('Llegadas')]);
-  const idsConLlegada = new Set(llegadas.map(l => String(l.id_salida || '').trim()).filter(Boolean));
-  const abiertos = rows.filter(r => {
-    const pBase = String(r.placa || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
-    const sinRegresoEnTraslado = (r.hora_de_ingreso === undefined || r.hora_de_ingreso === null || String(r.hora_de_ingreso).trim() === '');
-    const yaTieneLlegada = r.id_salida && idsConLlegada.has(String(r.id_salida).trim());
-    return pBase === pSel && sinRegresoEnTraslado && !yaTieneLlegada && r.saneada !== true;
-  });
+  // Solo traslados sin hora de ingreso (pocas filas), no la tabla completa.
+  const { data, error } = await _sb().from(tablaReal('Traslado')).select('*')
+    .or('hora_de_ingreso.is.null,hora_de_ingreso.eq.');
+  if (error) throw new Error(error.message);
+  const rows = fromDbRows('Traslado', data || []).filter(r =>
+    String(r.placa || '').replace(/[^A-Z0-9]/gi, '').toUpperCase() === pSel && r.saneada !== true);
+  if (!rows.length) return null;
+
+  // Solo se consultan las llegadas de esos id_salida.
+  const ids = rows.map(r => r.id_salida).filter(Boolean);
+  let conLlegada = new Set();
+  if (ids.length) {
+    const { data: ll, error: e2 } = await _sb().from(tablaReal('Llegadas')).select('id_salida').in('id_salida', ids);
+    if (e2) throw new Error(e2.message);
+    conLlegada = new Set((ll || []).map(l => String(l.id_salida || '').trim()));
+  }
+  const abiertos = rows.filter(r => !(r.id_salida && conLlegada.has(String(r.id_salida).trim())));
   if (!abiertos.length) return null;
   abiertos.sort((a, b) => claveOrden(b) - claveOrden(a));
   return abiertos[0];
 }
 
 async function buscarTrasladoDuplicadoPorContenido(d) {
-  delete _cache['Traslado'];
-  const rows = await gasGet('Traslado');
+  // Solo las salidas de hoy, filtradas en el servidor.
+  const { data, error } = await _sb().from(tablaReal('Traslado'))
+    .select('id_salida,placa,conductor,fecha,hora_de_salida,motivo_de_salida')
+    .eq('fecha', fechaHoy());
+  if (error) throw new Error(error.message);
+  const rows = fromDbRows('Traslado', data || []);
   const pSel = String(d.placa || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
   const norm = s => String(s || '').trim().toLowerCase();
   return rows.find(r =>
@@ -736,17 +800,25 @@ const DB = {
 
   // ── LOGIN ──────────────────────────────────────────────────
   async login(usuario, clave) {
-    let rows;
+    const u = String(usuario || '').trim();
+    const c = String(clave || '').trim();
+    let data;
     try {
-      rows = await gasGet('usuarios');
+      // Solo se pide al usuario que intenta entrar, no toda la tabla.
+      const r = await _sb().from('usuarios').select('*')
+        .ilike('usuario', u.replace(/[%_\\]/g, '\\$&'))
+        .eq('password', c)
+        .limit(5);
+      if (r.error) throw new Error(r.error.message);
+      data = r.data || [];
     } catch (e) {
       console.error('login: no se pudo leer "usuarios":', e.message);
       return { ok: false, esErrorConexion: true, error: 'No se pudo conectar con el servidor. Verifica tu conexión a internet e intenta nuevamente.' };
     }
     try {
-      const match = rows.filter(r =>
-        String(r.usuario || '').trim().toLowerCase() === String(usuario).trim().toLowerCase() &&
-        String(r.password || '').trim()               === String(clave).trim()
+      const match = fromDbRows('usuarios', data).filter(r =>
+        String(r.usuario || '').trim().toLowerCase() === u.toLowerCase() &&
+        String(r.password || '').trim() === c
       );
       return match.length > 0 ? { ok: true, data: match[0] } : { ok: false, error: 'Usuario o contraseña incorrectos' };
     } catch (e) { return { ok: false, error: e.message }; }
@@ -1297,28 +1369,36 @@ const DB = {
   },
 
   async obtenerLogo() {
+    const KEY = 'jr_logo_cache';
     try {
-      const rows = await gasGet('config');
-      const fila = rows.find(r => String(r.clave || '').trim() === 'logo_app');
-      return { ok: true, logo: (fila && fila.valor && fila.valor.length > 10) ? fila.valor : null };
+      try {
+        const c = JSON.parse(localStorage.getItem(KEY) || 'null');
+        if (c && c.logo && (Date.now() - c.ts) < 86400000) return { ok: true, logo: c.logo };
+      } catch (_) {}
+      // Solo la fila del logo, no toda la tabla config.
+      const { data, error } = await _sb().from('config').select('valor').eq('clave', 'logo_app').maybeSingle();
+      if (error) throw new Error(error.message);
+      const logo = (data && data.valor && data.valor.length > 10) ? data.valor : null;
+      try { if (logo) localStorage.setItem(KEY, JSON.stringify({ ts: Date.now(), logo: logo })); else localStorage.removeItem(KEY); } catch (_) {}
+      return { ok: true, logo: logo };
     } catch (e) { return { ok: false, logo: null, error: e.message }; }
   },
 
   async guardarLogo(base64) {
     try {
-      const rows = await gasGet('config');
-      const existe = rows.find(r => String(r.clave || '').trim() === 'logo_app');
+      const { data: existe, error: e0 } = await _sb().from('config').select('clave').eq('clave', 'logo_app').maybeSingle();
+      if (e0) throw new Error(e0.message);
       let res;
       if (existe) res = await gasWrite('config', { valor: base64 }, 'update', 'clave', 'logo_app');
       else        res = await gasWrite('config', { clave: 'logo_app', valor: base64 }, 'insert');
-      if (res.ok) this.invalidarCache('config');
+      if (res.ok) { this.invalidarCache('config'); try { localStorage.removeItem('jr_logo_cache'); } catch (_) {} }
       return res;
     } catch (e) { return { ok: false, error: e.message }; }
   },
 
   async eliminarLogo() {
     const res = await gasWrite('config', { valor: '' }, 'update', 'clave', 'logo_app');
-    if (res.ok) this.invalidarCache('config');
+    if (res.ok) { this.invalidarCache('config'); try { localStorage.removeItem('jr_logo_cache'); } catch (_) {} }
     return res;
   },
 

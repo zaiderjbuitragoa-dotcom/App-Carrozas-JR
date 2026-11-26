@@ -36,7 +36,8 @@
 //       plano por si acaso). Así la app abre rápido siempre, con o sin
 //       buena señal.
 
-const CACHE_NAME = 'jr-carrozas-v16';
+const CACHE_NAME = 'jr-carrozas-v17';
+// 🆕 v17 — db.js v13.4 (ahorro de egress: guardas, login, logo y fotos livianos).
 // 🆕 v16 — db.js suma la herramienta de migración base64->Storage y los paneles
 // refrescan cada 3 min (solo con la pestaña visible) para bajar el egress de
 // Supabase. Se sube CACHE_NAME para que los celulares con la PWA instalada
@@ -76,7 +77,7 @@ const urlsToCache = [
   './flota.html',
   './taller.html',
   './dashboard.html',
-  './db.js?v=13.2',
+  './db.js?v=13.4',
   './push-subscribe.js',
 
   './config-aplicar.js',
