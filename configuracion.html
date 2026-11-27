@@ -435,13 +435,18 @@
             <div class="form-group" style="margin-top:12px;"><label>Límite de KM para alerta</label><input type="text" id="km-limite" value="5000" placeholder="5000"></div>
         </div>
         <div class="card">
-            <div class="card-title">💾 Base de Datos</div>
-            <div style="background:var(--fondo); border-radius:10px; padding:13px; font-size:13px; color:var(--gris); margin-bottom:14px; border:1.5px solid var(--borde);">
-                <b style="color:var(--texto);">Proyecto:</b> tgvgchjkdvnjfxqdkmdw<br>
-                <b style="color:var(--texto);">Estado:</b> <span style="color:var(--verde); font-weight:700;">● Conectado</span><br>
-                <b style="color:var(--texto);">Tablas:</b> Traslado, Averias, carrozas, mantenimientos, usuarios
+            <div class="card-title">💾 Servidor de datos (para TODOS los usuarios)</div>
+            <div id="bd-estado" style="background:var(--fondo); border-radius:10px; padding:13px; font-size:13px; color:var(--gris); margin-bottom:14px; border:1.5px solid var(--borde); line-height:1.7;">Consultando…</div>
+            <div class="form-group"><label>Servidor que usarán todos los celulares y computadores</label>
+                <select id="bd-backend">
+                    <option value="sheets">Apps Script (Google Sheets)</option>
+                    <option value="supabase">Supabase</option>
+                </select>
             </div>
-            <button class="btn-guardar" style="background:#64748b; margin-top:0;" onclick="limpiarCache()">🗑️ LIMPIAR CACHÉ LOCAL</button>
+            <button class="btn-guardar" style="margin-top:0;" onclick="aplicarBackendGlobal()">✅ APLICAR PARA TODOS</button>
+            <button class="btn-guardar" style="background:#0ea5e9; margin-top:8px;" onclick="probarServidores()">🔌 PROBAR AMBOS SERVIDORES</button>
+            <button class="btn-guardar" style="background:#64748b; margin-top:8px;" onclick="limpiarCache()">🗑️ LIMPIAR CACHÉ LOCAL</button>
+            <p style="font-size:12px; color:var(--gris); margin-top:10px;">Los usuarios no tienen que hacer nada: cada dispositivo consulta este ajuste al abrir la app y se actualiza solo. Los datos de un servidor <b>no se copian</b> al otro.</p>
         </div>
         <button class="btn-guardar" onclick="guardarSistema()">💾 GUARDAR CONFIGURACIÓN</button>
     </section>
@@ -477,7 +482,7 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="db.js?v=13.4"></script>
+<script src="db.js?v=13.6"></script>
 <script>
 // ── PROTECCIÓN ──
 window.onload = async () => {
@@ -731,6 +736,68 @@ function guardarSistema() {
     localStorage.setItem('jr_km_limite', document.getElementById('km-limite').value);
     toast('✅ Configuración guardada','#10b981');
 }
+// ── SERVIDOR DE DATOS GLOBAL (hoja "ajustes_app" del Apps Script) ──
+const GAS_URL = (window.DB && DB.urlGas) || "https://script.google.com/macros/s/AKfycby3-BtZUU8OrRr9eU3cneGdF4fTvsPOtXshrQn0zmxUtLP5AjgF_qSnulTiQD_eFznZUg/exec";
+const SB_URL = 'https://dciegjhrhfvzesvdgkbl.supabase.co', SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRjaWVnamhyaGZ2emVzdmRna2JsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0OTMzNjMsImV4cCI6MjEwNTA2OTM2M30.XJbA1-NXGLD28hgg0NnsEEn4AE_MPrhaSNDDGIqzsIE';
+async function gasFetch(url, opts, ms) {
+    const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), ms || 45000);
+    try { return await fetch(url, Object.assign({ cache: 'no-store', redirect: 'follow', signal: ctl.signal }, opts || {})); }
+    finally { clearTimeout(to); }
+}
+async function leerBackendGlobal() {
+    const r = await gasFetch(GAS_URL + '?sheetName=ajustes_app&_=' + Date.now());
+    const rows = await r.json();
+    if (!Array.isArray(rows)) throw new Error((rows && rows.error) || 'respuesta inesperada');
+    const f = rows.find(x => String(x.clave || '').trim() === 'backend');
+    return f ? String(f.valor || '').trim().toLowerCase() : '';
+}
+async function pintarEstadoBackend() {
+    const el = document.getElementById('bd-estado');
+    const nombre = v => v === 'supabase' ? 'Supabase' : v === 'sheets' ? 'Apps Script (Google Sheets)' : '(sin definir → ' + (window.JR_BACKEND_DEFAULT || 'sheets') + ')';
+    let glob = '';
+    try { glob = await leerBackendGlobal(); }
+    catch (e) { el.innerHTML = '<span style="color:#ef4444;">No se pudo leer el ajuste global: ' + e.message + '</span>'; return; }
+    el.innerHTML = '<b style="color:var(--texto);">Servidor global:</b> ' + nombre(glob) + '<br>' +
+        '<b style="color:var(--texto);">Este dispositivo usa:</b> ' + nombre(window.JR_BACKEND) + (window.JR_BACKEND_FORZADO ? ' <i>(forzado en esta pestaña)</i>' : '');
+    document.getElementById('bd-backend').value = glob || window.JR_BACKEND_DEFAULT || 'sheets';
+}
+async function probarApps() {
+    try { const j = await (await gasFetch(GAS_URL + '?_=' + Date.now())).json(); return j && j.mensaje ? { ok: true, msg: j.mensaje } : { ok: false, msg: 'respuesta inesperada' }; }
+    catch (e) { return { ok: false, msg: e.message }; }
+}
+async function probarSupabase() {
+    try {
+        const r = await gasFetch(SB_URL + '/rest/v1/usuarios?select=usuario&limit=1', { headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY } }, 15000);
+        return r.ok ? { ok: true, msg: 'responde' } : { ok: false, msg: 'HTTP ' + r.status + (r.status === 402 || r.status === 403 || r.status === 521 ? ' (restringido / caído)' : '') };
+    } catch (e) { return { ok: false, msg: e.message }; }
+}
+async function probarServidores() {
+    toast('⏳ Probando…', '#0ea5e9');
+    const [a, s] = await Promise.all([probarApps(), probarSupabase()]);
+    alert('Apps Script: ' + (a.ok ? '✅ ' : '❌ ') + a.msg + '\nSupabase: ' + (s.ok ? '✅ ' : '❌ ') + s.msg);
+}
+async function aplicarBackendGlobal() {
+    const v = document.getElementById('bd-backend').value;
+    toast('⏳ Verificando servidor…', '#0ea5e9');
+    const t = v === 'supabase' ? await probarSupabase() : await probarApps();
+    if (!t.ok) { toast('❌ ' + (v === 'supabase' ? 'Supabase' : 'Apps Script') + ' no responde (' + t.msg + '). No se cambió nada.', '#ef4444'); return; }
+    if (!confirm('Se cambiará el servidor de datos de TODOS los usuarios a ' + (v === 'supabase' ? 'Supabase' : 'Apps Script (Google Sheets)') + '.\n\nLos registros guardados en el otro servidor NO se copian automáticamente. ¿Continuar?')) return;
+    let nombre = 'admin'; try { nombre = JSON.parse(localStorage.getItem('usuario_sesion') || '{}').nombre || 'admin'; } catch (e) {}
+    const q = new URLSearchParams({ sheetName: 'ajustes_app', action: 'update', idCol: 'clave', idValue: 'backend' });
+    try {
+        const r = await gasFetch(GAS_URL + '?' + q, { method: 'POST', headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({ clave: 'backend', valor: v, actualizado_por: nombre, actualizado_en: new Date().toISOString() }) }, 60000);
+        const j = await r.json();
+        if (j.ok === false) throw new Error(j.error || 'error');
+        const ver = await leerBackendGlobal();
+        if (ver !== v) throw new Error('no se confirmó el guardado (¿Code.gs v10.25 desplegado?)');
+        try { localStorage.setItem('jr_backend_global', v); } catch (e) {}
+        toast('✅ Aplicado para todos. Recargando…', '#10b981');
+        setTimeout(() => location.reload(), 900);
+    } catch (e) { toast('❌ ' + e.message, '#ef4444'); }
+}
+window.addEventListener('load', () => { try { pintarEstadoBackend(); } catch (e) {} });
+
 function limpiarCache() {
     ['jr_config_apariencia','jr_permisos','jr_regionales','jr_logo','jr_km_limite','jr_wa_coord','jr_wa_log']
         .forEach(k => localStorage.removeItem(k));
